@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "additionalDirectories": [],
+    "deny": [
+      "WebFetch",
+      "WebSearch"
+    ],
+    "ask": [
+      "Bash(rm:*)",
+      "Bash(rmdir:*)",
+      "Bash(del:*)",
+      "Bash(rd:*)",
+      "Bash(unlink:*)",
+      "Bash(shred:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(pip:*)",
+      "Bash(pip3:*)",
+      "Bash(choco:*)",
+      "Bash(winget:*)",
+      "Bash(scoop:*)",
+      "Bash(dotnet:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(git clone:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "PowerShell(Remove-Item:*)",
+      "PowerShell(rm:*)",
+      "PowerShell(del:*)",
+      "PowerShell(Clear-Content:*)",
+      "PowerShell(Install-Module:*)",
+      "PowerShell(Install-Package:*)",
+      "PowerShell(Invoke-WebRequest:*)",
+      "PowerShell(Invoke-RestMethod:*)",
+      "PowerShell(iwr:*)",
+      "PowerShell(irm:*)",
+      "PowerShell(curl:*)",
+      "PowerShell(npm:*)",
+      "PowerShell(winget:*)",
+      "PowerShell(choco:*)"
+    ]
+  }
+}

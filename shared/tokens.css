@@ -1,0 +1,71 @@
+/* Design tokens. The ONLY place colors, fonts, spacing and radius are defined.
+   Settings can later override these live on :root. */
+:root {
+  /* Brand + surfaces */
+  --color-primary: #2f6fed;
+  --color-primary-hover: #2459c4;
+  --color-primary-soft: #e8f0fe;
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f0f2f5;
+  --color-border: #dde2e8;
+  --color-overlay: rgba(20, 28, 40, 0.45);
+
+  /* Text */
+  --color-text: #1d2733;
+  --color-text-muted: #5f6b7a;
+  --color-text-inverse: #ffffff;
+
+  /* Status (always paired with words) */
+  --color-success: #1e8e4e;
+  --color-success-soft: #e4f5ea;
+  --color-warning: #b26a00;
+  --color-warning-soft: #fff3dc;
+  --color-danger: #c62f2f;
+  --color-danger-soft: #fde8e8;
+  --color-info: #2f6fed;
+  --color-info-soft: #e8f0fe;
+  --color-neutral: #5f6b7a;
+  --color-neutral-soft: #eceff3;
+
+  /* Temperature */
+  --color-hot: #c62f2f;
+  --color-warm: #b26a00;
+  --color-cold: #2f6fed;
+
+  /* Typography */
+  --font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 24px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
+  --line-height: 1.45;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Radius + shadow */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(20, 28, 40, 0.08);
+  --shadow-lg: 0 8px 30px rgba(20, 28, 40, 0.18);
+
+  /* Layout */
+  --topbar-height: 56px;
+  --sidebar-width: 220px;
+  --sidebar-width-collapsed: 64px;
+  --drawer-width: 880px;
+  --modal-width: 520px;
+}

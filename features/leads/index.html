@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leads · Fitness Labs</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <script src="../../shared/data.js"></script>
+  <script src="../../shared/app.js"></script>
+</head>
+<body>
+<div class="app" data-shell="leads" data-root="../../">
+  <main class="main">
+
+    <!-- Debug bar: only with ?debug in the URL -->
+    <div class="debug-bar" id="debugBar" hidden>
+      <strong>Test states:</strong>
+      <button class="btn btn-sm" data-state="normal">Normal</button>
+      <button class="btn btn-sm" data-state="loading">Loading</button>
+      <button class="btn btn-sm" data-state="empty">Empty (no leads)</button>
+      <button class="btn btn-sm" data-state="error">Error</button>
+    </div>
+
+    <div class="page-head">
+      <h1>Leads</h1>
+      <span class="muted" id="leadCount"></span>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" data-new-lead>+ Lead</button>
+    </div>
+
+    <!-- Pipeline cards: click = filter, click again = clear -->
+    <div class="pipeline" id="pipeline"></div>
+
+    <!-- Search + filters -->
+    <div class="filter-bar">
+      <input class="input grow" type="search" id="fSearch" placeholder="Search name, mobile or email" aria-label="Search leads">
+      <select class="input" id="fStage" aria-label="Stage"></select>
+      <select class="input tablet-hide" id="fOwner" aria-label="Owner"></select>
+      <select class="input tablet-hide" id="fSource" aria-label="Source"></select>
+      <select class="input tablet-hide" id="fBranch" aria-label="Branch"></select>
+      <button class="btn" id="btnMore">More filters ▾</button>
+      <button class="btn btn-ghost" id="btnClear">Clear all</button>
+    </div>
+
+    <div class="more-filters" id="moreFilters">
+      <!-- On tablet the main filters move in here -->
+      <div class="field tablet-only-filter"><label for="mOwner">Owner</label><select class="input" id="mOwner"></select></div>
+      <div class="field tablet-only-filter"><label for="mSource">Source</label><select class="input" id="mSource"></select></div>
+      <div class="field tablet-only-filter"><label for="mBranch">Branch</label><select class="input" id="mBranch"></select></div>
+      <div class="field"><label for="fTemp">Temperature</label><select class="input" id="fTemp"></select></div>
+      <div class="field"><label for="fFollow">Follow-up</label><select class="input" id="fFollow"></select></div>
+      <div class="field"><label for="fFrom">Created from</label><input class="input" type="date" id="fFrom"></div>
+      <div class="field"><label for="fTo">Created to</label><input class="input" type="date" id="fTo"></div>
+      <div class="field"><label><input type="checkbox" id="fSynced"> Synced leads only</label></div>
+    </div>
+
+    <div class="active-filters" id="activeFilters"></div>
+
+    <div id="errorBanner" class="banner banner-danger" hidden>
+      <strong>Couldn't load leads.</strong> Please check your connection.
+      <button class="btn btn-sm" id="btnRetry">Retry</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="sticky-1">Name &amp; mobile</th>
+            <th class="sticky-2 col-next">NEXT FOLLOW-UP</th>
+            <th>Stage / temperature</th>
+            <th>Source</th>
+            <th>Owner</th>
+            <th class="col-branch">Branch</th>
+            <th>Last activity</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="stateBox"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Placeholder profile drawer (real drawer = next screen) -->
+<aside class="drawer" id="profileDrawer" aria-label="Lead profile">
+  <div class="drawer-head">
+    <h2 id="dName"></h2>
+    <button class="btn btn-ghost" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+</aside>
+
+<!-- Assign owner modal -->
+<div class="modal" id="assignModal" role="dialog" aria-labelledby="assignTitle">
+  <div class="modal-head"><h3 id="assignTitle">Assign owner</h3><button class="btn btn-ghost" data-close aria-label="Close">✕</button></div>
+  <div class="modal-body">
+    <p class="muted" id="assignFor"></p>
+    <div class="field">
+      <label for="assignUser">Staff member <span class="req">*</span></label>
+      <select class="input" id="assignUser"></select>
+      <span class="hint">Staff from this lead's branch.</span>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" data-close>Cancel</button>
+    <button class="btn btn-primary" id="assignSave">Assign</button>
+  </div>
+</div>
+
+<!-- Placeholder add follow-up modal (real shared flow = Follow-ups screen) -->
+<div class="modal" id="followModal" role="dialog" aria-labelledby="followTitle">
+  <div class="modal-head"><h3 id="followTitle">Add follow-up</h3><button class="btn btn-ghost" data-close aria-label="Close">✕</button></div>
+  <div class="modal-body">
+    <p class="muted" id="followFor"></p>
+    <div class="field">
+      <label>Type <span class="req">*</span></label>
+      <div class="chips" id="followTypes"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="followDate">Date <span class="req">*</span></label><input class="input" type="date" id="followDate"></div>
+      <div class="field"><label for="followTime">Time <span class="req">*</span></label><input class="input" type="time" id="followTime" value="11:00"></div>
+    </div>
+    <div class="field"><label for="followNote">Note</label><textarea class="input" id="followNote" rows="2"></textarea></div>
+    <p class="hint">Assigned to the lead owner. Placeholder — the full follow-up flow comes with the Follow-ups screen.</p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" data-close>Cancel</button>
+    <button class="btn btn-primary" id="followSave">Save follow-up</button>
+  </div>
+</div>
+
+<script src="leads.js"></script>
+</body>
+</html>
