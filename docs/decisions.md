@@ -51,3 +51,11 @@
     active paid membership, so the client already has one).
 21. Leads list default view = open leads only. Lost leads appear only via
     the Lost card or the Lost stage filter. "Needs attention" card is first.
+22. Sidebar count badges (scoped to the "View as" role + top-bar branch):
+    Today = overdue + no follow-up set (same rule and number as the
+    "Needs attention" card); Follow-ups = open follow-ups due today;
+    Tasks = the current user's open tasks. Hidden at 0, "99+" above 99.
+23. App shell is shared by every page. "View as role" lives in the avatar
+    menu and is shown as a "Demo · Viewing as" chip (demo tool only).
+    Sidebar collapse is remembered per session; tablet starts collapsed and
+    expanding it overlays the content.

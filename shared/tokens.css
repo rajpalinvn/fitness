@@ -63,9 +63,36 @@
   --shadow-lg: 0 8px 30px rgba(20, 28, 40, 0.18);
 
   /* Layout */
-  --topbar-height: 56px;
-  --sidebar-width: 220px;
-  --sidebar-width-collapsed: 64px;
+  --topbar-height: 60px;
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 72px;
   --drawer-width: 880px;
   --modal-width: 520px;
+  --palette-width: 600px;
+  --icon-size: 20px;
+
+  /* Shell */
+  --color-sidebar-bg: #ffffff;
+  --color-nav-hover: #f0f2f5;
+  --color-nav-active-bg: #e8f0fe;
+  --color-nav-active-text: #2459c4;
+  --color-accent: #2f6fed;
+  --color-group-label: #8a94a3;
+  --color-avatar-bg: #dbe6fd;
+  --color-avatar-text: #2459c4;
+  --color-tooltip-bg: #1d2733;
+  --color-demo: #b26a00;
+  --color-demo-soft: #fff7e6;
+  --accent-bar-width: 3px;
+  --shadow-md: 0 4px 16px rgba(20, 28, 40, 0.12);
+
+  /* Layers */
+  --z-sticky: 20;
+  --z-sidebar: 40;
+  --z-overlay: 50;
+  --z-drawer: 60;
+  --z-modal: 70;
+  --z-dropdown: 80;
+  --z-palette: 85;
+  --z-toast: 90;
 }

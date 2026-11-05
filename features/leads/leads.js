@@ -4,9 +4,9 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = App.esc;
 
-  // Demo person behind each "View as" role (placeholder until the permission matrix arrives).
-  var ROLE_USER = { "SuperAdmin": "u1", "CEO": "u2", "Regional Manager": "u3", "Club Manager": "u4",
-    "Sales Manager": "u5", "Sales Executive": "u6", "Trainer": "u8", "MXM": "u9" };
+  // Role visibility, next follow-up and "needs attention" come from app.js,
+  // so the sidebar badges and this list always use the same rule.
+  var nextFollowUp = App.nextFollowUp, needsAttention = App.needsAttention;
   var ASSIGNABLE_ROLES = ["Sales Executive", "Sales Manager", "Club Manager"];
 
   var S = { stage: "", attention: false, search: "", owner: "", source: "", branch: App.state.branchId,
@@ -16,12 +16,6 @@
   // ---------- data helpers ----------
   function user(id) { return App.byId(D.users, id); }
   function branch(id) { var b = App.byId(D.branches, id); return b ? b.name : "—"; }
-  function firstName(u) { return u ? u.name.split(" ")[0] : ""; }
-  function nextFollowUp(pid) {
-    var open = D.followUps.filter(function (f) { return f.personId === pid && f.status === "Open"; });
-    open.sort(function (a, b) { return new Date(a.dueAt) - new Date(b.dueAt); });
-    return open[0] || null;
-  }
   function digits(s) {
     var d = String(s || "").replace(/\D/g, "");
     if (d.length === 12 && d.indexOf("91") === 0) d = d.slice(2);
@@ -41,21 +35,14 @@
     return d <= 0 ? "Today" : d === 1 ? "Yesterday" : d + " days ago";
   }
 
-  function canSee(p) {
-    var role = App.state.role, u = user(ROLE_USER[role]);
-    if (role === "Trainer" || role === "MXM") return false;
-    if (role === "Sales Executive") return p.ownerId === u.id;
-    if (role === "SuperAdmin" || role === "CEO") return true;
-    return u.branches.indexOf(p.branchId) > -1;
-  }
+  // Role + branch only: used for the pipeline card counts, so "Needs attention"
+  // always equals the sidebar Today badge (when the list branch = top-bar branch).
+  function scopeLeads() { return S.mode === "empty" ? [] : App.visibleLeads(S.branch); }
 
-  // Everything except the stage / attention cards.
+  // Role + branch + all filters, except the stage / attention cards.
   function baseLeads() {
-    if (S.mode === "empty") return [];
     var q = S.search.trim().toLowerCase(), qd = digits(q);
-    return D.people.filter(function (p) {
-      if (p.type !== "Lead" || !canSee(p)) return false;
-      if (S.branch !== "all" && p.branchId !== S.branch) return false;
+    return scopeLeads().filter(function (p) {
       if (q) {
         var hit = p.name.toLowerCase().indexOf(q) > -1 || (p.email || "").toLowerCase().indexOf(q) > -1;
         if (!hit && qd.length >= 3) hit = digits(p.cc + p.mobile).indexOf(qd) > -1;
@@ -74,11 +61,6 @@
       }
       return true;
     });
-  }
-  function needsAttention(p) {
-    if (p.stage === "Lost") return false;
-    var f = nextFollowUp(p.id), st = App.followUpStatus(f && f.dueAt).cls;
-    return st === "red";
   }
   function applyCards(list) {
     return list.filter(function (p) {
@@ -155,7 +137,7 @@
     if (S.to) tags.push(["to", "Created to " + S.to]);
     if (S.synced) tags.push(["synced", "Synced only"]);
     $("activeFilters").innerHTML = tags.length ? '<span class="muted">Filtered by:</span>' + tags.map(function (t) {
-      return '<button class="filter-tag" data-clear="' + t[0] + '" aria-label="Remove filter ' + esc(t[1]) + '">' + esc(t[1]) + " ✕</button>";
+      return '<button class="filter-tag" data-clear="' + t[0] + '" aria-label="Remove filter ' + esc(t[1]) + '">' + esc(t[1]) + App.icon("x", "ico-sm") + "</button>";
     }).join("") : "";
   }
 
@@ -204,9 +186,9 @@
       '<td class="col-branch">' + esc(branch(p.branchId)) + "</td>" +
       "<td>" + lastActivity(p.lastActivityAt) + "</td>" +
       '<td><div class="row-actions">' +
-        '<button class="btn btn-sm icon-btn" data-act="call" data-id="' + p.id + '" title="Call" aria-label="Call ' + esc(p.name) + '">📞</button>' +
-        '<button class="btn btn-sm icon-btn" data-act="wa" data-id="' + p.id + '" title="WhatsApp" aria-label="WhatsApp ' + esc(p.name) + '">💬</button>' +
-        '<button class="btn btn-sm" data-act="follow" data-id="' + p.id + '">+ Follow-up</button>' +
+        '<button class="btn btn-sm icon-btn" data-act="call" data-id="' + p.id + '" title="Call" aria-label="Call ' + esc(p.name) + '">' + App.icon("phone") + "</button>" +
+        '<button class="btn btn-sm icon-btn" data-act="wa" data-id="' + p.id + '" title="WhatsApp" aria-label="WhatsApp ' + esc(p.name) + '">' + App.icon("message") + "</button>" +
+        '<button class="btn btn-sm" data-act="follow" data-id="' + p.id + '">' + App.icon("plus") + "Follow-up</button>" +
       "</div></td></tr>";
   }
 
@@ -226,15 +208,16 @@
     if (S.mode === "error") { tbody.innerHTML = ""; $("pipeline").innerHTML = ""; $("leadCount").textContent = ""; return; }
 
     var base = baseLeads(), list = sortLeads(applyCards(base));
-    renderPipeline(base); renderActiveFilters();
-    $("leadCount").textContent = list.length + (list.length === 1 ? " lead" : " leads");
+    renderPipeline(scopeLeads()); renderActiveFilters();
+    $("leadCount").textContent = list.length + (list.length === 1 ? " lead" : " leads") +
+      (S.stage === "Lost" ? " · lost" : " · most urgent follow-up first");
     tbody.innerHTML = list.map(row).join("");
     if (list.length) return;
 
-    var anyVisible = S.mode !== "empty" && D.people.some(function (p) { return p.type === "Lead" && canSee(p); });
+    var anyVisible = S.mode !== "empty" && App.visibleLeads("all").length > 0;
     if (S.mode === "empty" || (!anyVisible && App.state.role !== "Trainer" && App.state.role !== "MXM")) {
       box.innerHTML = '<div class="state"><h3>No leads yet</h3><p>Add your first lead to start following up.</p>' +
-        '<button class="btn btn-primary" data-new-lead>+ Lead</button></div>';
+        '<button class="btn btn-primary" data-new-lead>' + App.icon("plus") + "Lead</button></div>";
     } else if (!anyVisible) {
       box.innerHTML = '<div class="state"><h3>No leads assigned to you</h3><p>Viewing as ' + esc(App.state.role) + ".</p></div>";
     } else {
@@ -292,7 +275,7 @@
     $("assignUser").classList.remove("invalid");
     var p = App.byId(D.people, current.personId); p.ownerId = uid;
     D.followUps.forEach(function (f) { if (f.personId === p.id && f.status === "Open") f.ownerId = uid; });
-    App.close($("assignModal")); render();
+    App.close($("assignModal")); render(); App.dataChanged();
     App.toast(p.name + " assigned to " + user(uid).name, "success");
   });
 
@@ -317,7 +300,7 @@
     var due = new Date($("followDate").value + "T" + ($("followTime").value || "11:00"));
     D.followUps.push({ id: "f" + Date.now(), personId: p.id, type: chosenType, dueAt: due.toISOString(),
       ownerId: p.ownerId, status: "Open", outcome: null, note: $("followNote").value || null });
-    App.close($("followModal")); render();
+    App.close($("followModal")); render(); App.dataChanged();
     App.toast("Follow-up added for " + p.name + " · " + shortDate(due) + ", " + time(due), "success");
   });
 
@@ -367,13 +350,10 @@
   $("btnRetry").addEventListener("click", load);
   document.addEventListener("click", function (e) {
     if (e.target.closest("#btnClear2")) clearAll();
-    if (e.target.closest("[data-new-lead]")) App.toast("Quick lead form comes in a later screen", "");
     if (e.target.closest("[data-create-number]")) App.toast("Quick lead form will open with " + S.search.trim() + " prefilled (later screen)", "");
   });
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Enter" && e.target.matches("[data-global-search]")) App.toast("Global search comes in a later screen", "");
-  });
   document.addEventListener("mock:context", function (e) { S.branch = e.detail.branchId; syncControls(); render(); });
+  App.openLead = openDrawer; // used by the command palette
 
   // Debug states: only with ?debug
   if (App.isDebug()) {

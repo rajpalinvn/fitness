@@ -8,16 +8,19 @@
 | Profile drawer (placeholder) | (in list) | Opens on row click. Shows name, mobile, badges, NEXT STEP box, owner, source. Real drawer = `features/profile`. |
 | Assign owner modal | (in list) | Opens from "Assign" in the Owner cell of an unassigned lead. |
 | Add follow-up modal (placeholder) | (in list) | Opens from "+ Follow-up". Real shared flow = `features/followups`. |
-| Quick lead modal | — | "+ Lead" / "Create lead with this number" show a toast for now (later screen). |
+| Quick lead modal | — | Top-bar "+ Lead" (the only one on the page) / "Create lead with this number" show a toast for now (later screen). |
+
+App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shared/shell.js` — see decisions #22–23.
 
 ## 2. Flow
 - Sidebar **Leads** → list (loads with a short skeleton).
 - Pipeline card click → sets the stage filter (or the "Needs attention" filter); card is outlined and a "Filtered by" tag appears. Tag ✕ removes that filter.
-- Row click → profile drawer (placeholder). Esc / click outside / ✕ closes it; list stays behind.
+- Row click → profile drawer (placeholder). Esc / click outside / close (X) closes it; list stays behind.
+- Ctrl+K palette → Enter on a recent lead → same profile drawer.
 - Row actions (max 3; clicking them does NOT open the drawer):
-  - 📞 Call → toast "Calling …" (mockup)
-  - 💬 WhatsApp → toast (mockup)
-  - + Follow-up → add follow-up modal → Save → row updates, toast
+  - Call (phone icon) → toast "Calling …" (mockup)
+  - WhatsApp (message icon) → toast (mockup)
+  - + Follow-up → add follow-up modal → Save → row, cards and sidebar badges update, toast
 - Owner cell "Assign" (unassigned leads only) → assign modal → Assign → row updates, toast.
 - No results + search looks like a phone number → "Create lead with this number" (toast for now; later opens quick lead modal prefilled).
 - Top-bar branch switcher changes the list's branch filter. "View as role" changes what is visible (placeholder rules below).
@@ -40,7 +43,7 @@
 ### Filters
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Search | text | No | — | empty | Name, email, or mobile. Mobile matches with or without +91 or leading 0 (decision #11). |
+| Search ("Filter this list…") | text | No | — | empty | Filters this list only (global search = top bar). Name, email, or mobile. Mobile matches with or without +91 or leading 0 (decision #11). |
 | Stage | select | No | — | "Open leads (all stages)" | Default hides Lost. Lost only via Lost card or this filter. |
 | Owner | select | No | — | All owners | Includes "Unassigned". |
 | Source | select | No | — | All sources | |
@@ -50,7 +53,8 @@
 | Created from / to | date (More filters) | No | — | empty | |
 | Synced leads only | checkbox (More filters) | No | — | off | |
 
-"Needs attention" = open lead whose follow-up is overdue or not set (decision #5). Sort: overdue (oldest first) → not set → due today → scheduled (soonest first); Lost by last activity.
+"Needs attention" = open lead whose follow-up is overdue or not set (decision #5).
+Pipeline card counts use role + branch only (they ignore search and other filters), so "Needs attention" always equals the sidebar Today badge when the list branch matches the top-bar branch (decision #22). Sort: overdue (oldest first) → not set → due today → scheduled (soonest first); Lost by last activity.
 
 ### Assign owner modal
 | Field | Type | Required | Unique | Default | Notes |

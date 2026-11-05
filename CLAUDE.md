@@ -11,9 +11,13 @@
 ## Tech
 - Plain HTML + CSS + small vanilla JS only (drawers, modals, tabs, filters,
   switchers, rendering dummy data). No external libraries or CDNs.
-- Every page links shared/tokens.css, shared/styles.css, shared/app.js,
-  shared/data.js. No inline colors or fonts; tokens only, so the theme can
-  later be changed live from settings.
+- Every page links shared/tokens.css, shared/styles.css, shared/data.js,
+  shared/app.js, shared/shell.js (in that order). No inline colors or fonts;
+  tokens only, so the theme can later be changed live from settings.
+- The app shell (sidebar + top bar) comes ONLY from shared/shell.js: a page
+  wraps its content in <div class="app" data-shell="<key>" data-root="../../">
+  <main class="main">…</main></div>. Never hand-build a sidebar or top bar.
+- Icons: inline SVG via App.icon("name") or <span data-icon="name">. No emoji.
 - Every page opens by double-click in a browser (relative paths only).
 
 ## Screen sizes
@@ -57,3 +61,14 @@
 - After building: update the feature README and index.html, then report
   what you made and what you assumed.
 - Never invent business rules. If docs/ does not answer it, ask.
+
+## Self-check (after every screen)
+- Open the page with and without ?debug; nothing debug-only shows
+  without it.
+- No inline colors/fonts and no emoji as icons; tokens + SVG icons only.
+- No "null", "undefined", "Jan 0001", "[object Object]" anywhere.
+- All states work: normal, empty, no results, loading, error.
+- Checked at 1280px and 900px wide.
+- Max 3 row actions; drawer/modals close with Esc and outside click.
+- README and index.html updated.
+- Report this checklist with pass/fail in your reply.

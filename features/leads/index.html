@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../../shared/styles.css">
   <script src="../../shared/data.js"></script>
   <script src="../../shared/app.js"></script>
+  <script src="../../shared/shell.js"></script>
 </head>
 <body>
 <div class="app" data-shell="leads" data-root="../../">
@@ -22,11 +23,9 @@
       <button class="btn btn-sm" data-state="error">Error</button>
     </div>
 
+    <!-- Page title lives in the top bar; "+ Lead" lives only in the top bar. -->
     <div class="page-head">
-      <h1>Leads</h1>
       <span class="muted" id="leadCount"></span>
-      <div class="spacer"></div>
-      <button class="btn btn-primary" data-new-lead>+ Lead</button>
     </div>
 
     <!-- Pipeline cards: click = filter, click again = clear -->
@@ -34,12 +33,12 @@
 
     <!-- Search + filters -->
     <div class="filter-bar">
-      <input class="input grow" type="search" id="fSearch" placeholder="Search name, mobile or email" aria-label="Search leads">
+      <input class="input grow" type="search" id="fSearch" placeholder="Filter this list: name, mobile or email" aria-label="Filter this list">
       <select class="input" id="fStage" aria-label="Stage"></select>
       <select class="input tablet-hide" id="fOwner" aria-label="Owner"></select>
       <select class="input tablet-hide" id="fSource" aria-label="Source"></select>
       <select class="input tablet-hide" id="fBranch" aria-label="Branch"></select>
-      <button class="btn" id="btnMore">More filters ▾</button>
+      <button class="btn" id="btnMore">More filters <span data-icon="chevron-down"></span></button>
       <button class="btn btn-ghost" id="btnClear">Clear all</button>
     </div>
 
@@ -87,14 +86,14 @@
 <aside class="drawer" id="profileDrawer" aria-label="Lead profile">
   <div class="drawer-head">
     <h2 id="dName"></h2>
-    <button class="btn btn-ghost" data-close aria-label="Close">✕</button>
+    <button class="btn btn-ghost" data-close aria-label="Close" data-icon="x"></button>
   </div>
   <div class="drawer-body" id="dBody"></div>
 </aside>
 
 <!-- Assign owner modal -->
 <div class="modal" id="assignModal" role="dialog" aria-labelledby="assignTitle">
-  <div class="modal-head"><h3 id="assignTitle">Assign owner</h3><button class="btn btn-ghost" data-close aria-label="Close">✕</button></div>
+  <div class="modal-head"><h3 id="assignTitle">Assign owner</h3><button class="btn btn-ghost" data-close aria-label="Close" data-icon="x"></button></div>
   <div class="modal-body">
     <p class="muted" id="assignFor"></p>
     <div class="field">
@@ -111,7 +110,7 @@
 
 <!-- Placeholder add follow-up modal (real shared flow = Follow-ups screen) -->
 <div class="modal" id="followModal" role="dialog" aria-labelledby="followTitle">
-  <div class="modal-head"><h3 id="followTitle">Add follow-up</h3><button class="btn btn-ghost" data-close aria-label="Close">✕</button></div>
+  <div class="modal-head"><h3 id="followTitle">Add follow-up</h3><button class="btn btn-ghost" data-close aria-label="Close" data-icon="x"></button></div>
   <div class="modal-body">
     <p class="muted" id="followFor"></p>
     <div class="field">

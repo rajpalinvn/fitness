@@ -178,7 +178,18 @@
     { no: "KF-GC-0202",  branchId: "b3", status: "In stock", personId: null }
   ];
 
+  // Demo person shown for each "View as" role (placeholder until the permission matrix).
+  var roleDemoUser = { "SuperAdmin": "u1", "CEO": "u2", "Regional Manager": "u3", "Club Manager": "u4",
+    "Sales Manager": "u5", "Sales Executive": "u6", "Trainer": "u8", "MXM": "u9" };
+
+  var notifications = [
+    { id: "n1", text: "New lead from Meta: Fatima Shaikh · Golf Course", at: day(0, 8, 15), unread: true },
+    { id: "n2", text: "Aarav Patel's follow-up is overdue", at: day(-2, 17), unread: true },
+    { id: "n3", text: "Task due today: Prepare Diwali offer flyer", at: day(0, 9), unread: true }
+  ];
+
   window.DUMMY = {
+    roleDemoUser: roleDemoUser, notifications: notifications,
     branches: branches, roles: roles, users: users, lists: lists, people: people,
     followUps: followUps, tasks: tasks, timeline: timeline, packages: packages,
     keyFobs: keyFobs, duplicateMobileAttempts: duplicateMobileAttempts,

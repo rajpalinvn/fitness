@@ -1,10 +1,12 @@
-/* Shared mockup behaviour: drawer, modal, tabs, toasts, role + branch switcher.
-   Plain vanilla JS. Use data-* attributes in HTML; no per-page wiring needed. */
+/* Shared mockup behaviour: drawer, modal, tabs, toasts, role + branch state,
+   and data helpers used by every page AND the shell (so numbers always match).
+   The shell itself (sidebar, top bar, dropdowns, palette) lives in shell.js. */
 (function () {
   var App = {};
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  App.$ = $; App.$all = $all;
 
   function overlay() {
     var o = $(".overlay");
@@ -14,13 +16,24 @@
   function syncOverlay() { overlay().classList.toggle("open", !!$(".drawer.open, .modal.open")); }
 
   // ---------- Drawer / modal ----------
-  App.openDrawer = function (id) { var el = document.getElementById(id); if (el) { el.classList.add("open"); syncOverlay(); } };
-  App.openModal  = function (id) { var el = document.getElementById(id); if (el) { el.classList.add("open"); syncOverlay(); } };
-  App.close = function (el) { if (el) { el.classList.remove("open"); syncOverlay(); } };
+  var returnFocus = [];
+  function open(id) {
+    var el = document.getElementById(id); if (!el) return;
+    returnFocus.push(document.activeElement);
+    el.classList.add("open"); syncOverlay();
+    var f = el.querySelector("input, select, textarea, button:not([data-close])"); if (f) setTimeout(function () { f.focus(); }, 50);
+  }
+  App.openDrawer = open;
+  App.openModal = open;
+  App.close = function (el) {
+    if (!el || !el.classList.contains("open")) return;
+    el.classList.remove("open"); syncOverlay();
+    var r = returnFocus.pop(); if (r && r.focus && document.contains(r)) r.focus();
+  };
   App.closeAll = function () {
     // close the top-most layer first: modal before drawer
     var m = $all(".modal.open"); if (m.length) { App.close(m[m.length - 1]); return; }
-    $all(".drawer.open").forEach(function (d) { d.classList.remove("open"); }); syncOverlay();
+    $all(".drawer.open").forEach(function (d) { App.close(d); });
   };
 
   // ---------- Tabs: <div data-tabs> .tab[data-tab=x] + .tab-panel[data-panel=x] ----------
@@ -37,40 +50,36 @@
 
   // ---------- Toasts ----------
   App.toast = function (msg, kind) {
-    var box = $(".toasts"); if (!box) { box = document.createElement("div"); box.className = "toasts"; document.body.appendChild(box); }
+    var box = $(".toasts"); if (!box) { box = document.createElement("div"); box.className = "toasts"; box.setAttribute("role", "status"); document.body.appendChild(box); }
     var t = document.createElement("div"); t.className = "toast " + (kind || ""); t.textContent = msg; box.appendChild(t);
     setTimeout(function () { t.remove(); }, 3000);
   };
 
-  // ---------- Role + branch switcher ----------
+  // ---------- Role + branch state (remembered for the browser session) ----------
+  function sessionGet(k) { try { return sessionStorage.getItem("mock." + k); } catch (e) { return null; } }
+  function sessionSet(k, v) { try { sessionStorage.setItem("mock." + k, v); } catch (e) {} }
+  App.sessionGet = sessionGet; App.sessionSet = sessionSet;
   App.state = {
     role: sessionGet("role") || (window.DUMMY && DUMMY.currentRole) || "Sales Executive",
     branchId: sessionGet("branch") || (window.DUMMY && DUMMY.currentBranchId) || "all"
   };
-  function sessionGet(k) { try { return sessionStorage.getItem("mock." + k); } catch (e) { return null; } }
-  function sessionSet(k, v) { try { sessionStorage.setItem("mock." + k, v); } catch (e) {} }
-
-  App.initSwitchers = function () {
-    var D = window.DUMMY; if (!D) return;
-    var rs = $("[data-role-switcher]");
-    if (rs) {
-      rs.innerHTML = D.roles.map(function (r) { return "<option>" + r + "</option>"; }).join("");
-      rs.value = App.state.role;
-      rs.addEventListener("change", function () { App.state.role = rs.value; sessionSet("role", rs.value); App.toast("Viewing as " + rs.value); emit(); });
-    }
-    var bs = $("[data-branch-switcher]");
-    if (bs) {
-      bs.innerHTML = '<option value="all">All branches</option>' +
-        D.branches.map(function (b) { return '<option value="' + b.id + '">' + b.name + "</option>"; }).join("");
-      bs.value = App.state.branchId;
-      bs.addEventListener("change", function () { App.state.branchId = bs.value; sessionSet("branch", bs.value); emit(); });
-    }
-  };
   function emit() { document.dispatchEvent(new CustomEvent("mock:context", { detail: App.state })); }
+  App.setRole = function (role) { App.state.role = role; sessionSet("role", role); emit(); App.toast("Viewing as " + role, ""); };
+  App.setBranch = function (id) {
+    App.state.branchId = id; sessionSet("branch", id); emit();
+    App.toast("Branch: " + App.branchName(id), "");
+  };
+  // Pages call this after changing dummy data so the shell badges update.
+  App.dataChanged = function () { document.dispatchEvent(new CustomEvent("mock:data")); };
 
   // ---------- Small helpers for rendering dummy data ----------
   App.empty = function (v, fallback) { return (v === null || v === undefined || v === "") ? (fallback || "—") : v; };
   App.byId = function (list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; };
+  App.branchName = function (id) {
+    if (!id || id === "all") return "All branches";
+    var b = App.byId(DUMMY.branches, id); return b ? b.name : "—";
+  };
+  App.initials = function (name) { return String(name || "").split(" ").map(function (w) { return w.charAt(0); }).join("").slice(0, 2).toUpperCase(); };
   App.formatDate = function (iso) {
     if (!iso) return "Not set yet";
     var d = new Date(iso); if (isNaN(d)) return "Not set yet";
@@ -85,7 +94,6 @@
     if (d < now) return { cls: "red", badge: "badge-danger", text: "Overdue" };
     return { cls: "green", badge: "badge-success", text: "Scheduled" };
   };
-
   App.esc = function (s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -93,38 +101,43 @@
   };
   App.isDebug = function () { return /[?&]debug\b/.test(location.search); };
 
-  // ---------- App shell: <div class="app" data-shell="leads" data-root="../../"> ----------
-  var NAV = [
-    { key: "today", label: "Today", icon: "☀", path: "features/today/index.html" },
-    { key: "leads", label: "Leads", icon: "◎", path: "features/leads/index.html" },
-    { key: "clients", label: "Clients", icon: "★", path: null },
-    { key: "followups", label: "Follow-ups", icon: "↻", path: "features/followups/index.html" },
-    { key: "tasks", label: "Tasks", icon: "✓", path: "features/tasks/index.html" },
-    { key: "settings", label: "Settings", icon: "⚙", path: "features/settings/index.html" }
-  ];
-  App.built = ["leads"]; // screens that exist; others show a toast instead of a broken link
-  App.renderShell = function () {
-    var app = $("[data-shell]"); if (!app) return;
-    var active = app.dataset.shell, root = app.dataset.root || "";
-    var top = document.createElement("header"); top.className = "topbar";
-    top.innerHTML =
-      '<div class="brand">Fitness Labs</div>' +
-      '<input class="input search" type="search" placeholder="Search name, mobile, email, FF ID, key fob…" aria-label="Global search" data-global-search>' +
-      '<button class="btn btn-primary" data-new-lead>+ Lead</button>' +
-      '<div class="spacer"></div>' +
-      '<label class="topbar-field"><span class="muted">Branch</span><select class="input" data-branch-switcher aria-label="Branch"></select></label>' +
-      '<label class="topbar-field"><span class="muted">View as</span><select class="input" data-role-switcher aria-label="View as role"></select></label>' +
-      '<button class="btn btn-ghost" title="Notifications" aria-label="Notifications" data-toast="No new notifications" data-toast-kind="">🔔</button>';
-    var side = document.createElement("nav"); side.className = "sidebar";
-    side.innerHTML = NAV.map(function (n) {
-      var built = App.built.indexOf(n.key) > -1 && n.path;
-      var href = built ? root + n.path : "#";
-      var extra = built ? "" : ' data-toast="' + n.label + ' screen is not built yet" data-toast-kind=""';
-      return '<a href="' + href + '" class="' + (n.key === active ? "active" : "") + '" title="' + n.label + '"' + extra + '>' +
-        '<span class="icon">' + n.icon + '</span><span class="label">' + n.label + "</span></a>";
-    }).join("");
-    app.insertBefore(side, app.firstChild);
-    app.insertBefore(top, app.firstChild);
+  // ---------- Shared business helpers (single source for list + shell badges) ----------
+  App.demoUser = function () { return App.byId(DUMMY.users, DUMMY.roleDemoUser[App.state.role]); };
+  App.nextFollowUp = function (personId) {
+    var open = DUMMY.followUps.filter(function (f) { return f.personId === personId && f.status === "Open"; });
+    open.sort(function (a, b) { return new Date(a.dueAt) - new Date(b.dueAt); });
+    return open[0] || null;
+  };
+  // Placeholder visibility (decision #15) until the permission matrix arrives.
+  App.canSee = function (p) {
+    var role = App.state.role, u = App.demoUser();
+    if (role === "Trainer" || role === "MXM") return false;
+    if (role === "Sales Executive") return p.ownerId === u.id;
+    if (role === "SuperAdmin" || role === "CEO") return true;
+    return u.branches.indexOf(p.branchId) > -1;
+  };
+  App.visibleLeads = function (branchId) {
+    return DUMMY.people.filter(function (p) {
+      return p.type === "Lead" && App.canSee(p) && (!branchId || branchId === "all" || p.branchId === branchId);
+    });
+  };
+  // "Needs attention" = open lead with follow-up overdue or not set (decision #5).
+  App.needsAttention = function (p) {
+    if (p.stage === "Lost") return false;
+    var f = App.nextFollowUp(p.id);
+    return App.followUpStatus(f && f.dueAt).cls === "red";
+  };
+  App.counts = function () {
+    var leads = App.visibleLeads(App.state.branchId), ids = leads.map(function (p) { return p.id; });
+    var today = new Date().toDateString(), me = App.demoUser();
+    return {
+      attention: leads.filter(App.needsAttention).length,
+      dueToday: DUMMY.followUps.filter(function (f) {
+        return f.status === "Open" && ids.indexOf(f.personId) > -1 && new Date(f.dueAt).toDateString() === today;
+      }).length,
+      openTasks: DUMMY.tasks.filter(function (t) { return t.status === "Open" && me && t.assignedTo === me.id; }).length,
+      unread: DUMMY.notifications.filter(function (n) { return n.unread; }).length
+    };
   };
 
   // ---------- Global wiring ----------
@@ -136,8 +149,13 @@
     if (t.hasAttribute("data-close")) App.close(t.closest(".modal, .drawer"));
     if (t.dataset.toast) { e.preventDefault(); App.toast(t.dataset.toast, t.dataset.toastKind == null ? "success" : t.dataset.toastKind); }
   });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") App.closeAll(); });
-  document.addEventListener("DOMContentLoaded", function () { App.renderShell(); App.initTabs(); App.initSwitchers(); });
+  // Esc closes the top layer: shell layers (palette, dropdown, overlay sidebar) first, then modal, then drawer.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (App.closeShellLayer && App.closeShellLayer()) return;
+    App.closeAll();
+  });
+  document.addEventListener("DOMContentLoaded", function () { App.initTabs(); });
 
   window.App = App;
 })();
