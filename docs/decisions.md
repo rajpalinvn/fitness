@@ -59,3 +59,8 @@
     menu and is shown as a "Demo · Viewing as" chip (demo tool only).
     Sidebar collapse is remembered per session; tablet starts collapsed and
     expanding it overlays the content.
+24. Follow-up timing is by calendar date, not time. "Overdue" = due date
+    before today (red). Anything due today is "Due today" (amber), even if
+    its time has passed. Due after today = "Scheduled" (green). The same
+    rule is used everywhere (list badge, NEXT STEP box, sidebar badges,
+    "Needs attention"), so one follow-up is never counted as both.

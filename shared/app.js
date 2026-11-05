@@ -86,12 +86,18 @@
     return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + ", " +
       d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
   };
-  // Follow-up status: green scheduled, amber due today, red overdue / not set.
+  // Follow-up status (decision #24) — THE ONLY place this rule lives; list badge,
+  // NEXT STEP box, sidebar badges and "Needs attention" all call it.
+  // Compared by calendar DATE, never by time:
+  //   due date before today -> red "Overdue"
+  //   due today (even if the time has passed) -> amber "Due today"
+  //   due after today -> green "Scheduled";  no follow-up -> red "No follow-up set"
   App.followUpStatus = function (iso) {
     if (!iso) return { cls: "red", badge: "badge-danger", text: "No follow-up set" };
-    var d = new Date(iso), now = new Date();
-    if (d.toDateString() === now.toDateString()) return { cls: "amber", badge: "badge-warning", text: "Due today" };
-    if (d < now) return { cls: "red", badge: "badge-danger", text: "Overdue" };
+    var due = new Date(iso); due.setHours(0, 0, 0, 0);
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    if (due < today) return { cls: "red", badge: "badge-danger", text: "Overdue" };
+    if (due.getTime() === today.getTime()) return { cls: "amber", badge: "badge-warning", text: "Due today" };
     return { cls: "green", badge: "badge-success", text: "Scheduled" };
   };
   App.esc = function (s) {
@@ -133,7 +139,7 @@
     return {
       attention: leads.filter(App.needsAttention).length,
       dueToday: DUMMY.followUps.filter(function (f) {
-        return f.status === "Open" && ids.indexOf(f.personId) > -1 && new Date(f.dueAt).toDateString() === today;
+        return f.status === "Open" && ids.indexOf(f.personId) > -1 && App.followUpStatus(f.dueAt).cls === "amber";
       }).length,
       openTasks: DUMMY.tasks.filter(function (t) { return t.status === "Open" && me && t.assignedTo === me.id; }).length,
       unread: DUMMY.notifications.filter(function (n) { return n.unread; }).length
