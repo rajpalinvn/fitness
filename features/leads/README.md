@@ -5,17 +5,18 @@
 |---|---|---|
 | Leads list | `index.html` + `leads.js` | Main working list. Staff see every open lead and, above all, when the next follow-up is due. |
 | Pipeline cards | (in list) | Counts per group; click = filter the list, click again = clear. Order: **Needs attention** (first), New, Contacted, Trial, Negotiation, Lost. |
-| Profile drawer (placeholder) | (in list) | Opens on row click. Shows name, mobile, badges, NEXT STEP box, owner, source. Real drawer = `features/profile`. |
-| Assign owner modal | (in list) | Opens from "Assign" in the Owner cell of an unassigned lead. |
-| Add follow-up modal (placeholder) | (in list) | Opens from "+ Follow-up". Real shared flow = `features/followups`. |
+| Profile drawer | `shared/profile.js` | Opens on row click. Spec: `features/profile/README.md`. |
+| Assign owner modal | `shared/followup.js` | Opens from "Assign" in the Owner cell of an unassigned lead. |
+| Add follow-up modal | `shared/followup.js` | Opens from "+ Follow-up" (disabled on Lost rows: "Re-open the lead first"). Spec: `features/followups/README.md`. |
 | Quick lead modal | — | Top-bar "+ Lead" (the only one on the page) / "Create lead with this number" show a toast for now (later screen). |
 
 App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shared/shell.js` — see decisions #22–23.
 
 ## 2. Flow
 - Sidebar **Leads** → list (loads with a short skeleton).
-- Pipeline card click → sets the stage filter (or the "Needs attention" filter); card is outlined and a "Filtered by" tag appears. Tag ✕ removes that filter.
-- Row click → profile drawer (placeholder). Esc / click outside / close (X) closes it; list stays behind.
+- Pipeline card click → sets the stage filter (or the "Needs attention" filter); card is outlined and a "Filtered by" tag appears. Tag X removes that filter.
+- Filter dropdowns (stage, owner, source, branch and the "More filters" ones) are styled dropdowns (`App.enhanceSelect`); a filter that is set shows as a highlighted pill.
+- Row click → profile drawer; ‹ › step through the current list order. Esc / click outside / close (X) closes it; list stays behind and updates live.
 - Ctrl+K palette → Enter on a recent lead → same profile drawer.
 - Row actions (max 3; clicking them does NOT open the drawer):
   - Call (phone icon) → toast "Calling …" (mockup)
@@ -43,7 +44,7 @@ App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shar
 ### Filters
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Search ("Filter this list…") | text | No | — | empty | Filters this list only (global search = top bar). Name, email, or mobile. Mobile matches with or without +91 or leading 0 (decision #11). |
+| Search ("Filter: name, mobile, email") | text | No | — | empty | Filters this list only (global search = top bar). Name, email, or mobile. Mobile matches with or without +91 or leading 0 (decision #11). |
 | Stage | select | No | — | "Open leads (all stages)" | Default hides Lost. Lost only via Lost card or this filter. |
 | Owner | select | No | — | All owners | Includes "Unassigned". |
 | Source | select | No | — | All sources | |

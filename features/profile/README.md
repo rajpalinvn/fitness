@@ -1,21 +1,88 @@
 # Profile drawer
 
 ## 1. Screens
-Not built yet. See docs/app-brief.md.
+| Screen / part | File | Purpose |
+|---|---|---|
+| Profile drawer | `shared/profile.js` | One profile per person (Lead or Client). Opens from any page with `App.openProfile(id, { list })`. |
+| Preview page | `index.html` + `preview.js` | One card per dummy person to review every edge case. `?debug` adds loading / error states. |
+| Follow-up, outcome, cancel, lost, re-open, assign modals | `shared/followup.js` | Shared flows. See `features/followups/README.md`. |
+| Key fob modal | `shared/profile.js` | Return / Lost / Replace / Assign from stock. |
 
 ## 2. Flow
-—
+- Leads list row click, Ctrl+K recent lead, or preview card → drawer. ‹ › step through the list it was opened from ("2 of 8").
+- **Left column** (fixed, 300px; 260px on tablet):
+  - Identity: initials avatar, name, mobile + copy, branch · created (or "Client since").
+  - Badges: Lead/Client, stage, temperature, source (or "Meta" when synced), Re-opened.
+  - Quick actions: Call (toast + timeline "called (no outcome logged)"), WhatsApp (opens composer in WhatsApp mode), Email (disabled "No email yet"), Follow-up (disabled on Lost: "Re-open the lead first").
+  - NEXT STEP box → "Log outcome" / "Add follow-up".
+  - Owner (Change / Assign), source, campaign, external ID, last activity.
+  - Bottom: open lead → **Convert to Client** (toast: stepper is a later screen) + **More** (Mark as lost, Change owner). Lost → **Re-open lead**. Client → none.
+- **Tabs**: Lead = Timeline · Tasks · Details · Docs. Client adds **Membership**. Counts show on Tasks (open) and Docs.
+- **Timeline**: Upcoming open follow-ups pinned on top (Log outcome / Cancel), then history grouped by day, newest first. Filter chips: All, Follow-ups, Notes, WhatsApp, Milestones. Cancelled follow-ups are struck through.
+- **Composer** (Timeline tab only): Note | Follow-up | WhatsApp. Follow-up mode is the shared form; disabled on Lost leads.
+- Esc / outside click / X close. Esc closes the top layer first (menu → modal → drawer).
 
 ## 3. Field table
+
+### NEXT STEP box
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| — | — | — | — | — | — |
+| Lead status | derived | — | — | — | Green "Next: <date, time>"; amber "Due today · <time>"; red "Overdue since <date>" or "No follow-up set" (decision #24). |
+| Client status | derived | — | — | — | Green "Membership active · N days left" (> 15); amber "Renewal due soon" (≤ 15); red "Membership expired on <date>" (decision #27). Shows the next follow-up too, if any. |
+| Lost | derived | — | — | — | Grey "Lost · <reason>" + "Re-open the lead to follow up again." |
+
+### Details tab (edit mode)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Name | text | Yes | No | — | |
+| Country code + Mobile | select + tel | Yes | Yes, company-wide | +91 | 10 digits. Duplicate: same branch "Already exists: <name>" + Open profile; other branch "Already exists in <branch> · Owner: <first name>" + Request access (decision #19). |
+| Email | email | No | Yes, company-wide | — | Format checked. |
+| Gender | select | No | No | Not set yet | Female / Male / Other |
+| Birth date | date | No | No | — | |
+| FF ID | text | No | Yes, company-wide | — | ID from the other software. |
+| Source | select | Yes | No | — | Lead sources list. |
+| Temperature | select | Yes | No | Warm | Hot / Warm / Cold (fixed). |
+| Stage | select | Yes | No | New | Configurable stages only; hidden for Lost and Clients (Converted/Lost set by actions). |
+| Inquiry type | select | No | No | Not set yet | Call / Walk-in |
+| Campaign | text | No | No | — | |
+| Remarks | text area | No | No | — | |
+| Owner, Branch, External ID, Created, Last activity | read-only | — | — | — | Owner changes via Change owner. |
+| Client no, Home branch, Joined, Key fob, Photo | read-only (clients) | — | Client no / fob unique | — | |
+
+Saving adds "<name> updated <fields>" to the timeline.
+
+### Docs tab
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Document type | select | Yes | No | ID proof | ID proof, Waiver/consent form, Medical form, Photo, Other (decision #28). |
+| File | file (placeholder) | Yes | No | — | Mockup adds "<type> (placeholder).pdf". |
+
+### Membership tab (clients)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Package, Sale type, Start, End, Price, Client no | read-only | — | — | — | Dates show the year. Price never editable (decision #14). |
+| Days left | derived | — | — | — | Same thresholds as NEXT STEP. |
+| Key fob | from branch stock | Paid only | Yes | — | Trial Paid: "No key fob · trial memberships don't get one". Actions Return / Lost / Replace; Assign from stock when missing (decision #30). |
 
 ## 4. States
-- Empty: —
-- Loading: —
-- Error: —
-- Success: —
+- **Loading**: skeleton in both columns (~300 ms on open).
+- **Error**: "Couldn't load this profile" + Retry (preview page `?debug`).
+- **Empty**: "No history yet. Add a note below.", "No tasks yet.", "No documents yet.", "Nothing here yet." for an empty timeline filter.
+- **Success**: toasts after every save; NEXT STEP, list row, pipeline cards and sidebar badges update together.
+
+### Dummy edge cases (preview page)
+| Person | Shows |
+|---|---|
+| Aarav Patel | Red "Overdue since …"; history: Interested call linked to next call, note, WhatsApp |
+| Sneha Reddy | Red "No follow-up set"; cancelled follow-up struck through; Email disabled |
+| Rajesh Kumar | Lost · Price high; Re-open; follow-up disabled; notes allowed |
+| Kavya Menon | Re-opened badge; Lost → Re-opened history; amber Due today |
+| Ishaan Singh | Trial stage, free trial milestone, stays a Lead; green next visit |
+| Ananya Desai | Client, Trial Paid 7 Days, amber "Renewal due soon", no key fob |
+| Vivaan Joshi | Client, Annual Membership, green, key fob with Return / Lost / Replace, 1 doc |
+| Fatima Shaikh | Meta badge, external ID, Unassigned + Assign, red no follow-up |
+| Aditya Bose | Amber "Due today" |
+| Nisha Agarwal, Simran Kaur | Green "Scheduled" |
 
 ## 5. Status
-Draft
+Ready for review

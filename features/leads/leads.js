@@ -7,7 +7,6 @@
   // Role visibility, next follow-up and "needs attention" come from app.js,
   // so the sidebar badges and this list always use the same rule.
   var nextFollowUp = App.nextFollowUp, needsAttention = App.needsAttention;
-  var ASSIGNABLE_ROLES = ["Sales Executive", "Sales Manager", "Club Manager"];
 
   var S = { stage: "", attention: false, search: "", owner: "", source: "", branch: App.state.branchId,
     temp: "", follow: "", from: "", to: "", synced: false, mode: "loading" };
@@ -109,6 +108,7 @@
     $("fBranch").value = $("mBranch").value = S.branch;
     $("fTemp").value = S.temp; $("fFollow").value = S.follow;
     $("fFrom").value = S.from; $("fTo").value = S.to; $("fSynced").checked = S.synced;
+    App.syncAllSelects(document.querySelector(".main"));
   }
 
   function renderPipeline(base) {
@@ -188,7 +188,9 @@
       '<td><div class="row-actions">' +
         '<button class="btn btn-sm icon-btn" data-act="call" data-id="' + p.id + '" title="Call" aria-label="Call ' + esc(p.name) + '">' + App.icon("phone") + "</button>" +
         '<button class="btn btn-sm icon-btn" data-act="wa" data-id="' + p.id + '" title="WhatsApp" aria-label="WhatsApp ' + esc(p.name) + '">' + App.icon("message") + "</button>" +
-        '<button class="btn btn-sm" data-act="follow" data-id="' + p.id + '">' + App.icon("plus") + "Follow-up</button>" +
+        (p.stage === "Lost"
+          ? '<button class="btn btn-sm" disabled title="Re-open the lead first" aria-label="Follow-up (re-open the lead first)">' + App.icon("plus") + "Follow-up</button>"
+          : '<button class="btn btn-sm" data-act="follow" data-id="' + p.id + '">' + App.icon("plus") + "Follow-up</button>") +
       "</div></td></tr>";
   }
 
@@ -211,6 +213,7 @@
     renderPipeline(scopeLeads()); renderActiveFilters();
     $("leadCount").textContent = list.length + (list.length === 1 ? " lead" : " leads") +
       (S.stage === "Lost" ? " · lost" : " · most urgent follow-up first");
+    lastList = list.map(function (p) { return p.id; });
     tbody.innerHTML = list.map(row).join("");
     if (list.length) return;
 
@@ -232,77 +235,9 @@
     setTimeout(function () { if (S.mode === "loading") { S.mode = "normal"; render(); } }, 400);
   }
 
-  // ---------- drawer (placeholder) ----------
-  function nextStepBox(p) {
-    if (p.stage === "Lost") return '<div class="next-step grey"><strong>Lost</strong> · ' + esc(App.empty(p.lostReason)) + '<div class="cell-sub">Re-open from the full profile.</div></div>';
-    var f = nextFollowUp(p.id), st = App.followUpStatus(f && f.dueAt);
-    var text = !f ? "<strong>No follow-up set</strong><div class=\"cell-sub\">Add one so this lead isn't forgotten.</div>"
-      : st.cls === "red" ? "<strong>Overdue</strong> · " + esc(f.type) + " was due " + esc(shortDate(f.dueAt)) + ", " + esc(time(f.dueAt))
-      : st.cls === "amber" ? "<strong>Due today</strong> · " + esc(f.type) + " at " + esc(time(f.dueAt))
-      : "<strong>Next:</strong> " + esc(f.type) + " on " + esc(shortDate(f.dueAt)) + ", " + esc(time(f.dueAt));
-    return '<div class="next-step ' + st.cls + '">' + text + "</div>";
-  }
-  function openDrawer(id) {
-    var p = App.byId(D.people, id); current.personId = id;
-    $("dName").textContent = p.name;
-    $("dBody").innerHTML =
-      '<div class="drawer-cols"><div>' +
-        '<div class="cell-sub">' + esc(p.cc + " " + p.mobile) + " · " + esc(branch(p.branchId)) + "</div>" +
-        '<div class="stack drawer-badges"><span class="badge badge-info">Lead</span>' +
-          '<span class="badge">' + esc(p.stage) + '</span><span class="badge badge-' + p.temperature.toLowerCase() + '">' + esc(p.temperature) + "</span>" +
-          (p.synced ? '<span class="badge badge-info">Meta</span>' : "") + "</div>" +
-        nextStepBox(p) +
-        '<dl class="kv mt-4"><dt>Owner</dt><dd>' + (p.ownerId ? esc(user(p.ownerId).name) : "Not set yet") + "</dd>" +
-          "<dt>Source</dt><dd>" + esc(p.source) + "</dd><dt>Email</dt><dd>" + esc(App.empty(p.email, "Not set yet")) + "</dd>" +
-          "<dt>Created</dt><dd>" + esc(App.formatDate(p.createdAt)) + "</dd></dl>" +
-      '</div><div class="state"><h3>Full profile coming next</h3><p>Tabs, timeline and actions are built in the Profile drawer screen.</p></div></div>';
-    App.openDrawer("profileDrawer");
-  }
-
-  // ---------- assign modal ----------
-  function openAssign(id) {
-    var p = App.byId(D.people, id); current.personId = id;
-    $("assignFor").textContent = p.name + " · " + branch(p.branchId);
-    var staff = D.users.filter(function (u) { return u.branches.indexOf(p.branchId) > -1 && ASSIGNABLE_ROLES.indexOf(u.role) > -1; });
-    $("assignUser").innerHTML = '<option value="">Choose…</option>' + staff.map(function (u) {
-      return '<option value="' + u.id + '">' + esc(u.name) + " · " + esc(u.role) + "</option>";
-    }).join("");
-    App.openModal("assignModal");
-  }
-  $("assignSave").addEventListener("click", function () {
-    var uid = $("assignUser").value;
-    if (!uid) { $("assignUser").classList.add("invalid"); return; }
-    $("assignUser").classList.remove("invalid");
-    var p = App.byId(D.people, current.personId); p.ownerId = uid;
-    D.followUps.forEach(function (f) { if (f.personId === p.id && f.status === "Open") f.ownerId = uid; });
-    App.close($("assignModal")); render(); App.dataChanged();
-    App.toast(p.name + " assigned to " + user(uid).name, "success");
-  });
-
-  // ---------- follow-up modal (placeholder) ----------
-  var chosenType = "";
-  function openFollow(id) {
-    var p = App.byId(D.people, id); current.personId = id; chosenType = "";
-    $("followFor").textContent = p.name + " · owner " + (p.ownerId ? user(p.ownerId).name : "not set yet");
-    $("followTypes").innerHTML = L.followUpTypes.map(function (t) { return '<button class="chip" data-type="' + esc(t) + '">' + esc(t) + "</button>"; }).join("");
-    var t = new Date(); t.setDate(t.getDate() + 1);
-    $("followDate").value = t.toISOString().slice(0, 10); $("followTime").value = "11:00"; $("followNote").value = "";
-    App.openModal("followModal");
-  }
-  $("followTypes").addEventListener("click", function (e) {
-    var c = e.target.closest(".chip"); if (!c) return;
-    chosenType = c.dataset.type;
-    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle("selected", x === c); });
-  });
-  $("followSave").addEventListener("click", function () {
-    if (!chosenType || !$("followDate").value) { App.toast("Choose a type and a date", "error"); return; }
-    var p = App.byId(D.people, current.personId);
-    var due = new Date($("followDate").value + "T" + ($("followTime").value || "11:00"));
-    D.followUps.push({ id: "f" + Date.now(), personId: p.id, type: chosenType, dueAt: due.toISOString(),
-      ownerId: p.ownerId, status: "Open", outcome: null, note: $("followNote").value || null });
-    App.close($("followModal")); render(); App.dataChanged();
-    App.toast("Follow-up added for " + p.name + " · " + shortDate(due) + ", " + time(due), "success");
-  });
+  // ---------- profile drawer + follow-up / assign flows come from shared/profile.js + shared/followup.js ----------
+  var lastList = [];
+  function openProfile(id) { App.openProfile(id, { list: lastList.indexOf(id) > -1 ? lastList : [id] }); }
 
   // ---------- events ----------
   $("rows").addEventListener("click", function (e) {
@@ -311,11 +246,11 @@
       var p = App.byId(D.people, b.dataset.id);
       if (b.dataset.act === "call") App.toast("Calling " + p.name + " · " + p.cc + " " + p.mobile, "");
       if (b.dataset.act === "wa") App.toast("Opening WhatsApp for " + p.name, "");
-      if (b.dataset.act === "follow") openFollow(p.id);
-      if (b.dataset.act === "assign") openAssign(p.id);
+      if (b.dataset.act === "follow") App.Followup.openAdd(p.id);
+      if (b.dataset.act === "assign") App.Lead.assign(p.id);
       return;
     }
-    var tr = e.target.closest("tr[data-id]"); if (tr) openDrawer(tr.dataset.id);
+    var tr = e.target.closest("tr[data-id]"); if (tr) openProfile(tr.dataset.id);
   });
   $("pipeline").addEventListener("click", function (e) {
     var c = e.target.closest("[data-card]"); if (!c) return;
@@ -353,7 +288,8 @@
     if (e.target.closest("[data-create-number]")) App.toast("Quick lead form will open with " + S.search.trim() + " prefilled (later screen)", "");
   });
   document.addEventListener("mock:context", function (e) { S.branch = e.detail.branchId; syncControls(); render(); });
-  App.openLead = openDrawer; // used by the command palette
+  App.openLead = openProfile; // used by the command palette
+  document.addEventListener("mock:data", function () { if (S.mode === "normal") render(); });
 
   // Debug states: only with ?debug
   if (App.isDebug()) {
@@ -366,5 +302,9 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", function () { fillFilters(); load(); });
+  document.addEventListener("DOMContentLoaded", function () {
+    fillFilters();
+    ["fStage", "fOwner", "fSource", "fBranch", "mOwner", "mSource", "mBranch", "fTemp", "fFollow"].forEach(function (id) { App.enhanceSelect($(id)); });
+    load();
+  });
 })();

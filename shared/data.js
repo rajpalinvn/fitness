@@ -122,9 +122,12 @@
     { id: "f4", personId: "p9", type: "Call", dueAt: day(0, 12), ownerId: "u10", status: "Open", outcome: null, note: null },
     { id: "f5", personId: "p10", type: "Call", dueAt: day(3, 11), ownerId: "u7", status: "Open", outcome: null, note: null },
     { id: "f9", personId: "p11", type: "Visit planned", dueAt: day(1, 18), ownerId: "u11", status: "Open", outcome: null, note: null },
-    { id: "f6", personId: "p1", type: "Call", dueAt: day(-5, 11), ownerId: "u6", status: "Done", outcome: "Interested", note: "Asked about quarterly price" },
-    { id: "f7", personId: "p3", type: "Call", dueAt: day(-20, 11), ownerId: "u7", status: "Done", outcome: "Not interested", note: "Too expensive" },
-    { id: "f8", personId: "p2", type: "Call", dueAt: day(-5, 10), ownerId: "u6", status: "Cancelled", outcome: null, note: "Duplicate entry" }
+    { id: "f6", personId: "p1", type: "Call", dueAt: day(-5, 11), ownerId: "u6", status: "Done", outcome: "Interested", note: "Asked about quarterly price", doneAt: day(-5, 11, 20), nextId: "f1" },
+    { id: "f7", personId: "p3", type: "Call", dueAt: day(-20, 11), ownerId: "u7", status: "Done", outcome: "Not interested", note: "Too expensive", doneAt: day(-20, 11, 10) },
+    { id: "f8", personId: "p2", type: "Call", dueAt: day(-5, 10), ownerId: "u6", status: "Cancelled", outcome: null, note: null, cancelledAt: day(-6, 9), cancelReason: "Duplicate entry" },
+    { id: "f10", personId: "p4", type: "Call", dueAt: day(-35, 12), ownerId: "u6", status: "Done", outcome: "Call later", note: "Busy with exams", doneAt: day(-35, 12, 5) },
+    { id: "f11", personId: "p6", type: "Free trial planned", dueAt: day(-4, 10), ownerId: "u7", status: "Done", outcome: "Interested", note: "Liked the trainers", doneAt: day(-4, 10, 30) },
+    { id: "f12", personId: "p7", type: "Call", dueAt: day(7, 11), ownerId: "u6", status: "Open", outcome: null, note: "Check how training is going" }
   ];
 
   var tasks = [
@@ -137,18 +140,20 @@
 
   // Human-language timeline events.
   var timeline = [
-    { personId: "p1", at: day(-12), kind: "milestone", text: "Lead created by Priya Sharma · Walk-in" },
-    { personId: "p1", at: day(-5), kind: "followup", text: "Priya called · Interested · next call " + "in 3 days" },
-    { personId: "p1", at: day(-4), kind: "note", text: "Priya noted: wants morning batch, 6–7 am" },
-    { personId: "p3", at: day(-20), kind: "followup", text: "Arjun called · Not interested" },
-    { personId: "p3", at: day(-20), kind: "milestone", text: "Marked as Lost · Price high" },
-    { personId: "p4", at: day(-30), kind: "milestone", text: "Marked as Lost · Timing issue" },
-    { personId: "p4", at: day(-1), kind: "milestone", text: "Re-opened by Priya Sharma" },
-    { personId: "p5", at: day(-1), kind: "milestone", text: "Free trial started · ends in 3 days" },
-    { personId: "p6", at: day(-2), kind: "milestone", text: "Converted to Client · Trial Paid 7 Days" },
-    { personId: "p7", at: day(-100), kind: "milestone", text: "Converted to Client · Annual Membership · key fob KF-S31-0012" },
+    // "Lead created" and finished/cancelled follow-ups are generated from people + followUps, not stored here.
+    { personId: "p1", at: day(-4), kind: "note", text: "Priya noted: wants morning batch, 6–7 am", by: "u6" },
+    { personId: "p1", at: day(-3), kind: "whatsapp", text: "Priya sent WhatsApp · quarterly price list", by: "u6" },
+    { personId: "p2", at: day(-5, 15), kind: "note", text: "Priya noted: saw our Instagram reel, asked about Zumba", by: "u6" },
+    { personId: "p3", at: day(-20, 11, 15), kind: "milestone", text: "Marked as Lost · Price high", by: "u7" },
+    { personId: "p4", at: day(-30), kind: "milestone", text: "Marked as Lost · Timing issue", by: "u6" },
+    { personId: "p4", at: day(-1), kind: "milestone", text: "Re-opened by Priya Sharma", by: "u6" },
+    { personId: "p4", at: day(-1, 12), kind: "note", text: "Priya noted: exams over, wants evening batch", by: "u6" },
+    { personId: "p5", at: day(-1), kind: "milestone", text: "Free trial started · 3 days", by: "u6" },
+    { personId: "p6", at: day(-2), kind: "milestone", text: "Converted to Client · Trial Paid 7 Days", by: "u7" },
+    { personId: "p7", at: day(-100), kind: "milestone", text: "Converted to Client · Annual Membership · key fob KF-S31-0012", by: "u6" },
+    { personId: "p7", at: day(-7), kind: "note", text: "Priya noted: asked about PT sessions for next month", by: "u6" },
     { personId: "p8", at: day(0, 8, 15), kind: "milestone", text: "Lead received from Meta · waiting for an owner" },
-    { personId: "p10", at: day(-1), kind: "whatsapp", text: "Arjun sent WhatsApp · price list" }
+    { personId: "p10", at: day(-1), kind: "whatsapp", text: "Arjun sent WhatsApp · price list", by: "u7" }
   ];
 
   // type = package type; saleType = Trial | Trial Paid | Paid (decision #14).
@@ -193,6 +198,8 @@
     branches: branches, roles: roles, users: users, lists: lists, people: people,
     followUps: followUps, tasks: tasks, timeline: timeline, packages: packages,
     keyFobs: keyFobs, duplicateMobileAttempts: duplicateMobileAttempts,
+    docs: [{ personId: "p7", type: "ID proof", name: "Aadhaar copy (placeholder).pdf", at: day(-100), by: "u6" }],
+    docTypes: ["ID proof", "Waiver/consent form", "Medical form", "Photo", "Other"],
     currentUserId: "u6", currentRole: "Sales Executive", currentBranchId: "b1"
   };
 })();

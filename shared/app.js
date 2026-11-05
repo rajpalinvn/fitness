@@ -107,6 +107,44 @@
   };
   App.isDebug = function () { return /[?&]debug\b/.test(location.search); };
 
+  // ---------- Date + text helpers (human language) ----------
+  App.startOfDay = function (d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  App.daysFromToday = function (iso) { return Math.round((App.startOfDay(iso) - App.startOfDay(new Date())) / 86400000); };
+  App.fmtDay = function (iso) { return new Date(iso).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }); };
+  App.fmtTime = function (iso) { return new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }); };
+  App.fmtDate = function (iso) { return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); };
+  App.fmtWhen = function (iso) { return App.fmtDay(iso) + ", " + App.fmtTime(iso); };
+  // "today", "tomorrow", "Fri", "12 Nov"
+  App.fmtShortWhen = function (iso) {
+    var d = App.daysFromToday(iso);
+    if (d === 0) return "today"; if (d === 1) return "tomorrow"; if (d === -1) return "yesterday";
+    if (d > 1 && d < 7) return new Date(iso).toLocaleDateString("en-IN", { weekday: "short" });
+    return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  };
+  App.fmtMoney = function (n) { return n == null ? "—" : "₹" + Number(n).toLocaleString("en-IN"); };
+  App.firstName = function (u) { return u ? u.name.split(" ")[0] : "Someone"; };
+  App.userName = function (id) { var u = App.byId(DUMMY.users, id); return u ? u.name : "Not set yet"; };
+  App.me = function () { return App.demoUser() || DUMMY.users[0]; };
+  App.addTimeline = function (personId, kind, text, extra) {
+    DUMMY.timeline.push(Object.assign({ personId: personId, at: new Date().toISOString(), kind: kind, text: text, by: App.me().id }, extra || {}));
+    var p = App.byId(DUMMY.people, personId); if (p) p.lastActivityAt = new Date().toISOString();
+  };
+  // Mobile digits without country code / leading 0 (decision #11).
+  App.mobileDigits = function (s) {
+    var d = String(s || "").replace(/\D/g, "");
+    if (d.length === 12 && d.indexOf("91") === 0) d = d.slice(2);
+    if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
+    return d;
+  };
+  // Client membership status: green > 15 days left, amber <= 15 ("Renewal due soon"), red expired (decision #27).
+  App.membershipStatus = function (m) {
+    if (!m) return null;
+    var left = App.daysFromToday(m.end);
+    if (left < 0) return { cls: "red", badge: "badge-danger", text: "Expired", left: left };
+    if (left <= 15) return { cls: "amber", badge: "badge-warning", text: "Renewal due soon", left: left };
+    return { cls: "green", badge: "badge-success", text: "Active", left: left };
+  };
+
   // ---------- Shared business helpers (single source for list + shell badges) ----------
   App.demoUser = function () { return App.byId(DUMMY.users, DUMMY.roleDemoUser[App.state.role]); };
   App.nextFollowUp = function (personId) {

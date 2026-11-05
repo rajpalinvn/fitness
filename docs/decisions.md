@@ -64,3 +64,30 @@
     its time has passed. Due after today = "Scheduled" (green). The same
     rule is used everywhere (list badge, NEXT STEP box, sidebar badges,
     "Needs attention"), so one follow-up is never counted as both.
+25. Log outcome: outcome chips Interested, No answer, Call later, Will visit,
+    Not interested. "Not interested" asks "Mark as Lost?". After saving an
+    outcome the next follow-up is always asked (quick picks Tomorrow /
+    3 days / 1 week / custom), unless the lead was marked Lost or is a
+    client. If another open follow-up already exists, it is shown instead
+    of asking again. There is no "skip": every open lead needs a follow-up.
+    One shared component (shared/followup.js) is used by the list
+    "+ Follow-up", the drawer quick action, the NEXT STEP button and the
+    timeline composer.
+26. Lost leads: notes allowed; follow-ups only after re-opening (buttons are
+    disabled with "Re-open the lead first"). Marking a lead Lost needs a
+    reason from the lost reasons list; "Other" requires text (stored as
+    "Other: <text>"). Marking Lost cancels the lead's open follow-ups
+    (status Cancelled, reason "Lead marked as Lost"; never deleted).
+27. Client NEXT STEP: green when more than 15 days left on the membership;
+    amber "Renewal due soon" at 15 days or fewer; red when expired.
+28. Docs tab: upload placeholder with a type picker: ID proof,
+    Waiver/consent form, Medical form, Photo, Other.
+29. Re-open: the lead returns to the stage it had before it was lost
+    (fallback Contacted), the old lost reason is cleared, "Re-opened by
+    <name>" is added to the timeline, and the next follow-up is asked
+    straight away.
+30. Key fob actions on a client: Return (fob status Returned), Lost (fob
+    status Lost), Replace (pick why: old fob Lost or Damaged/returned, then
+    pick a new fob from the home branch stock; stock goes down by one).
+    A Paid client without a fob can "Assign from stock". Trial Paid never
+    shows a fob.

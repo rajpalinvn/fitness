@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile drawer preview · Fitness Labs</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <script src="../../shared/data.js"></script>
+  <script src="../../shared/app.js"></script>
+  <script src="../../shared/shell.js"></script>
+  <script src="../../shared/followup.js"></script>
+  <script src="../../shared/profile.js"></script>
+</head>
+<body>
+<div class="app" data-shell="profile" data-title="Profile drawer preview" data-root="../../">
+  <main class="main">
+    <!-- Debug bar: only with ?debug in the URL -->
+    <div class="debug-bar" id="debugBar" hidden>
+      <strong>Test states:</strong>
+      <button class="btn btn-sm" data-open-state="loading">Open Aarav: loading</button>
+      <button class="btn btn-sm" data-open-state="error">Open Aarav: error</button>
+    </div>
+
+    <p class="muted">One card per dummy person. Open a profile to review how the drawer looks for that edge case.
+      Everyone is shown here regardless of "View as" so every case can be reviewed.</p>
+    <div class="grid grid-3 preview-grid" id="people"></div>
+  </main>
+</div>
+<script src="preview.js"></script>
+</body>
+</html>

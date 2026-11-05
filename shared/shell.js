@@ -27,7 +27,23 @@
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    note: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
+    flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    "x-circle": '<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    "chevron-left": '<path d="M15 18l-6-6 6-6"/>',
+    "chevron-right": '<path d="M9 18l6-6-6-6"/>',
+    more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/>',
+    upload: '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+    refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',
+    card: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+    send: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+    swap: '<path d="M7 7h13l-4-4M17 17H4l4 4"/>',
+    alert: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'
   };
   App.icon = function (name, cls) {
     return '<svg class="ico ' + (cls || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" ' +
@@ -39,6 +55,53 @@
       if (!el.querySelector("svg")) el.insertAdjacentHTML("afterbegin", App.icon(el.dataset.icon));
     });
   };
+
+  // ---------- Shared modal skeleton: App.makeModal("id") -> { el, title, body, foot } ----------
+  App.makeModal = function (id, size) {
+    var m = document.getElementById(id);
+    if (!m) {
+      m = document.createElement("div"); m.id = id; m.className = "modal" + (size ? " modal-" + size : "");
+      m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); m.setAttribute("aria-labelledby", id + "-t");
+      m.innerHTML = '<div class="modal-head"><h3 id="' + id + '-t" data-m-title></h3>' +
+        '<button class="btn btn-ghost icon-btn" data-close aria-label="Close">' + App.icon("x") + "</button></div>" +
+        '<div class="modal-body" data-m-body></div><div class="modal-foot" data-m-foot></div>';
+      document.body.appendChild(m);
+    }
+    return { el: m, title: m.querySelector("[data-m-title]"), body: m.querySelector("[data-m-body]"), foot: m.querySelector("[data-m-foot]") };
+  };
+
+  // ---------- Styled select: keeps the native <select> (hidden) as the value store ----------
+  var selSeq = 0;
+  App.enhanceSelect = function (sel) {
+    if (!sel || sel._dd) { if (sel) App.syncSelect(sel); return; }
+    if (!sel.id) sel.id = "sel" + (++selSeq);
+    var name = "sel-" + sel.id, wrap = document.createElement("div");
+    wrap.className = "dd dd-select" + (sel.classList.contains("block") || sel.closest(".field") ? " block" : "");
+    if (sel.classList.contains("tablet-hide")) wrap.classList.add("tablet-hide");
+    sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(sel); sel.hidden = true;
+    var btn = document.createElement("button"); btn.type = "button"; btn.className = "pill select-btn";
+    btn.dataset.dd = name; btn.setAttribute("aria-haspopup", "menu"); btn.setAttribute("aria-expanded", "false");
+    var lab = sel.getAttribute("aria-label") || (document.querySelector('label[for="' + sel.id + '"]') || {}).textContent || "";
+    btn.setAttribute("aria-label", lab.trim());
+    var lbl = document.querySelector('label[for="' + sel.id + '"]'); if (lbl) lbl.setAttribute("for", "");
+    var menu = document.createElement("div"); menu.className = "dd-menu dd-left"; menu.dataset.ddMenu = name; menu.setAttribute("role", "menu"); menu.hidden = true;
+    wrap.appendChild(btn); wrap.appendChild(menu);
+    sel._dd = { btn: btn, menu: menu };
+    new MutationObserver(function () { App.syncSelect(sel); }).observe(sel, { childList: true });
+    App.syncSelect(sel);
+  };
+  App.syncSelect = function (sel) {
+    if (!sel || !sel._dd) return;
+    var o = sel.options[sel.selectedIndex], first = sel.options[0];
+    sel._dd.btn.innerHTML = '<span class="pill-text">' + esc(o ? o.text : "") + "</span>" + App.icon("chevron-down", "ico-sm");
+    sel._dd.btn.classList.toggle("is-set", !!o && !!first && o !== first && sel.dataset.noHighlight == null);
+    sel._dd.btn.disabled = sel.disabled;
+    sel._dd.menu.innerHTML = Array.prototype.map.call(sel.options, function (op) {
+      return '<button class="dd-item" role="menuitemradio" tabindex="-1" data-sel="' + esc(sel.id) + '" data-val="' + esc(op.value) +
+        '" aria-checked="' + (op.selected) + '"><span class="dd-check">' + (op.selected ? App.icon("check") : "") + "</span><span>" + esc(op.text) + "</span></button>";
+    }).join("");
+  };
+  App.syncAllSelects = function (root) { $all("select", root).forEach(function (s) { if (s._dd) App.syncSelect(s); }); };
 
   // ---------- Navigation ----------
   var GROUPS = [
@@ -249,6 +312,12 @@
       if (openDD && openDD.name === name) closeDD(false); else openMenu(name, t);
       return;
     }
+    if ((t = e.target.closest("[data-sel]"))) {
+      var s = document.getElementById(t.dataset.sel);
+      closeDD(true);
+      if (s && s.value !== t.dataset.val) { s.value = t.dataset.val; App.syncSelect(s); s.dispatchEvent(new Event("change", { bubbles: true })); }
+      return;
+    }
     if ((t = e.target.closest("[data-branch]"))) { closeDD(true); App.setBranch(t.dataset.branch); return; }
     if ((t = e.target.closest("[data-role]"))) { closeDD(true); App.setRole(t.dataset.role); return; }
     if ((t = e.target.closest("[data-mark-read]"))) {
@@ -260,7 +329,7 @@
       closeDD(false); renderTopbar(); return;
     }
     if (openDD && !e.target.closest(".dd-menu")) closeDD(false);
-    if (e.target.closest(".dd-menu [data-toast]")) closeDD(false);
+    if (e.target.closest(".dd-menu .dd-item")) closeDD(false);
     if (e.target.closest("[data-palette-open]")) { openPalette(e.target.closest("[data-palette-open]")); return; }
     if ((t = e.target.closest("[data-pal-id]"))) { choosePal(t.dataset.palId); return; }
     if (e.target.closest("[data-sb-toggle]")) { setCollapsed(!app.classList.contains("sb-collapsed"), true); return; }

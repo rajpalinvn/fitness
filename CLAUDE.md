@@ -18,6 +18,11 @@
   wraps its content in <div class="app" data-shell="<key>" data-root="../../">
   <main class="main">…</main></div>. Never hand-build a sidebar or top bar.
 - Icons: inline SVG via App.icon("name") or <span data-icon="name">. No emoji.
+- Pages that open a profile or follow-ups also load shared/followup.js and
+  shared/profile.js (after shell.js). Use App.openProfile(id), App.Followup.*
+  and App.Lead.* — never build a second drawer or follow-up form.
+- Dropdowns: use App.enhanceSelect(select) for styled dropdowns, not raw
+  browser selects.
 - Every page opens by double-click in a browser (relative paths only).
 
 ## Screen sizes

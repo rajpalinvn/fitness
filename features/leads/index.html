@@ -9,6 +9,8 @@
   <script src="../../shared/data.js"></script>
   <script src="../../shared/app.js"></script>
   <script src="../../shared/shell.js"></script>
+  <script src="../../shared/followup.js"></script>
+  <script src="../../shared/profile.js"></script>
 </head>
 <body>
 <div class="app" data-shell="leads" data-root="../../">
@@ -33,7 +35,7 @@
 
     <!-- Search + filters -->
     <div class="filter-bar">
-      <input class="input grow" type="search" id="fSearch" placeholder="Filter this list: name, mobile or email" aria-label="Filter this list">
+      <input class="input grow" type="search" id="fSearch" placeholder="Filter: name, mobile, email" aria-label="Filter this list">
       <select class="input" id="fStage" aria-label="Stage"></select>
       <select class="input tablet-hide" id="fOwner" aria-label="Owner"></select>
       <select class="input tablet-hide" id="fSource" aria-label="Source"></select>
@@ -82,54 +84,7 @@
   </main>
 </div>
 
-<!-- Placeholder profile drawer (real drawer = next screen) -->
-<aside class="drawer" id="profileDrawer" aria-label="Lead profile">
-  <div class="drawer-head">
-    <h2 id="dName"></h2>
-    <button class="btn btn-ghost" data-close aria-label="Close" data-icon="x"></button>
-  </div>
-  <div class="drawer-body" id="dBody"></div>
-</aside>
-
-<!-- Assign owner modal -->
-<div class="modal" id="assignModal" role="dialog" aria-labelledby="assignTitle">
-  <div class="modal-head"><h3 id="assignTitle">Assign owner</h3><button class="btn btn-ghost" data-close aria-label="Close" data-icon="x"></button></div>
-  <div class="modal-body">
-    <p class="muted" id="assignFor"></p>
-    <div class="field">
-      <label for="assignUser">Staff member <span class="req">*</span></label>
-      <select class="input" id="assignUser"></select>
-      <span class="hint">Staff from this lead's branch.</span>
-    </div>
-  </div>
-  <div class="modal-foot">
-    <button class="btn" data-close>Cancel</button>
-    <button class="btn btn-primary" id="assignSave">Assign</button>
-  </div>
-</div>
-
-<!-- Placeholder add follow-up modal (real shared flow = Follow-ups screen) -->
-<div class="modal" id="followModal" role="dialog" aria-labelledby="followTitle">
-  <div class="modal-head"><h3 id="followTitle">Add follow-up</h3><button class="btn btn-ghost" data-close aria-label="Close" data-icon="x"></button></div>
-  <div class="modal-body">
-    <p class="muted" id="followFor"></p>
-    <div class="field">
-      <label>Type <span class="req">*</span></label>
-      <div class="chips" id="followTypes"></div>
-    </div>
-    <div class="row">
-      <div class="field"><label for="followDate">Date <span class="req">*</span></label><input class="input" type="date" id="followDate"></div>
-      <div class="field"><label for="followTime">Time <span class="req">*</span></label><input class="input" type="time" id="followTime" value="11:00"></div>
-    </div>
-    <div class="field"><label for="followNote">Note</label><textarea class="input" id="followNote" rows="2"></textarea></div>
-    <p class="hint">Assigned to the lead owner. Placeholder — the full follow-up flow comes with the Follow-ups screen.</p>
-  </div>
-  <div class="modal-foot">
-    <button class="btn" data-close>Cancel</button>
-    <button class="btn btn-primary" id="followSave">Save follow-up</button>
-  </div>
-</div>
-
+<!-- Profile drawer, follow-up, assign, lost and re-open modals are built by shared/profile.js + shared/followup.js -->
 <script src="leads.js"></script>
 </body>
 </html>
