@@ -9,7 +9,7 @@
   var drawer, form = null;
 
   function P() { return App.byId(D.people, S.id); }
-  function isClient(p) { return p.type === "Client"; }
+  function isClient(p) { return p.kind === "Client"; }
   function isLost(p) { return p.stage === "Lost"; }
 
   // ---------- skeleton ----------
@@ -40,6 +40,7 @@
     if (S.list.indexOf(id) < 0) S.list = [id];
     if (S.id !== id) { S.tab = "timeline"; S.filter = "all"; S.mode = "note"; S.editing = false; }
     S.id = id; S.state = opts.state || "loading";
+    if (opts.tab) S.tab = opts.tab;
     render();
     if (!drawer.classList.contains("open")) App.openDrawer("profileDrawer");
     setHash(P());
@@ -51,7 +52,7 @@
   function slug(p) {
     var first = p.name.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
     var clash = D.people.filter(function (o) { return o.name.split(" ")[0].toLowerCase() === p.name.split(" ")[0].toLowerCase(); }).length > 1;
-    return (p.type === "Client" ? "client-" : "lead-") + first + (clash ? "-" + p.id : "");
+    return (p.kind === "Client" ? "client-" : "lead-") + first + (clash ? "-" + p.id : "");
   }
   App.profileSlug = slug;
   function fromHash() {
@@ -96,7 +97,7 @@
 
   // ---------- LEFT column ----------
   function left(p) {
-    var lost = isLost(p), client = isClient(p), owner = p.ownerId ? App.userName(p.ownerId) : null;
+    var lost = isLost(p), client = isClient(p), owner = p.ownerUserId ? App.userName(p.ownerUserId) : null;
     var stageCls = lost ? "badge-danger" : p.stage === "Trial" ? "badge-info" : client ? "badge-success" : "";
     return (
       '<div class="pd-id"><span class="avatar avatar-xl">' + esc(App.initials(p.name)) + "</span>" +
@@ -146,7 +147,7 @@
       '<div class="dd"><button class="btn btn-block" data-dd="pdmore" aria-haspopup="menu" aria-expanded="false">' + icon("more") + "More</button>" +
       '<div class="dd-menu dd-up" data-dd-menu="pdmore" role="menu" hidden>' +
         '<button class="dd-item" role="menuitem" tabindex="-1" data-pd="lost"><span class="dd-check">' + icon("flag") + "</span><span>Mark as lost</span></button>" +
-        '<button class="dd-item" role="menuitem" tabindex="-1" data-pd="assign"><span class="dd-check">' + icon("user") + "</span><span>" + (p.ownerId ? "Change owner" : "Assign owner") + "</span></button>" +
+        '<button class="dd-item" role="menuitem" tabindex="-1" data-pd="assign"><span class="dd-check">' + icon("user") + "</span><span>" + (p.ownerUserId ? "Change owner" : "Assign owner") + "</span></button>" +
       "</div></div>";
   }
 
@@ -164,23 +165,38 @@
           : ms.cls === "amber" ? "<strong>Renewal due soon</strong> · " + ms.left + (ms.left === 1 ? " day" : " days") + " left"
           : "<strong>Membership active</strong> · " + ms.left + " days left";
         out = '<div class="next-step ' + ms.cls + '"><div class="ns-label">Next step</div>' + txt +
-          '<div class="cell-sub">' + esc(p.membership.package) + " · ends " + esc(App.fmtDate(p.membership.end)) + "</div>" +
-          (f ? '<div class="ns-sub">Follow-up: ' + esc(f.type) + " · " + esc(App.fmtWhen(f.dueAt)) + "</div>" +
+          '<div class="cell-sub">' + esc(p.membership.package) + " · ends " + esc(App.fmtDate(p.membership.end)) + "</div>" + pendingItems(p) +
+          (f ? '<div class="ns-sub">Follow-up: ' + esc(f.type) + " · " + esc(App.fmtDue(f)) + "</div>" +
             '<div class="ns-actions"><button class="btn btn-sm" data-pd="outcome" data-f="' + f.id + '">Log outcome</button></div>' : "") + "</div>";
       }
       return out;
     }
-    var st = App.followUpStatus(f && f.dueAt), body;
+    var st = App.followUpStatus(f && App.dueIso(f)), body;
     if (!f) body = "<strong>No follow-up set</strong><div class=\"cell-sub\">Add one so this lead isn't forgotten.</div>" +
       '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="follow">' + icon("plus") + "Add follow-up</button></div>";
     else {
-      var head = st.cls === "red" ? "Overdue since " + App.fmtDay(f.dueAt) : st.cls === "amber" ? "Due today · " + App.fmtTime(f.dueAt) : "Next: " + App.fmtWhen(f.dueAt);
+      var head = st.cls === "red" ? "Overdue since " + App.fmtDay(App.dueIso(f)) : st.cls === "amber" ? "Due today · " + App.dueTimeText(f) : "Next: " + App.fmtDue(f);
       body = "<strong>" + esc(head) + "</strong>" +
-        '<div class="cell-sub">' + esc(f.type) + (f.note ? " · " + esc(f.note) : "") + " · " + esc(App.userName(f.ownerId)) + "</div>" +
+        '<div class="cell-sub">' + esc(f.type) + (f.note ? " · " + esc(f.note) : "") + " · " + esc(App.userName(f.ownerUserId)) + "</div>" +
         '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="outcome" data-f="' + f.id + '">Log outcome</button></div>';
     }
     return '<div class="next-step ' + st.cls + '" role="status"><div class="ns-label">Next step</div>' + body + "</div>";
   }
+
+  // Decision #38: Paid membership needs FF ID and key fob; each shows as its own pending item until filled.
+  function pendingList(p) {
+    var out = [];
+    if (!p.membership || p.membership.saleType !== "Paid") return out;
+    if (!p.ffId) out.push({ k: "addFf", t: "FF ID pending", a: "Add FF ID" });
+    if (!p.keyFob) out.push({ k: "goFob", t: "Key fob pending", a: "Assign fob" });
+    return out;
+  }
+  function pendingItems(p) {
+    return pendingList(p).map(function (x) {
+      return '<div class="ns-pending"><span class="badge badge-warning">' + esc(x.t) + '</span> <button class="link-btn" data-pd="' + x.k + '">' + esc(x.a) + "</button></div>";
+    }).join("");
+  }
+  App.profilePending = pendingList;
 
   // ---------- RIGHT: tabs ----------
   function tabsFor(p) {
@@ -205,12 +221,13 @@
     whatsapp: { ic: "message", f: "whatsapp" }, milestone: { ic: "flag", f: "milestones" }, call: { ic: "phone", f: "followups" } };
   function events(p) {
     var ev = [];
-    if (!p.synced) ev.push({ at: p.createdAt, kind: "milestone", text: "Lead created by " + (p.ownerId ? App.userName(p.ownerId) : "front desk") + " · " + p.source });
+    if (!p.synced) ev.push({ at: p.createdAt, kind: "milestone", text: "Lead created by " + (p.createdByUserId ? App.userName(p.createdByUserId) : "front desk") + " · " + p.source });
     D.timeline.forEach(function (t) { if (t.personId === p.id) ev.push(t); });
     D.followUps.forEach(function (f) {
       if (f.personId !== p.id) return;
-      if (f.status === "Done") ev.push({ at: f.doneAt || f.dueAt, kind: "followup", text: App.Followup.describeDone(f), sub: f.note, by: f.ownerId });
-      if (f.status === "Cancelled") ev.push({ at: f.cancelledAt || f.dueAt, kind: "cancelled", text: f.type + " on " + App.fmtDay(f.dueAt) + " cancelled" + (f.cancelReason ? " · " + f.cancelReason : ""), struck: true });
+      if (f.status === "Done") ev.push({ at: f.doneAt || App.dueIso(f), kind: "followup", text: App.Followup.describeDone(f), sub: f.note, by: f.ownerUserId });
+      if (f.status === "Closed by system") ev.push({ at: f.closedAt || App.dueIso(f), kind: "cancelled", text: f.type + " on " + App.fmtDay(App.dueIso(f)) + " closed by system · " + String(f.closeReason || "").toLowerCase(), struck: true });
+      if (f.status === "Cancelled") ev.push({ at: f.cancelledAt || App.dueIso(f), kind: "cancelled", text: f.type + " on " + App.fmtDay(App.dueIso(f)) + " cancelled" + (f.cancelReason ? " · " + f.cancelReason : ""), struck: true });
     });
     return ev.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
   }
@@ -220,7 +237,7 @@
   }
   function timelinePanel(p) {
     var upcoming = D.followUps.filter(function (f) { return f.personId === p.id && f.status === "Open"; })
-      .sort(function (a, b) { return new Date(a.dueAt) - new Date(b.dueAt); });
+      .sort(function (a, b) { return new Date(App.dueIso(a)) - new Date(App.dueIso(b)); });
     var all = events(p), list = all.filter(function (e) { return S.filter === "all" || KIND[e.kind].f === S.filter; });
     var filters = [["all", "All"], ["followups", "Follow-ups"], ["notes", "Notes"], ["whatsapp", "WhatsApp"], ["milestones", "Milestones"]];
     var html = '<div class="chips tl-filters" role="group" aria-label="Filter timeline">' + filters.map(function (f) {
@@ -228,10 +245,10 @@
     }).join("") + "</div>";
     if (upcoming.length) {
       html += '<div class="tl-group-label">Open follow-ups</div>' + upcoming.map(function (f) {
-        var st = App.followUpStatus(f.dueAt);
+        var st = App.followUpStatus(App.dueIso(f));
         return '<div class="tl-item tl-upcoming"><span class="tl-ico ' + st.cls + '">' + icon("clock", "ico-sm") + "</span>" +
-          '<div class="tl-main"><div><strong>' + esc(f.type) + "</strong> · " + esc(App.fmtWhen(f.dueAt)) + ' <span class="badge ' + st.badge + '">' + esc(st.text) + "</span></div>" +
-          '<div class="cell-sub">' + (f.note ? esc(f.note) + " · " : "") + esc(App.userName(f.ownerId)) + "</div></div>" +
+          '<div class="tl-main"><div><strong>' + esc(f.type) + "</strong> · " + esc(App.fmtDue(f)) + ' <span class="badge ' + st.badge + '">' + esc(st.text) + "</span></div>" +
+          '<div class="cell-sub">' + (f.note ? esc(f.note) + " · " : "") + esc(App.userName(f.ownerUserId)) + "</div></div>" +
           '<div class="tl-actions"><button class="btn btn-sm btn-primary" data-pd="outcome" data-f="' + f.id + '">Log outcome</button>' +
           '<button class="btn btn-sm btn-ghost" data-pd="cancelfu" data-f="' + f.id + '">Cancel</button></div></div>';
       }).join("");
@@ -275,13 +292,13 @@
   }
 
   // ---------- Tasks ----------
-  function tasksOf(p) { return D.tasks.filter(function (t) { return t.personId === p.id; }); }
+  function tasksOf(p) { return D.workTasks.filter(function (t) { return t.personId === p.id; }); }
   function taskStatus(t) {
     if (t.status === "Open" && App.daysFromToday(t.dueAt) < 0) return { b: "badge-danger", t: "Overdue" };
     return { Open: { b: "badge-info", t: "Open" }, Done: { b: "badge-success", t: "Done" }, Cancelled: { b: "", t: "Cancelled" } }[t.status];
   }
   function tasksPanel(p) {
-    var list = tasksOf(p).sort(function (a, b) { return (a.status === "Open" ? 0 : 1) - (b.status === "Open" ? 0 : 1) || new Date(a.dueAt) - new Date(b.dueAt); });
+    var list = tasksOf(p).sort(function (a, b) { return (a.status === "Open" ? 0 : 1) - (b.status === "Open" ? 0 : 1) || new Date(App.dueIso(a)) - new Date(App.dueIso(b)); });
     var html = '<div class="panel-head"><span class="muted">Staff work linked to ' + esc(p.name.split(" ")[0]) + "</span>" +
       '<button class="btn btn-sm" data-pd="task">' + icon("plus") + "Task</button></div>";
     if (!list.length) return html + '<div class="state">No tasks yet.</div>';
@@ -289,7 +306,7 @@
     return html + list.map(function (t) {
       var s = taskStatus(t);
       return '<div class="task-row' + (t.status !== "Open" ? " is-closed" : "") + '"><div class="tl-main"><div class="cell-title' + (t.status === "Cancelled" ? " struck" : "") + '">' + esc(t.title) + "</div>" +
-        '<div class="cell-sub">Due ' + esc(App.fmtWhen(t.dueAt)) + " · " + esc(App.userName(t.assignedTo)) + (t.note ? " · " + esc(t.note) : "") + "</div></div>" +
+        '<div class="cell-sub">Due ' + esc(App.fmtWhen(t.dueAt)) + " · " + esc(App.userName(t.assignedUserId)) + (t.note ? " · " + esc(t.note) : "") + "</div></div>" +
         '<div class="stack"><span class="badge ' + pri[t.priority] + '">' + esc(t.priority) + '</span><span class="badge ' + s.b + '">' + s.t + "</span></div></div>";
     }).join("");
   }
@@ -306,7 +323,7 @@
           kv("Birth date", p.birthDate && new Date(p.birthDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })) + kv("FF ID", p.ffId) + "</dl>" +
         '<h4 class="sec-title">' + (client ? "Lead history" : "Lead info") + '</h4><dl class="kv kv-wide">' +
           kv("Stage", p.stage) + (isLost(p) ? kv("Lost reason", p.lostReason) : "") + kv("Temperature", p.temperature) + kv("Source", p.source) +
-          kv("Inquiry type", p.inquiryType) + kv("Campaign", p.campaign) + kv("Owner", p.ownerId && App.userName(p.ownerId)) +
+          kv("Inquiry type", p.inquiryType) + kv("Campaign", p.campaign) + kv("Owner", p.ownerUserId && App.userName(p.ownerUserId)) +
           kv("Branch", App.branchName(p.branchId)) + kv("Remarks", p.remarks) + kv("External ID", p.externalId) + "</dl>" +
         (client ? '<h4 class="sec-title">Client</h4><dl class="kv kv-wide">' + kv("Client no", p.clientNo) + kv("Home branch", App.branchName(p.homeBranchId)) +
           kv("Joined", p.joinedAt && App.fmtDate(p.joinedAt)) + kv("Key fob", p.keyFob) + kv("Photo", p.photo) + "</dl>" : "") +
@@ -353,7 +370,7 @@
       // Decision #19: same branch -> name + Open profile; other branch -> branch + owner + Request access
       return fail("mobile", dup.branchId === p.branchId
         ? "Already exists: <strong>" + esc(dup.name) + '</strong> <button type="button" class="link-btn" data-pd="openDup" data-id="' + dup.id + '">Open profile</button>'
-        : "Already exists in " + esc(App.branchName(dup.branchId)) + " · Owner: " + esc(App.firstName(App.byId(D.users, dup.ownerId))) +
+        : "Already exists in " + esc(App.branchName(dup.branchId)) + " · Owner: " + esc(App.firstName(App.byId(D.users, dup.ownerUserId))) +
           ' <button type="button" class="link-btn" data-pd="reqAccess">Request access</button>');
     }
     if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) return fail("email", "Enter a valid email.");
@@ -394,11 +411,15 @@
     else if (fob) fobHtml = '<div class="fob">' + icon("key") + "<strong>" + esc(fob.no) + '</strong> <span class="badge badge-success">Assigned</span></div>' +
       '<div class="stack fob-actions"><button class="btn btn-sm" data-pd="fobReturn">Return</button><button class="btn btn-sm" data-pd="fobLost">Lost</button>' +
       '<button class="btn btn-sm" data-pd="fobReplace">' + icon("swap") + "Replace</button></div>";
-    else fobHtml = '<span class="badge badge-warning">No key fob</span> <button class="btn btn-sm" data-pd="fobAssign"' + (stock.length ? "" : " disabled") + ">Assign from stock</button>";
+    else fobHtml = '<span class="badge badge-warning">Key fob pending</span> <button class="btn btn-sm" data-pd="fobAssign"' + (stock.length ? "" : " disabled") + ">Assign from stock</button>";
     return '<div class="next-step ' + ms.cls + ' mb-3"><strong>' + esc(ms.text) + "</strong> · " +
         (ms.left < 0 ? "ended " + esc(App.fmtDate(m.end)) : ms.left + (ms.left === 1 ? " day" : " days") + " left") + "</div>" +
       '<dl class="kv kv-wide">' + kv("Package", m.package) + "<dt>Sale type</dt><dd><span class=\"badge badge-info\">" + esc(m.saleType) + "</span></dd>" +
-        kv("Start", App.fmtDate(m.start)) + kv("End", App.fmtDate(m.end)) + kv("Price", App.fmtMoney(m.price)) + kv("Client no", p.clientNo) +
+        kv("Start", App.fmtDate(m.start)) + kv("End", App.fmtDate(m.end)) + kv("Price", App.fmtMoney(m.price)) +
+        (m.discount ? kv("Discount", App.fmtMoney(m.discount) + " · " + App.empty(m.discountReason)) : "") +
+        kv("Final price", App.fmtMoney(m.finalPrice != null ? m.finalPrice : m.price)) +
+        kv("Sales rep", m.salesRepUserId ? App.userName(m.salesRepUserId) : "Not set yet") + kv("Client no", p.clientNo) +
+        "<dt>FF ID</dt><dd>" + (p.ffId ? esc(p.ffId) : paid ? '<span class="badge badge-warning">FF ID pending</span> <button class="link-btn" data-pd="addFf">Add</button>' : "Not set yet") + "</dd>" +
         "<dt>Key fob</dt><dd>" + fobHtml + "</dd>" +
         (paid ? kv("Fob stock", App.branchName(p.homeBranchId) + ": " + stock.length + " in stock") : "") + "</dl>" +
       '<p class="hint">Renewals and payments come with the Payment module.</p>';
@@ -459,7 +480,9 @@
       case "assign": App.Lead.assign(p.id); break;
       case "lost": App.Lead.markLost(p.id); break;
       case "reopen": App.Lead.reopen(p.id); break;
-      case "convert": App.toast("Convert to Client stepper comes in a later screen", ""); break;
+      case "convert": App.Convert.open(p.id); break;
+      case "addFf": S.tab = "details"; S.editing = true; render(); break;
+      case "goFob": S.tab = "membership"; render(); break;
       case "task": App.toast("Task form comes with the Tasks screen", ""); break;
       case "edit": S.editing = true; render(); break;
       case "cancelEdit": S.editing = false; render(); break;
@@ -474,7 +497,7 @@
         App.dataChanged(); break;
       case "saveFollow":
         var v = form && form.value(); if (!v) return;
-        var f = App.Followup.create(p.id, v); App.toast("Follow-up set · " + App.fmtWhen(f.dueAt), "success"); App.dataChanged(); break;
+        var f = App.Followup.create(p.id, v); App.toast("Follow-up set · " + App.fmtDue(f), "success"); App.dataChanged(); break;
       case "upload":
         var type = drawer.querySelector("#docType").value;
         D.docs.push({ personId: p.id, type: type, name: type + " (placeholder).pdf", at: new Date().toISOString(), by: App.me().id });

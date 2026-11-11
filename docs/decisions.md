@@ -113,3 +113,50 @@
     applied as data attributes on <html> that switch token values, so pages
     need no changes. On tablet the drawer is always at least 92%. Other
     Settings sections show as "Coming soon" until built.
+36. Lead people. CreatedBy (`createdByUserId`) never changes. Owner
+    (`ownerUserId`) is who brought / handles the lead: required at creation,
+    defaults to the creator, changeable, with an owner-change history
+    (`ownerHistory`). Sales rep (`salesRepUserId`) gets the credit per SALE
+    LINE, exactly one rep per line. Default, can change: the sales rep
+    defaults to the lead owner and can be changed at sale.
+37. Follow-up statuses: Open, Done (staff did it), Cancelled (by staff, with a
+    reason), Closed by system (reason: Client converted / Lead lost / Client
+    transferred). The system never marks a follow-up Done. Owners of
+    follow-ups closed by the system get a notification. This replaces
+    "cancelled when lost" in #26 and the plan for conversion.
+38. Mobile is required and unique company-wide. Email is optional and unique
+    when given (no email: receipts go by WhatsApp only).
+39. Free trial can be taken many times; show a warning "This is their 3rd
+    free trial". Capping comes later from admin.
+40. FF ID (permanent client ID from the corporate software) and key fob come
+    only after the client is entered in the corporate software. Free trial:
+    never. Paid trial: admin rule later. Paid membership: required. FF ID
+    and key fob show as SEPARATE pending items ("FF ID pending", "Key fob
+    pending") until filled. Both unique company-wide. A fob can be reissued.
+41. Start date: today up to 30 days ahead (back dates: open question, not
+    allowed for now). No overlapping membership and no overlapping PT for the
+    same client on the same date. Expiry is by calendar days with the start
+    day included (7 days from Mon ends Sun).
+42. PT longer than the membership: allowed with a warning; the seller must
+    tick an acknowledge checkbox.
+43. Couple PT: both people must be clients with an active membership.
+44. Upgrade (membership and PT): only to a higher price, validity from the
+    ORIGINAL start date, full paid amount adjusted. PT upgrade payout: past
+    session payouts are frozen; new rate = (new price - value used) /
+    remaining sessions (remaining = new sessions - used). Trainer screens show
+    a "Rate updated · upgrade" badge with this explanation. Upgrade UI later.
+45. Transfer (first Add-on): permanent home branch change with history, fee
+    as an Add-on sale line (free allowed), owner unchanged by default, open
+    follow-ups "Closed by system" (Client transferred). Transfer UI later.
+46. Free items in a package. Default, can change: rule per item "Once per
+    client" (default; skipped if the client ever got this item free) or
+    "Every sale". Out of stock: the sale continues, the line is "Pending
+    issue", and a manager can "Waive" it with a reason.
+47. Package audience: New / Renewal / Both. Default, can change: Both.
+48. Conversion: the mockup converts on "Proceed to Payment". The real app
+    converts only when payment succeeds (#3 "money taken = client"). PT
+    packages are disabled for leads (#20). Price locked, discount needs a
+    reason (#14). Discount limits by role are PLACEHOLDERS until admin
+    settings exist: Sales Executive max 10%, Sales Manager max 20%, other
+    roles no limit. Converting an unassigned lead makes the converting user
+    the owner.

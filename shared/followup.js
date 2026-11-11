@@ -17,7 +17,7 @@
   var NEXT_WORD = { "Call": "call", "WhatsApp": "WhatsApp", "Visit planned": "visit", "Free trial planned": "free trial", "Payment expected": "payment follow-up" };
 
   function person(id) { return App.byId(D.people, id); }
-  function isOpenLead(p) { return p && p.type === "Lead" && p.stage !== "Lost" && p.stage !== "Converted"; }
+  function isOpenLead(p) { return p && p.kind === "Lead" && p.stage !== "Lost" && p.stage !== "Converted"; }
   function openFollowUps(pid) { return D.followUps.filter(function (f) { return f.personId === pid && f.status === "Open"; }); }
   function chips(name, items, selected) {
     return '<div class="chips" role="radiogroup">' + items.map(function (i) {
@@ -42,21 +42,21 @@
         '<div class="field"><label>Type <span class="req">*</span></label>' + chips("ftype", L.followUpTypes, defType) + "</div>" +
         '<div class="field"><label>When <span class="req">*</span></label>' + chips("fpick", PICKS, "1") +
           '<div class="row ff-when"><input class="input ff-date" type="date" aria-label="Date" hidden>' +
-          '<input class="input ff-time" type="time" value="11:00" aria-label="Time"></div>' +
+          '<input class="input ff-time" type="time" value="11:00" aria-label="Time (optional)" title="Time is optional"></div>' +
           '<span class="hint ff-preview"></span><span class="error ff-err" hidden></span></div>' +
         '<div class="field"><label>Note</label><textarea class="input ff-note" rows="2" placeholder="What is this follow-up about? (optional)"></textarea></div>' +
-        '<p class="hint">Assigned to ' + esc(p && p.ownerId ? App.userName(p.ownerId) + " (lead owner)" : "the lead owner (not set yet)") + ".</p>" +
+        '<p class="hint">Assigned to ' + esc(p && p.ownerUserId ? App.userName(p.ownerUserId) + " (lead owner)" : "the lead owner (not set yet)") + ".</p>" +
       "</div>";
     var root = container.querySelector(".ff");
     function dueDate() {
-      var pick = chipValue(root, "fpick"), t = root.querySelector(".ff-time").value || "11:00", base;
+      var pick = chipValue(root, "fpick"), t = root.querySelector(".ff-time").value, base;
       if (pick === "c") { var v = root.querySelector(".ff-date").value; if (!v) return null; base = new Date(v + "T00:00"); }
       else base = plusDays(Number(pick));
-      var hm = t.split(":"); base.setHours(Number(hm[0]), Number(hm[1]), 0, 0); return base;
+      var hm = (t || "00:00").split(":"); base.setHours(Number(hm[0]), Number(hm[1]), 0, 0); base.noTime = !t; return base;
     }
     function preview() {
       var d = dueDate();
-      root.querySelector(".ff-preview").textContent = d ? "Due " + App.fmtWhen(d.toISOString()) : "Pick a date";
+      root.querySelector(".ff-preview").textContent = d ? "Due " + (d.noTime ? App.fmtDay(d.toISOString()) + " · any time" : App.fmtWhen(d.toISOString())) : "Pick a date";
     }
     root.addEventListener("click", function (e) {
       var c = e.target.closest("[data-chip]"); if (!c) return;
@@ -75,7 +75,7 @@
         var bad = !d ? "Pick a date." : App.startOfDay(d) < App.startOfDay(new Date()) ? "The date can't be in the past." : "";
         err.hidden = !bad; err.textContent = bad;
         if (bad) return null;
-        return { type: chipValue(root, "ftype"), dueAt: d.toISOString(), note: root.querySelector(".ff-note").value.trim() || null };
+        return { type: chipValue(root, "ftype"), dueDate: isoDate(d), dueTime: d.noTime ? null : ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2), note: root.querySelector(".ff-note").value.trim() || null };
       },
       reset: function () { mountForm(container, personId, opts); }
     };
@@ -83,28 +83,40 @@
 
   function create(personId, v) {
     var p = person(personId);
-    var f = { id: "f" + Date.now() + Math.floor(Math.random() * 1000), personId: personId, type: v.type, dueAt: v.dueAt,
-      ownerId: p.ownerId, status: "Open", outcome: null, note: v.note, createdAt: new Date().toISOString() };
+    var f = { id: "f" + Date.now() + Math.floor(Math.random() * 1000), personId: personId, type: v.type, dueDate: v.dueDate, dueTime: v.dueTime,
+      ownerUserId: p.ownerUserId, status: "Open", outcome: null, note: v.note, createdAt: new Date().toISOString() };
     D.followUps.push(f);
     return f;
+  }
+
+  // Decision #37: the system never marks a follow-up Done. When a lead is lost, converted or
+  // transferred its open follow-ups become "Closed by system" and each owner gets a notification.
+  function closeBySystem(personId, reason) {
+    var p = person(personId), now = new Date().toISOString(), closed = openFollowUps(personId);
+    closed.forEach(function (f) {
+      f.status = "Closed by system"; f.closedAt = now; f.closeReason = reason;
+      D.notifications.unshift({ id: "n" + Date.now() + f.id, text: f.type + " with " + p.name + " was closed by system · " + reason.toLowerCase(),
+        at: now, unread: true, userId: f.ownerUserId });
+    });
+    return closed.length;
   }
 
   // ---------- Add follow-up modal ----------
   function openAdd(personId, opts) {
     opts = opts || {};
     var p = person(personId);
-    if (!isOpenLead(p) && !(p && p.type === "Client")) { App.toast("Re-open the lead first to add a follow-up", "error"); return; }
+    if (!isOpenLead(p) && !(p && p.kind === "Client")) { App.toast("Re-open the lead first to add a follow-up", "error"); return; }
     var m = App.makeModal("fuAddModal");
     m.title.textContent = opts.title || "Add follow-up";
     m.body.innerHTML = '<p class="muted">' + esc(p.name) + " · " + esc(p.cc + " " + p.mobile) + "</p>" +
       (opts.intro ? '<div class="callout">' + esc(opts.intro) + "</div>" : "") + '<div data-ff></div>';
-    var form = mountForm(m.body.querySelector("[data-ff]"), personId);
+    var form = mountForm(m.body.querySelector("[data-ff]"), personId, { type: opts.type });
     m.foot.innerHTML = '<button class="btn" data-close>' + (opts.cancelText || "Cancel") + '</button><button class="btn btn-primary" data-save>Save follow-up</button>';
     m.foot.querySelector("[data-save]").onclick = function () {
       var v = form.value(); if (!v) return;
       var f = create(personId, v);
       App.close(m.el);
-      App.toast("Follow-up set for " + p.name + " · " + App.fmtWhen(f.dueAt), "success");
+      App.toast("Follow-up set for " + p.name + " · " + App.fmtDue(f), "success");
       App.dataChanged();
       if (opts.onDone) opts.onDone(f);
     };
@@ -114,12 +126,12 @@
   // ---------- Log outcome (outcome -> lost? -> next follow-up) ----------
   function openOutcome(fid) {
     var f = App.byId(D.followUps, fid); if (!f) return;
-    var p = person(f.personId), st = App.followUpStatus(f.dueAt);
+    var p = person(f.personId), st = App.followUpStatus(App.dueIso(f));
     var m = App.makeModal("fuOutcomeModal");
     m.title.textContent = "Log outcome";
     m.body.innerHTML =
       '<div class="fu-head"><span class="badge ' + st.badge + '">' + esc(st.text) + "</span> " +
-        "<strong>" + esc(f.type) + "</strong> with " + esc(p.name) + ' <span class="muted">· due ' + esc(App.fmtWhen(f.dueAt)) + "</span>" +
+        "<strong>" + esc(f.type) + "</strong> with " + esc(p.name) + ' <span class="muted">· due ' + esc(App.fmtDue(f)) + "</span>" +
         (f.note ? '<div class="cell-sub">' + esc(f.note) + "</div>" : "") + "</div>" +
       '<div class="field"><label>What happened? <span class="req">*</span></label>' + chips("outcome", L.outcomes, "") +
         '<span class="error" data-oerr hidden>Choose an outcome.</span></div>' +
@@ -160,7 +172,7 @@
     m.title.textContent = "Next follow-up";
     if (other) {
       m.body.innerHTML = '<div class="callout">' + App.icon("check") + "<span>Next follow-up is already set: <strong>" + esc(other.type) +
-        "</strong> · " + esc(App.fmtWhen(other.dueAt)) + "</span></div>";
+        "</strong> · " + esc(App.fmtDue(other)) + "</span></div>";
       m.foot.innerHTML = '<button class="btn btn-primary" data-close>Done</button>';
       return;
     }
@@ -171,7 +183,7 @@
       var v = form.value(); if (!v) return;
       var n = create(p.id, v); f.nextId = n.id;
       App.close(m.el);
-      App.toast("Next follow-up · " + App.fmtWhen(n.dueAt), "success");
+      App.toast("Next follow-up · " + App.fmtDue(n), "success");
       App.dataChanged();
     };
   }
@@ -180,7 +192,7 @@
   function cancel(fid) {
     var f = App.byId(D.followUps, fid), p = person(f.personId), m = App.makeModal("fuCancelModal");
     m.title.textContent = "Cancel follow-up?";
-    m.body.innerHTML = "<p><strong>" + esc(f.type) + "</strong> with " + esc(p.name) + " · " + esc(App.fmtWhen(f.dueAt)) + "</p>" +
+    m.body.innerHTML = "<p><strong>" + esc(f.type) + "</strong> with " + esc(p.name) + " · " + esc(App.fmtDue(f)) + "</p>" +
       '<div class="field"><label for="fuCReason">Reason</label><input class="input" id="fuCReason" placeholder="e.g. Duplicate, lead asked to call later (optional)"></div>' +
       '<p class="hint">Cancelled follow-ups stay in the timeline.' + (openFollowUps(p.id).length === 1 && isOpenLead(p) ? " This lead will have no follow-up set." : "") + "</p>";
     m.foot.innerHTML = '<button class="btn" data-close>Keep it</button><button class="btn btn-danger" data-save>Cancel follow-up</button>';
@@ -198,7 +210,7 @@
       '<span class="error" data-lerr hidden></span></div>' +
       '<div class="field" data-other hidden><label for="lostOther">Describe the reason <span class="req">*</span></label>' +
       '<input class="input" id="lostOther" placeholder="Required when the reason is Other"></div>' +
-      '<p class="hint">Open follow-ups will be cancelled. You can re-open the lead later.</p>';
+      '<p class="hint">Open follow-ups will be closed by system and their owners notified. You can re-open the lead later.</p>';
     m.body.onclick = function (e) {
       var c = e.target.closest("[data-chip]"); if (!c) return;
       selectChip(c); m.body.querySelector("[data-other]").hidden = c.dataset.v !== "Other";
@@ -213,7 +225,7 @@
       if (beforeSave) beforeSave();
       var reason = r === "Other" ? "Other: " + other : r;
       p.stageBeforeLost = p.stage; p.stage = "Lost"; p.lostReason = reason; p.lostAt = new Date().toISOString();
-      openFollowUps(p.id).forEach(function (f) { f.status = "Cancelled"; f.cancelledAt = p.lostAt; f.cancelReason = "Lead marked as Lost"; });
+      closeBySystem(p.id, "Lead lost");
       App.addTimeline(p.id, "milestone", "Marked as Lost · " + reason);
       App.close(m.el); App.toast(p.name + " marked as Lost", ""); App.dataChanged();
     };
@@ -240,20 +252,21 @@
   function assign(personId) {
     var p = person(personId), m = App.makeModal("assignModal");
     var staff = D.users.filter(function (u) { return u.branches.indexOf(p.branchId) > -1 && ASSIGNABLE_ROLES.indexOf(u.role) > -1; });
-    m.title.textContent = p.ownerId ? "Change owner" : "Assign owner";
+    m.title.textContent = p.ownerUserId ? "Change owner" : "Assign owner";
     m.body.innerHTML = '<p class="muted">' + esc(p.name) + " · " + esc(App.branchName(p.branchId)) + "</p>" +
       '<div class="field"><label for="assignUser">Staff member <span class="req">*</span></label>' +
       '<select class="input" id="assignUser"><option value="">Choose…</option>' + staff.map(function (u) {
-        return '<option value="' + u.id + '"' + (u.id === p.ownerId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(u.role) + "</option>";
+        return '<option value="' + u.id + '"' + (u.id === p.ownerUserId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(u.role) + "</option>";
       }).join("") + '</select><span class="hint">Staff from this lead\'s branch. Open follow-ups move to the new owner.</span>' +
       '<span class="error" data-aerr hidden>Choose a staff member.</span></div>';
     App.enhanceSelect(m.body.querySelector("#assignUser"));
-    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>' + (p.ownerId ? "Save" : "Assign") + "</button>";
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>' + (p.ownerUserId ? "Save" : "Assign") + "</button>";
     m.foot.querySelector("[data-save]").onclick = function () {
       var uid = m.body.querySelector("#assignUser").value;
       if (!uid) { m.body.querySelector("[data-aerr]").hidden = false; return; }
-      p.ownerId = uid;
-      openFollowUps(p.id).forEach(function (f) { f.ownerId = uid; });
+      if (p.ownerUserId !== uid) p.ownerHistory.push({ from: p.ownerUserId || null, to: uid, at: new Date().toISOString(), by: App.me().id });
+      p.ownerUserId = uid;
+      openFollowUps(p.id).forEach(function (f) { f.ownerUserId = uid; });
       App.addTimeline(p.id, "milestone", "Owner set to " + App.userName(uid));
       App.close(m.el); App.toast(p.name + " assigned to " + App.userName(uid), "success"); App.dataChanged();
     };
@@ -262,14 +275,14 @@
 
   // Human sentence for a finished follow-up: "Priya called · Interested · next call Fri"
   function describeDone(f) {
-    var who = App.firstName(App.byId(D.users, f.ownerId));
+    var who = App.firstName(App.byId(D.users, f.ownerUserId));
     var s = who + " " + (VERB[f.type] || "followed up") + " · " + f.outcome;
     var n = f.nextId && App.byId(D.followUps, f.nextId);
-    if (n) s += " · next " + (NEXT_WORD[n.type] || "follow-up") + " " + App.fmtShortWhen(n.dueAt);
+    if (n) s += " · next " + (NEXT_WORD[n.type] || "follow-up") + " " + App.fmtShortWhen(App.dueIso(n));
     return s;
   }
 
   App.Followup = { mountForm: mountForm, openAdd: openAdd, openOutcome: openOutcome, cancel: cancel, create: create,
-    describeDone: describeDone, isOpenLead: isOpenLead };
+    describeDone: describeDone, isOpenLead: isOpenLead, closeBySystem: closeBySystem, openFollowUps: openFollowUps };
   App.Lead = { markLost: markLost, reopen: reopen, assign: assign };
 })();

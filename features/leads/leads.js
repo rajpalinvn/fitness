@@ -47,15 +47,15 @@
         if (!hit && qd.length >= 3) hit = digits(p.cc + p.mobile).indexOf(qd) > -1;
         if (!hit) return false;
       }
-      if (S.owner === "none" && p.ownerId) return false;
-      if (S.owner && S.owner !== "none" && p.ownerId !== S.owner) return false;
+      if (S.owner === "none" && p.ownerUserId) return false;
+      if (S.owner && S.owner !== "none" && p.ownerUserId !== S.owner) return false;
       if (S.source && p.source !== S.source) return false;
       if (S.temp && p.temperature !== S.temp) return false;
       if (S.synced && !p.synced) return false;
       if (S.from && new Date(p.createdAt) < new Date(S.from)) return false;
       if (S.to && new Date(p.createdAt) > new Date(S.to + "T23:59:59")) return false;
       if (S.follow) {
-        var f = nextFollowUp(p.id), st = App.followUpStatus(f && f.dueAt).text;
+        var f = nextFollowUp(p.id), st = App.followUpStatus(f && App.dueIso(f)).text;
         if (p.stage === "Lost" || st !== S.follow) return false;
       }
       return true;
@@ -72,8 +72,8 @@
   function rank(p) {
     if (p.stage === "Lost") return [9, -new Date(p.lastActivityAt)];
     var f = nextFollowUp(p.id); if (!f) return [1, 0];
-    var c = App.followUpStatus(f.dueAt).cls;
-    return [c === "red" ? 0 : c === "amber" ? 2 : 3, new Date(f.dueAt).getTime()];
+    var c = App.followUpStatus(App.dueIso(f)).cls;
+    return [c === "red" ? 0 : c === "amber" ? 2 : 3, new Date(App.dueIso(f)).getTime()];
   }
   function sortLeads(list) {
     return list.sort(function (a, b) { var x = rank(a), y = rank(b); return x[0] - y[0] || x[1] - y[1]; });
@@ -89,7 +89,7 @@
   }
   function fillFilters() {
     opts($("fStage"), "Open leads (all stages)", L.stages.concat(["Lost"]));
-    var owners = D.users.filter(function (u) { return D.people.some(function (p) { return p.ownerId === u.id && p.type === "Lead"; }); })
+    var owners = D.users.filter(function (u) { return D.people.some(function (p) { return p.ownerUserId === u.id && p.kind === "Lead"; }); })
       .map(function (u) { return { v: u.id, t: u.name }; }).concat([{ v: "none", t: "Unassigned" }]);
     ["fOwner", "mOwner"].forEach(function (id) { opts($(id), "All owners", owners); });
     ["fSource", "mSource"].forEach(function (id) { opts($(id), "All sources", L.sources); });
@@ -144,16 +144,16 @@
   // ---------- render: rows ----------
   function followCell(p) {
     if (p.stage === "Lost") return '<span class="muted">— (lost lead)</span>';
-    var f = nextFollowUp(p.id), st = App.followUpStatus(f && f.dueAt);
+    var f = nextFollowUp(p.id), st = App.followUpStatus(f && App.dueIso(f));
     if (!f) return '<span class="badge badge-danger">Not set yet</span><div class="cell-sub">Add a follow-up</div>';
     var label;
-    if (st.cls === "red") { var d = -daysBetween(new Date(), f.dueAt); label = "Overdue · " + (d === 1 ? "1 day" : d + " days"); }
-    else if (st.cls === "amber") label = "Due today · " + time(f.dueAt);
+    if (st.cls === "red") { var d = -daysBetween(new Date(), App.dueIso(f)); label = "Overdue · " + (d === 1 ? "1 day" : d + " days"); }
+    else if (st.cls === "amber") label = "Due today · " + App.dueTimeText(f);
     else {
-      var ahead = daysBetween(new Date(), f.dueAt);
-      label = "Scheduled · " + (ahead === 1 ? "Tomorrow" : ahead < 7 ? new Date(f.dueAt).toLocaleDateString("en-IN", { weekday: "short" }) : shortDate(f.dueAt));
+      var ahead = daysBetween(new Date(), App.dueIso(f));
+      label = "Scheduled · " + (ahead === 1 ? "Tomorrow" : ahead < 7 ? new Date(App.dueIso(f)).toLocaleDateString("en-IN", { weekday: "short" }) : shortDate(App.dueIso(f)));
     }
-    return '<div class="when">' + esc(shortDate(f.dueAt)) + ", " + esc(time(f.dueAt)) + "</div>" +
+    return '<div class="when">' + esc(shortDate(App.dueIso(f))) + ", " + esc(App.dueTimeText(f)) + "</div>" +
       '<div class="stack"><span class="badge ' + st.badge + '">' + esc(label) + '</span><span class="cell-sub">' + esc(f.type) + "</span></div>";
   }
   function stageCell(p) {
@@ -170,7 +170,7 @@
     return html;
   }
   function ownerCell(p) {
-    if (p.ownerId) return esc(user(p.ownerId).name);
+    if (p.ownerUserId) return esc(user(p.ownerUserId).name);
     return '<div class="stack"><span class="badge badge-warning">Unassigned</span>' +
       '<button class="btn btn-sm" data-act="assign" data-id="' + p.id + '">Assign</button></div>';
   }

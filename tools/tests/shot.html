@@ -3,7 +3,9 @@ var a = location.hash.slice(1).split(","), id = a[0], w = +a[1], tab = a[2];
 var f = document.getElementById("f"); f.style.width = w + "px"; f.style.height = "800px";
 f.onload = function () { setTimeout(function () {
   var W = f.contentWindow; W.App.openProfile(id, { state: "normal" });
-  if (tab) setTimeout(function () { W.document.querySelector('[data-tab-k="' + tab + '"]').click(); }, 100);
+  var d = W.document;
+  if (tab === "convert") setTimeout(function () { d.querySelector('[data-pd="convert"]').click(); d.querySelector('[data-cv="next"]').click(); d.querySelector('[data-pkg="pk7"]').click(); }, 100);
+  else if (tab) setTimeout(function () { d.querySelector('[data-tab-k="' + tab + '"]').click(); }, 100);
 }, 600); };
 f.src = "../../features/profile/index.html";
 </script></body></html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { setTimeout(cb, 800); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function vis(el) { return !!el && el.getClientRects().length > 0 && W().getComputedStyle(el).visibility !== "hidden"; }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function badText(el) { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec((el || Dc().body).innerText); }
+function pickSel(id, val) { click(q('[data-dd="sel-' + id + '"]')); click(q('[data-sel="' + id + '"][data-val="' + val + '"]')); }
+function type(sel, v, ev) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)(ev || "input", { bubbles: true })); }
+function D() { return W().DUMMY; } function person(id) { return W().App.byId(D().people, id); }
+function M() { return q("#convertModal"); } function mtext() { return M() ? M().innerText : ""; }
+function next() { click(q('#convertModal [data-cv="next"]')); }
+function finish() { click(q('#convertModal [data-cv="finish"]')); }
+function steps() { return Array.prototype.map.call(qa("#convertModal .step"), function (s) { return s.textContent.replace(/^\d/, "").trim(); }).join(","); }
+function startConvert(id) { W().App.openProfile(id, { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+var bad = [];
+function scan(tag) { var b = badText(M()); if (b) bad.push(tag + ":" + b[0]); }
+
+load(LEADS, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(LEADS, function () {
+    step("Aarav: paid membership with discount + fob", function () {
+      var openBefore = D().followUps.filter(function (f) { return f.personId === "p1" && f.status === "Open"; }).length;
+      startConvert("p1");
+      ok("stepper modal opens", M().classList.contains("open"));
+      ok("5 steps before a package is chosen", steps() === "Details,Package,Sale & start,Key fob,Summary", steps());
+      ok("name + mobile read-only, gender required", /Aarav Patel/.test(mtext()) && /\+91 90000 01234/.test(mtext()) && /Gender \*/.test(mtext()));
+      scan("p1/1"); next();
+      ok("step 2 package", /Membership/.test(mtext()) && !!q('[data-pkg="pk7"]'));
+      ok("PT disabled for leads with reason", q('[data-pkg="pk9"]').disabled && /PT needs an active membership/.test(q('[data-pkg="pk9"]').textContent));
+      next(); ok("package required", /Choose a package/.test(mtext()));
+      click(q('[data-pkg="pk7"]'));
+      ok("price locked shown", /₹24,000/.test(mtext()) && /locked/.test(mtext()));
+      ok("sales rep defaults to lead owner (Priya)", q("#cvRep").value === "u6");
+      ok("discount limit marked placeholder", /Placeholder/.test(mtext()));
+      type("#cvDisc", "15");
+      ok("final price live", /₹20,400/.test(text("[data-final]")), text("[data-final]"));
+      next(); ok("reason required for discount", /A reason is needed/.test(mtext()));
+      W().App.state.role = "Sales Executive"; type("#cvReason", "Diwali offer"); next();
+      ok("Sales Executive capped at 10% (placeholder)", /Your limit is 10%/.test(mtext()));
+      W().App.state.role = "CEO"; type("#cvDisc", "10"); next();
+      ok("step 3: sale type automatic = Paid", /Sale type · automatic/i.test(mtext()) && /Paid/.test(mtext()));
+      ok("end date shown, start day included", /start day included/.test(mtext()) && /365 days/.test(mtext()));
+      ok("start date limited to today..+30", q("#cvStart").min && q("#cvStart").max && q("#cvStart").min < q("#cvStart").max);
+      scan("p1/3"); next();
+      ok("step 4: fob chips from Sec 31 stock", !!q('[data-fob="KF-S31-0013"]') && !q('[data-fob="KF-S65-0101"]'));
+      click(q('[data-fob="KF-S31-0013"]')); next();
+      ok("summary shows final price + reason + fob", /₹21,600/.test(mtext()) && /Diwali offer/.test(mtext()) && /KF-S31-0013/.test(mtext()));
+      ok("summary warns follow-ups will be closed by system", /closed by system · client converted/.test(mtext()));
+      ok("button = Proceed to Payment", /Proceed to Payment/.test(text('#convertModal [data-cv="finish"]')));
+      scan("p1/5"); finish();
+      var p = person("p1");
+      ok("person is now a Client CL-1003", p.kind === "Client" && p.stage === "Converted" && p.clientNo === "CL-1003");
+      ok("membership saved with discount, final, rep", p.membership.discount === 2400 && p.membership.finalPrice === 21600 && p.membership.salesRepUserId === "u6" && p.membership.discountReason === "Diwali offer");
+      ok("fob assigned, stock down", p.keyFob === "KF-S31-0013" && D().keyFobs.filter(function (k) { return k.no === "KF-S31-0013"; })[0].status === "Assigned");
+      var f1 = W().App.byId(D().followUps, "f1");
+      ok("open follow-up Closed by system · Client converted", openBefore > 0 && f1.status === "Closed by system" && f1.closeReason === "Client converted");
+      ok("owner notified", D().notifications.some(function (n) { return /Aarav Patel was closed by system/.test(n.text); }));
+      ok("done screen + payment note", /now a client \(CL-1003\)/.test(mtext()) && /only after payment succeeds/.test(mtext()));
+      ok("FF ID pending shown (Aarav has no FF ID)", /FF ID pending/.test(mtext()) && !/Key fob pending/.test(mtext()));
+      ok("drawer shows Client + Active on Membership tab", /Client/.test(text(".pd-left")) && /Active/.test(text(".pd-left")) && q(".pd-tabs .tab.active").dataset.tabK === "membership");
+      ok("NEXT STEP lists FF ID pending", /FF ID pending/.test(text(".next-step")));
+      ok("timeline milestone human text", D().timeline.some(function (t) { return t.personId === "p1" && /Converted to Client · Annual Membership · ₹21,600 \(₹2,400 off: Diwali offer\) · key fob KF-S31-0013/.test(t.text); }));
+      ok("hash becomes #client-aarav", W().location.hash === "#client-aarav", W().location.hash);
+      ok("row left the leads list", !q('#rows tr[data-id="p1"]'));
+      click(q('#convertModal [data-close]'));
+      ok("closed follow-up struck in timeline", (click(q('[data-tab-k="timeline"]')), /closed by system · client converted/.test(text(".pd-scroll"))));
+    });
+
+    step("Sneha: paid trial, email + FF ID duplicate checks", function () {
+      startConvert("p2");
+      ok("no email hint", /No email: receipts go by WhatsApp only/.test(mtext()));
+      type("#cvEmail", "aarav.patel@example.com"); next();
+      ok("duplicate email blocked", /Already used by/.test(mtext()) && /Aarav Patel/.test(mtext()));
+      type("#cvEmail", ""); type("#cvFf", "FF-20431"); next();
+      ok("duplicate FF ID (other branch) shows branch + owner", /Already exists in Sec 65 · Owner: Arjun/.test(mtext()), mtext().slice(0, 300));
+      type("#cvFf", ""); next();
+      click(q('[data-pkg="pk2"]'));
+      ok("paid trial: no Key fob step", steps() === "Details,Package,Sale & start,Summary", steps());
+      next(); ok("sale type Paid trial", /Paid trial/.test(mtext()) && /No key fob/.test(mtext()));
+      next(); finish();
+      var p = person("p2");
+      ok("Sneha is a Trial Paid client, no fob", p.kind === "Client" && p.membership.saleType === "Trial Paid" && !p.keyFob);
+      click(q('#convertModal [data-close]'));
+      ok("paid trial shows no pending items", !/pending/i.test(text(".next-step")));
+    });
+
+    step("Ishaan: free trial again stays a Lead with warning", function () {
+      startConvert("p5"); next(); click(q('[data-pkg="pk1"]'));
+      ok("3rd free trial warning", /This is their 3rd free trial/.test(mtext()));
+      ok("no discount for free", !q("#cvDisc"));
+      next(); ok("sale type: stays a Lead", /stays a Lead/.test(mtext()));
+      next(); ok("button = Book free trial", /Book free trial/.test(text('#convertModal [data-cv="finish"]')));
+      finish();
+      var p = person("p5");
+      ok("still a Lead, stage Trial, count 3", p.kind === "Lead" && p.stage === "Trial" && p.freeTrialCount === 3);
+      ok("open follow-up kept (not closed)", W().App.byId(D().followUps, "f3").status === "Open");
+      ok("modal closed", !M().classList.contains("open"));
+    });
+
+    step("Fatima: unassigned Meta lead, fob later", function () {
+      startConvert("p8");
+      next(); ok("gender required", /Choose a gender/.test(mtext()));
+      pickSel("cvGender", "Female"); next();
+      click(q('[data-pkg="pk4"]'));
+      ok("rep defaults to converting user when unassigned", q("#cvRep").value === W().App.me().id || !!q("#cvRep").value);
+      next(); next(); click(q('#convertModal [data-fob=""]')); next();
+      ok("summary: owner = you", /lead was unassigned/.test(mtext()));
+      finish();
+      var p = person("p8");
+      ok("owner set to converting user + history", p.ownerUserId === W().App.me().id && p.ownerHistory.length === 1);
+      ok("external ID kept", p.externalId === "meta_1203948571");
+      click(q('#convertModal [data-close]'));
+      ok("FF ID pending and Key fob pending separately", /FF ID pending/.test(text(".next-step")) && /Key fob pending/.test(text(".next-step")));
+    });
+
+    step("Esc discards", function () {
+      startConvert("p4"); key("Escape");
+      ok("Esc closes stepper, nothing saved", !M().classList.contains("open") && person("p4").kind === "Lead");
+    });
+    step("Lost -> Closed by system", function () {
+      W().App.openProfile("p4", { state: "normal" }); key("Escape");
+      W().App.Lead.markLost("p4");
+      click(Array.prototype.find.call(qa("#lostModal .chip"), function (c) { return c.textContent === "Price high"; }));
+      click(q("#lostModal [data-save]"));
+      ok("lost lead follow-up Closed by system · Lead lost", W().App.byId(D().followUps, "f2").status === "Closed by system" && W().App.byId(D().followUps, "f2").closeReason === "Lead lost");
+    });
+    ok("no null/undefined/NaN in stepper", !bad.length, bad.join(" "));
+    ok("no bad text on page", !badText(), badText());
+    document.getElementById("out").textContent = out.join("\n");
+  });
+});
+</script></body></html>

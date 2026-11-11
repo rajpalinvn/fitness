@@ -4,10 +4,10 @@
   var ids = D.people.map(function (p) { return p.id; });
 
   function card(p) {
-    var f = App.nextFollowUp(p.id), st = p.type === "Client" ? App.membershipStatus(p.membership) : p.stage === "Lost" ? null : App.followUpStatus(f && f.dueAt);
+    var f = App.nextFollowUp(p.id), st = p.kind === "Client" ? App.membershipStatus(p.membership) : p.stage === "Lost" ? null : App.followUpStatus(f && App.dueIso(f));
     return '<div class="card preview-card">' +
       '<div class="stack"><span class="avatar">' + esc(App.initials(p.name)) + '</span><strong>' + esc(p.name) + "</strong></div>" +
-      '<div class="stack mt-2">' + (p.type === "Client" ? '<span class="badge badge-success">Client</span>' : '<span class="badge badge-info">Lead</span>') +
+      '<div class="stack mt-2">' + (p.kind === "Client" ? '<span class="badge badge-success">Client</span>' : '<span class="badge badge-info">Lead</span>') +
         '<span class="badge' + (p.stage === "Lost" ? " badge-danger" : "") + '">' + esc(p.stage) + "</span>" +
         (st ? '<span class="badge ' + st.badge + '">' + esc(st.text) + "</span>" : "") + "</div>" +
       '<p class="cell-sub">' + esc((p.note || "").replace(/^EDGE:\s*/, "")) + "</p>" +

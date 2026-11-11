@@ -68,6 +68,7 @@
     send: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
     swap: '<path d="M7 7h13l-4-4M17 17H4l4 4"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     alert: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'
   };
   App.icon = function (name, cls) {

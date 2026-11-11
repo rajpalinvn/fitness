@@ -14,11 +14,12 @@
 
 ## 2. Flow
 - **Log outcome**: outcome chips → Save →
-  - "Not interested" (open lead) → **"Mark as Lost?"** → *Yes* → reason → Lost (open follow-ups cancelled) · *No, keep as lead* → next follow-up step.
+  - "Not interested" (open lead) → **"Mark as Lost?"** → *Yes* → reason → Lost (open follow-ups **Closed by system · Lead lost**, owners notified; decision #37) · *No, keep as lead* → next follow-up step.
   - Any other outcome → **Next follow-up** step (required; no skip). If another open follow-up already exists, it is shown with "Done".
   - Lead lost or person is a client → no next step.
 - **Re-open** → confirm → stage back, reason cleared, timeline "Re-opened by …" → **Set next follow-up** modal ("Later" closes it; NEXT STEP then shows red).
-- Follow-ups are assigned to the lead owner. Changing the owner moves open follow-ups too.
+- Follow-ups are assigned to the lead owner (`ownerUserId`). Changing the owner moves open follow-ups too and adds an `ownerHistory` entry.
+- **Statuses** (decision #37): Open · Done (staff did it) · Cancelled (staff, optional reason) · Closed by system (Client converted / Lead lost / Client transferred). The system never marks Done. Closed-by-system items are struck through in the timeline ("Call on Mon 9 Nov closed by system · lead lost") and each owner gets a notification.
 
 ## 3. Field table
 
@@ -26,10 +27,10 @@
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Type | chips | Yes | No | Call (next step: same type as the finished one) | Call, WhatsApp, Visit planned, Free trial planned, Payment expected |
-| When | chips | Yes | No | Tomorrow | Tomorrow, In 3 days, In 1 week, Custom (date picker, not in the past) |
-| Time | time | Yes | No | 11:00 | |
+| When (`dueDate`) | chips | Yes | No | Tomorrow | Tomorrow, In 3 days, In 1 week, Custom (date picker, not in the past). Stored as "YYYY-MM-DD". |
+| Time (`dueTime`) | time | No | No | 11:00 | Clear it for "any time" (stored null). Status is by date only (decision #24). |
 | Note | text area | No | No | — | |
-| Assigned to | staff (shown, not editable) | — | — | Lead owner | |
+| Assigned to (`ownerUserId`) | staff (shown, not editable) | — | — | Lead owner | |
 
 ### Log outcome
 | Field | Type | Required | Unique | Default | Notes |

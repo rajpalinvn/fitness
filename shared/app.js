@@ -115,6 +115,17 @@
   App.fmtTime = function (iso) { return new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }); };
   App.fmtDate = function (iso) { return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); };
   App.fmtWhen = function (iso) { return App.fmtDay(iso) + ", " + App.fmtTime(iso); };
+  // Follow-ups store dueDate ("YYYY-MM-DD") + optional dueTime ("HH:MM"). Work tasks still use dueAt.
+  App.dueIso = function (x) {
+    if (!x) return null;
+    if (x.dueDate) return new Date(x.dueDate + "T" + (x.dueTime || "00:00")).toISOString();
+    return x.dueAt || null;
+  };
+  App.fmtDue = function (x) {
+    if (x && x.dueDate) return App.fmtDay(App.dueIso(x)) + (x.dueTime ? ", " + App.fmtTime(App.dueIso(x)) : "");
+    return App.fmtWhen(App.dueIso(x));
+  };
+  App.dueTimeText = function (x) { return x && x.dueDate && !x.dueTime ? "any time" : App.fmtTime(App.dueIso(x)); };
   // "today", "tomorrow", "Fri", "12 Nov"
   App.fmtShortWhen = function (iso) {
     var d = App.daysFromToday(iso);
@@ -150,27 +161,27 @@
   App.demoUser = function () { return App.byId(DUMMY.users, DUMMY.roleDemoUser[App.state.role]); };
   App.nextFollowUp = function (personId) {
     var open = DUMMY.followUps.filter(function (f) { return f.personId === personId && f.status === "Open"; });
-    open.sort(function (a, b) { return new Date(a.dueAt) - new Date(b.dueAt); });
+    open.sort(function (a, b) { return new Date(App.dueIso(a)) - new Date(App.dueIso(b)); });
     return open[0] || null;
   };
   // Placeholder visibility (decision #15) until the permission matrix arrives.
   App.canSee = function (p) {
     var role = App.state.role, u = App.demoUser();
     if (role === "Trainer" || role === "MXM") return false;
-    if (role === "Sales Executive") return p.ownerId === u.id;
+    if (role === "Sales Executive") return p.ownerUserId === u.id;
     if (role === "SuperAdmin" || role === "CEO") return true;
     return u.branches.indexOf(p.branchId) > -1;
   };
   App.visibleLeads = function (branchId) {
     return DUMMY.people.filter(function (p) {
-      return p.type === "Lead" && App.canSee(p) && (!branchId || branchId === "all" || p.branchId === branchId);
+      return p.kind === "Lead" && App.canSee(p) && (!branchId || branchId === "all" || p.branchId === branchId);
     });
   };
   // "Needs attention" = open lead with follow-up overdue or not set (decision #5).
   App.needsAttention = function (p) {
     if (p.stage === "Lost") return false;
     var f = App.nextFollowUp(p.id);
-    return App.followUpStatus(f && f.dueAt).cls === "red";
+    return App.followUpStatus(f && App.dueIso(f)).cls === "red";
   };
   App.counts = function () {
     var leads = App.visibleLeads(App.state.branchId), ids = leads.map(function (p) { return p.id; });
@@ -178,9 +189,9 @@
     return {
       attention: leads.filter(App.needsAttention).length,
       dueToday: DUMMY.followUps.filter(function (f) {
-        return f.status === "Open" && ids.indexOf(f.personId) > -1 && App.followUpStatus(f.dueAt).cls === "amber";
+        return f.status === "Open" && ids.indexOf(f.personId) > -1 && App.followUpStatus(App.dueIso(f)).cls === "amber";
       }).length,
-      openTasks: DUMMY.tasks.filter(function (t) { return t.status === "Open" && me && t.assignedTo === me.id; }).length,
+      openTasks: DUMMY.workTasks.filter(function (t) { return t.status === "Open" && me && t.assignedUserId === me.id; }).length,
       unread: DUMMY.notifications.filter(function (n) { return n.unread; }).length
     };
   };

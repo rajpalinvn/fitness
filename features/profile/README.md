@@ -16,9 +16,9 @@
   - Quick actions: Call (toast + timeline "called (no outcome logged)"), WhatsApp (opens composer in WhatsApp mode), Email (disabled "No email yet"), Follow-up (disabled on Lost: "Re-open the lead first").
   - NEXT STEP box → "Log outcome" / "Add follow-up".
   - Owner (Change / Assign), source, campaign, external ID, last activity.
-  - Bottom: open lead → **Convert to Client** (toast: stepper is a later screen) + **More** (Mark as lost, Change owner). Lost → **Re-open lead**. Client → none.
+  - Bottom: open lead → **Convert to Client** (opens the stepper, see `features/conversion/README.md`) + **More** (Mark as lost, Change owner). Lost → **Re-open lead**. Client → none.
 - **Tabs**: Lead = Timeline · Tasks · Details · Docs. Client adds **Membership**. Counts show on Tasks (open) and Docs.
-- **Timeline**: "Open follow-ups" (incl. overdue) pinned on top (Log outcome / Cancel), then history grouped by day, newest first. Filter chips: All, Follow-ups, Notes, WhatsApp, Milestones. Cancelled follow-ups are struck through.
+- **Timeline**: "Open follow-ups" (incl. overdue) pinned on top (Log outcome / Cancel), then history grouped by day, newest first. Filter chips: All, Follow-ups, Notes, WhatsApp, Milestones. Cancelled and "Closed by system" follow-ups are struck through (decision #37).
 - **Composer** (Timeline tab only): Note | Follow-up | WhatsApp. Follow-up mode is the shared form; disabled on Lost leads.
 - Esc / outside click / X close. Esc closes the top layer first (menu → modal → drawer).
 
@@ -29,6 +29,7 @@
 |---|---|---|---|---|---|
 | Lead status | derived | — | — | — | Green "Next: <date, time>"; amber "Due today · <time>"; red "Overdue since <date>" or "No follow-up set" (decision #24). |
 | Client status | derived | — | — | — | Green "Membership active · N days left" (> 15); amber "Renewal due soon" (≤ 15); red "Membership expired on <date>" (decision #27). Shows the next follow-up too, if any. |
+| Pending items | derived | — | — | — | Paid membership only: "FF ID pending" (→ Add FF ID opens Details edit) and "Key fob pending" (→ Membership tab) as separate amber badges until filled (decision #40). |
 | Lost | derived | — | — | — | Grey "Lost · <reason>" + "Re-open the lead to follow up again." |
 
 ### Details tab (edit mode)
@@ -60,9 +61,10 @@ Saving adds "<name> updated <fields>" to the timeline.
 ### Membership tab (clients)
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Package, Sale type, Start, End, Price, Client no | read-only | — | — | — | Dates show the year. Price never editable (decision #14). |
+| Package, Sale type, Start, End, Price, Discount + reason, Final price, Sales rep (`salesRepUserId`), Client no | read-only | — | — | — | Dates show the year. Price never editable (decision #14). End = start + days − 1 (start day included, #41). |
+| FF ID | read-only | Paid only | Yes | — | "FF ID pending" + Add when missing on a Paid membership. |
 | Days left | derived | — | — | — | Same thresholds as NEXT STEP. |
-| Key fob | from branch stock | Paid only | Yes | — | Trial Paid: "No key fob · trial memberships don't get one". Actions Return / Lost / Replace; Assign from stock when missing (decision #30). |
+| Key fob | from branch stock | Paid only | Yes | — | Trial Paid: "No key fob · trial memberships don't get one". Actions Return / Lost / Replace; "Key fob pending" + Assign from stock when missing (decision #30, #40). |
 
 ## 4. States
 - **Loading**: skeleton in both columns (~300 ms on open).
@@ -78,7 +80,7 @@ Saving adds "<name> updated <fields>" to the timeline.
 | Rajesh Kumar | Lost · Price high; Re-open; follow-up disabled; notes allowed |
 | Kavya Menon | Re-opened badge; Lost → Re-opened history; amber Due today |
 | Ishaan Singh | Trial stage, free trial milestone, stays a Lead; green next visit |
-| Ananya Desai | Client, Trial Paid 7 Days, amber "Renewal due soon", no key fob |
+| Ananya Desai | Client, Trial Paid 7 Days, amber "Renewal due soon", no key fob, no pending items |
 | Vivaan Joshi | Client, Annual Membership, green, key fob with Return / Lost / Replace, 1 doc |
 | Fatima Shaikh | Meta badge, external ID, Unassigned + Assign, red no follow-up |
 | Aditya Bose | Amber "Due today" |

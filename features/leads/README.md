@@ -37,7 +37,7 @@ App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shar
 | Stage | list (configurable) + fixed Converted/Lost | Yes (system) | No | New | Badge. Converted leads are Clients and are not listed. Extra tag "Re-opened" if re-opened. Lost shows "Reason: …". Free trial shows "Free trial · ends in N days". |
 | Temperature | Hot / Warm / Cold (fixed) | Yes | No | Warm | Badge with word. |
 | Source | list (configurable) | Yes | No | — | |
-| Owner | staff | Yes (except synced leads) | No | Creator | Unassigned → amber "Unassigned" badge + **Assign** button. |
+| Owner (`ownerUserId`) | staff | Yes (except synced leads) | No | Creator (`createdByUserId`, never changes) | Unassigned → amber "Unassigned" badge + **Assign** button. |
 | Branch | branch | Yes | No | Current branch | Column shown only when "All branches" is selected. |
 | Last activity | date-time (system) | — | No | Created date | Relative: Today / Yesterday / N days ago. |
 
@@ -67,7 +67,7 @@ Pipeline card counts use role + branch only (they ignore search and other filter
 |---|---|---|---|---|---|
 | Type | chips | Yes | No | none | Follow-up types list. |
 | Date | date | Yes | No | tomorrow | |
-| Time | time | Yes | No | 11:00 | |
+| Time | time | No | No | 11:00 | `dueTime`, optional. See docs/data-model.md. |
 | Note | text | No | No | empty | |
 | Assigned to | staff (hidden) | — | — | Lead owner | Decision #7. |
 
