@@ -1,0 +1,102 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var BASE = "../../features/leads/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { setTimeout(cb, 700); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); }
+function vis(el) { return !!el && el.getClientRects().length > 0 && W().getComputedStyle(el).visibility !== "hidden"; }
+function key(k, opts) { var o = Object.assign({ key: k, bubbles: true }, opts || {}); (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", o)); }
+function click(el) { el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function badge(label) {
+  var a = Array.prototype.find.call(Dc().querySelectorAll(".nav-item"), function (x) { return x.dataset.tip === label; });
+  var b = a && a.querySelector(".nav-badge"); return b ? b.textContent : "0";
+}
+function attnCard() { var c = q('[data-card="attention"] .count'); return c ? c.textContent : "?"; }
+function qa_(sel) { return Dc().querySelectorAll(sel).length; }
+function rows() { return Dc().querySelectorAll("#rows tr[data-id]").length; }
+function setInput(el, v) { el.value = v; el.dispatchEvent(new (W().Event)("input", { bubbles: true })); }
+function setSel(el, v) { el.value = v; el.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN/.exec(Dc().body.innerText); }
+
+load(BASE, function () {
+  try { W().sessionStorage.clear(); } catch (e) {}
+  ok("debug bar hidden without ?debug", !vis(q("#debugBar")));
+  ok("error banner hidden by default", !vis(q("#errorBanner")));
+  ok("no bad text (normal)", !badText(), badText() && badText()[0]);
+  ok("Today badge == Needs attention card", badge("Today") === attnCard(), badge("Today") + " vs " + attnCard());
+  ok("only one + Lead button", Dc().querySelectorAll("[data-new-lead]").length === 1);
+  ok("no emoji in page", !/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(Dc().body.innerText.replace(/[\u00B7\u2014\u2026]/g, "")));
+  ok("drawer closed not visible", !vis(q("#profileDrawer")));
+
+  var pill = q('[data-dd="branch"]'); click(pill);
+  ok("branch menu opens", vis(q('[data-dd-menu="branch"]')));
+  key("ArrowDown"); ok("arrow key moves focus in menu", Dc().activeElement.classList.contains("dd-item"));
+  key("Escape");
+  ok("Esc closes branch menu", !vis(q('[data-dd-menu="branch"]')));
+  ok("focus returns to pill", Dc().activeElement === q('[data-dd="branch"]'));
+  click(q('[data-dd="branch"]')); click(q('[data-dd="branch"]').parentNode.querySelector('[data-branch="all"]'));
+  ok("branch -> All branches", W().App.state.branchId === "all");
+
+  click(q(".avatar-btn"));
+  ok("avatar menu opens", vis(q('[data-dd-menu="user"]')));
+  click(q('[data-role="CEO"]'));
+  ok("role -> CEO, chip updated", /CEO/.test(q(".demo-chip").textContent));
+  ok("CEO all branches: badge == card", badge("Today") === attnCard(), badge("Today") + " vs " + attnCard());
+  ok("CEO sees 8 open leads", rows() === 8, rows());
+  click(q(".demo-chip")); ok("demo chip opens role menu", vis(q('[data-dd-menu="user"]')));
+  click(Dc().body); ok("outside click closes menu", !vis(q('[data-dd-menu="user"]')));
+
+  key("k", { ctrlKey: true });
+  var sb = q("[data-tb-search]"), res = q("#tbSearchResults");
+  ok("Ctrl+K expands inline search", sb.classList.contains("open") && vis(res));
+  ok("search input focused", Dc().activeElement && Dc().activeElement.matches("[data-search-input]"));
+  ok("no centered palette exists", !q(".palette-backdrop"));
+  ok("results attached below the search box", Math.abs(res.offsetTop - (q(".tb-search-box").offsetTop + q(".tb-search-box").offsetHeight)) <= 2, res.offsetTop + " vs " + (q(".tb-search-box").offsetTop + q(".tb-search-box").offsetHeight));
+  ok("results are placeholder rows", qa_("#tbSearchResults [data-sr-id]") > 0);
+  key("Escape"); ok("Esc collapses search", !sb.classList.contains("open") && !vis(res));
+  click(q(".tb-search-box")); ok("click expands search", sb.classList.contains("open"));
+  click(Dc().body); ok("outside click collapses search", !sb.classList.contains("open"));
+  click(q(".tb-search-box"));
+  key("Enter"); ok("Enter on recent lead opens drawer", q("#profileDrawer").classList.contains("open"));
+  key("Escape"); ok("Esc closes drawer", !q("#profileDrawer").classList.contains("open"));
+
+  click(q("#rows tr[data-id]")); ok("row click opens drawer", q("#profileDrawer").classList.contains("open"));
+  click(q(".overlay")); ok("outside click closes drawer", !q("#profileDrawer").classList.contains("open"));
+  click(q('[data-act="follow"]')); ok("+Follow-up opens modal, not drawer", q("#fuAddModal").classList.contains("open") && !q("#profileDrawer").classList.contains("open"));
+  key("Escape"); ok("Esc closes modal", !q("#fuAddModal").classList.contains("open"));
+  ok("row actions <= 3", Math.max.apply(null, Array.prototype.map.call(Dc().querySelectorAll(".row-actions"), function (r) { return r.children.length; })) <= 3);
+
+  // add a follow-up for the no-follow-up lead -> badge and card both drop
+  var before = badge("Today");
+  var sneha = q('#rows tr[data-id="p2"] [data-act="follow"]'); click(sneha);
+  click(q("#fuAddModal [data-save]"));
+  ok("badge updates after data change, still == card", badge("Today") === attnCard() && badge("Today") !== before, before + " -> " + badge("Today") + " / card " + attnCard());
+
+  setSel(q("#fStage"), "Lost"); ok("Lost filter shows lost lead", rows() === 1 && !!q('#rows tr[data-id="p3"]'));
+  setSel(q("#fStage"), ""); ok("default hides Lost", !q('#rows tr[data-id="p3"]'));
+  setInput(q("#fSearch"), "09000001234"); ok("search with leading 0", rows() === 1, rows());
+  setInput(q("#fSearch"), "+91 90000 01234"); ok("search with +91", rows() === 1, rows());
+  setInput(q("#fSearch"), "9999999999"); ok("no results + create-lead offer", /No leads match/.test(q("#stateBox").textContent) && !!q("[data-create-number]"));
+  setInput(q("#fSearch"), "");
+
+  click(q('[data-sb-toggle]'));
+  ok("collapse toggle works", q(".app").classList.contains("sb-collapsed"));
+  ok("collapse remembered", W().sessionStorage.getItem("mock.sidebar") === "collapsed");
+  ok("collapsed tooltip text present", !!q('.nav-item[data-tip="Leads"]'));
+  ok("no bad text (after actions)", !badText(), badText() && badText()[0]);
+
+  load(BASE + "?debug", function () {
+    ok("debug bar visible with ?debug", vis(q("#debugBar")));
+    click(q('[data-state="empty"]')); ok("empty state", /No leads yet/.test(q("#stateBox").textContent));
+    click(q('[data-state="error"]')); ok("error state banner", vis(q("#errorBanner")));
+    click(q('[data-state="loading"]')); ok("loading skeleton", !!q(".skeleton"));
+    click(q('[data-state="normal"]')); ok("back to normal", rows() > 0 || /No leads/.test(q("#stateBox").textContent));
+    ok("sidebar state kept across page load", q(".app").classList.contains("sb-collapsed"));
+    document.getElementById("out").textContent = out.join("\n");
+  });
+});
+</script></body></html>

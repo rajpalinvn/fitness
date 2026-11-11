@@ -29,6 +29,7 @@
     document.body.appendChild(drawer);
     drawer.addEventListener("click", onClick);
     drawer.addEventListener("change", onChange);
+    drawer.onCloseHook = function () { setHash(null); };
   }
 
   // ---------- open ----------
@@ -41,9 +42,34 @@
     S.id = id; S.state = opts.state || "loading";
     render();
     if (!drawer.classList.contains("open")) App.openDrawer("profileDrawer");
+    setHash(P());
     if (S.state === "loading") setTimeout(function () { if (S.state === "loading") { S.state = "normal"; render(); } }, 300);
   };
   App.closeProfile = function () { if (drawer) App.close(drawer); };
+
+  // ---------- Linkable profiles: #lead-aarav / #client-vivaan (decision #33) ----------
+  function slug(p) {
+    var first = p.name.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+    var clash = D.people.filter(function (o) { return o.name.split(" ")[0].toLowerCase() === p.name.split(" ")[0].toLowerCase(); }).length > 1;
+    return (p.type === "Client" ? "client-" : "lead-") + first + (clash ? "-" + p.id : "");
+  }
+  App.profileSlug = slug;
+  function fromHash() {
+    var h = decodeURIComponent(location.hash.replace(/^#/, "")).toLowerCase(); if (!h) return null;
+    // match even if the person changed type since the link was made (lead-x -> client-x)
+    var bare = h.replace(/^(lead|client)-/, "");
+    return D.people.filter(function (p) { return slug(p) === h || slug(p).replace(/^(lead|client)-/, "") === bare; })[0] || null;
+  }
+  function setHash(p) {
+    try { history.replaceState(null, "", p ? "#" + slug(p) : location.pathname + location.search); } catch (e) {}
+  }
+  function openFromHash() {
+    var p = fromHash();
+    if (p) { if (App.openLead) App.openLead(p.id); else App.openProfile(p.id); }
+    else if (drawer && drawer.classList.contains("open") && !location.hash) App.close(drawer);
+  }
+  window.addEventListener("hashchange", openFromHash);
+  document.addEventListener("DOMContentLoaded", function () { setTimeout(openFromHash, 0); });
 
   function render() {
     var p = P(), body = drawer.querySelector(".pd-body");
@@ -79,9 +105,11 @@
           '<button class="btn btn-ghost icon-btn btn-xs" data-pd="copy" aria-label="Copy mobile number" title="Copy">' + icon("copy", "ico-sm") + "</button></div>" +
         '<div class="cell-sub">' + esc(App.branchName(p.branchId)) + " · " + (client ? "Client since " + esc(App.fmtDate(p.joinedAt)) : "Created " + esc(App.fmtDay(p.createdAt))) + "</div></div>" +
       '<div class="stack pd-badges">' +
-        (client ? '<span class="badge badge-success">Client</span>' : '<span class="badge badge-info">Lead</span>') +
-        '<span class="badge ' + stageCls + '">' + esc(p.stage) + "</span>" +
-        '<span class="badge badge-' + p.temperature.toLowerCase() + '">' + esc(p.temperature) + "</span>" +
+        (client
+          // Decision #31: clients show Client + membership status, not stage / temperature
+          ? '<span class="badge badge-success">Client</span>' + memberBadge(p)
+          : '<span class="badge badge-info">Lead</span><span class="badge ' + stageCls + '">' + esc(p.stage) + "</span>" +
+            '<span class="badge badge-' + p.temperature.toLowerCase() + '">' + esc(p.temperature) + "</span>") +
         (p.synced ? '<span class="badge badge-info" title="Synced from Meta">Meta</span>' : '<span class="badge">' + esc(p.source) + "</span>") +
         (p.reopenedAt ? '<span class="badge badge-info">Re-opened</span>' : "") +
       "</div>" +
@@ -101,6 +129,11 @@
       "</dl>" +
       '<div class="pd-bottom">' + bottomActions(p) + "</div>"
     );
+  }
+  function memberBadge(p) {
+    var ms = App.membershipStatus(p.membership); if (!ms) return "";
+    var label = ms.cls === "red" ? "Expired" : ms.cls === "amber" ? "Renewal due" : "Active";
+    return '<span class="badge ' + ms.badge + '">' + label + "</span>";
   }
   function qa(act, ic, label, disabled, why) {
     return '<button class="btn qa" data-pd="' + act + '"' + (disabled ? ' disabled title="' + esc(why) + '" aria-label="' + label + " (" + esc(why) + ')"' : ' title="' + label + '"') + ">" +
@@ -194,7 +227,7 @@
       return '<button class="chip' + (S.filter === f[0] ? " selected" : "") + '" aria-pressed="' + (S.filter === f[0]) + '" data-tl-filter="' + f[0] + '">' + f[1] + "</button>";
     }).join("") + "</div>";
     if (upcoming.length) {
-      html += '<div class="tl-group-label">Upcoming</div>' + upcoming.map(function (f) {
+      html += '<div class="tl-group-label">Open follow-ups</div>' + upcoming.map(function (f) {
         var st = App.followUpStatus(f.dueAt);
         return '<div class="tl-item tl-upcoming"><span class="tl-ico ' + st.cls + '">' + icon("clock", "ico-sm") + "</span>" +
           '<div class="tl-main"><div><strong>' + esc(f.type) + "</strong> · " + esc(App.fmtWhen(f.dueAt)) + ' <span class="badge ' + st.badge + '">' + esc(st.text) + "</span></div>" +

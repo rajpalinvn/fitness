@@ -1,0 +1,114 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../";
+var LEADS = ROOT + "features/leads/index.html", PREV = ROOT + "features/profile/index.html", SET = ROOT + "features/settings/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(n, c, x) { out.push((c ? "PASS " : "FAIL ") + n + (!c && x != null ? "  [" + x + "]" : "")); }
+function load(url, cb, w) { fr.style.width = (w || 1280) + "px"; fr.onload = function () { setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function txt(s) { var e = q(s); return e ? e.innerText : ""; }
+function open() { return q("#profileDrawer") && q("#profileDrawer").classList.contains("open"); }
+function tok(name) { return W().getComputedStyle(Dc().documentElement).getPropertyValue(name).trim(); }
+function step(n, fn) { try { fn(); } catch (e) { ok(n + " (threw)", false, e.message); } }
+function bad() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+
+load(LEADS, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(LEADS + "?t=1#lead-aarav", function () {
+    step("hash open", function () {
+      ok("page with #lead-aarav opens Aarav's drawer", open() && /Aarav Patel/.test(txt(".pd-left")));
+      click(q('#rows tr[data-id="p9"] td'));
+      ok("opening another profile updates hash", W().location.hash === "#lead-aditya", W().location.hash);
+      click(q('[data-pd="next"]'));
+      ok("prev/next updates hash", W().location.hash !== "#lead-aditya" && /^#lead-/.test(W().location.hash), W().location.hash);
+      key("Escape");
+      ok("closing clears hash", !open() && W().location.hash === "", W().location.hash);
+      W().location.hash = "#lead-sneha";
+    });
+    setTimeout(function () {
+      step("hashchange", function () {
+        ok("changing the hash opens that profile", open() && /Sneha Reddy/.test(txt(".pd-left")));
+        click(q(".overlay")); ok("outside click close clears hash", W().location.hash === "");
+      });
+      step("client badges + label", function () {
+        W().App.openProfile("p6", { state: "normal" });
+        var b = txt(".pd-badges");
+        ok("client: Client + Renewal due, no stage/temperature", /Client/.test(b) && /Renewal due/.test(b) && !/Converted/.test(b) && !/Hot/.test(b), b);
+        ok("client hash is #client-ananya", W().location.hash === "#client-ananya", W().location.hash);
+        W().App.openProfile("p7", { state: "normal" });
+        ok("Vivaan: Active badge", /Active/.test(txt(".pd-badges")) && !/Converted|Hot/.test(txt(".pd-badges")), txt(".pd-badges"));
+        W().App.openProfile("p1", { state: "normal" });
+        ok("lead still shows stage + temperature", /Negotiation/.test(txt(".pd-badges")) && /Hot/.test(txt(".pd-badges")));
+        ok("timeline heading 'Open follow-ups'", /Open follow-ups/i.test(txt(".pd-scroll")) && !/Upcoming/i.test(txt(".pd-scroll")));
+        key("Escape");
+      });
+      load(PREV + "#client-vivaan", function () {
+        step("preview hash", function () {
+          ok("preview page opens #client-vivaan", open() && /Vivaan Joshi/.test(txt(".pd-left")));
+          key("Escape"); ok("preview close clears hash", W().location.hash === "");
+        });
+        load(SET, function () {
+          step("settings page", function () {
+            ok("settings is a real page (sidebar link active)", !!q('.nav-item.active[data-tip="Settings"]'));
+            ok("5 display rows", qa(".pref-row").length === 5);
+            ok("5 coming soon cards", qa(".soon-card").length === 5 && /Coming soon/.test(txt("#soon")));
+            ok("defaults applied as attributes", Dc().documentElement.getAttribute("data-drawer") === "70" && Dc().documentElement.getAttribute("data-density") === "comfortable");
+            var sp = tok("--space-4"), fs = tok("--font-size-md");
+            click(q('[data-pref="density"][data-val="compact"]'));
+            ok("density compact switches spacing tokens live", tok("--space-4") === "12px" && sp === "16px", sp + " -> " + tok("--space-4"));
+            click(q('[data-pref="text"][data-val="large"]'));
+            ok("text large switches font tokens live", tok("--font-size-md") === "16px" && fs === "14px", fs + " -> " + tok("--font-size-md"));
+            click(q('[data-pref="search"][data-val="wide"]'));
+            ok("search wide", Math.round(q(".tb-search").getBoundingClientRect().width) <= 580 && tok("--search-w") === "580px", tok("--search-w"));
+            click(q('[data-pref="drawer"][data-val="60"]'));
+            click(q("#btnPreview"));
+          });
+          setTimeout(function () {
+            step("drawer width pref", function () {
+              var w = q("#profileDrawer").getBoundingClientRect().width;
+              ok("drawer 60% of 1280 = 768px", Math.abs(w - 768) < 2, w);
+              key("Escape");
+              click(q('[data-pref="sidebar"][data-val="collapsed"]'));
+              ok("sidebar default collapsed applies live", q(".app").classList.contains("sb-collapsed"));
+              ok("selected preset marked", q('[data-pref="text"][data-val="large"]').getAttribute("aria-checked") === "true");
+              ok("no bad text on settings", !bad(), bad() && bad()[0]);
+            });
+            load(LEADS, function () {
+              step("prefs persist across pages", function () {
+                ok("leads page has same prefs", Dc().documentElement.getAttribute("data-text") === "large" && tok("--font-size-md") === "16px");
+                ok("sidebar starts collapsed from pref", q(".app").classList.contains("sb-collapsed"));
+              });
+              load(SET, function () {
+                step("tablet drawer >= 92%", function () {
+                  click(q("#btnPreview"));
+                });
+                setTimeout(function () {
+                  step("tablet check", function () {
+                    var w = q("#profileDrawer").getBoundingClientRect().width;
+                    ok("tablet (900px) drawer stays 92% even with 60% pref", Math.abs(w - 900 * 0.92) < 3, w);
+                    key("Escape");
+                    click(q("#btnReset"));
+                    ok("reset restores defaults", Dc().documentElement.getAttribute("data-drawer") === "70" && Dc().documentElement.getAttribute("data-text") === "medium" && tok("--space-4") === "16px");
+                  });
+                  step("reduced motion rule present", function () {
+                    var found = Array.prototype.some.call(Dc().styleSheets, function (ss) {
+                      try { return Array.prototype.some.call(ss.cssRules, function (r) { return r.media && /prefers-reduced-motion/.test(r.media.mediaText) && /tb-search/.test(r.cssText); }); } catch (e) { return false; }
+                    });
+                    ok("reduced-motion CSS covers search animation", found);
+                  });
+                  document.getElementById("out").textContent = out.join("\n");
+                }, 600);
+              }, 900);
+            });
+          }, 600);
+        });
+      });
+    }, 300);
+  });
+});
+</script></body></html>

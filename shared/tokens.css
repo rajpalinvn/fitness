@@ -96,3 +96,22 @@
   --z-palette: 85;
   --z-toast: 90;
 }
+
+/* ---------- Display preferences (decision #35) ----------
+   Set by shell.js as data attributes on <html>; presets only. */
+:root { --search-w: 440px; --search-w-open: calc(var(--search-w) + 220px); }
+:root[data-drawer="60"] { --drawer-width: 60vw; }
+:root[data-drawer="70"] { --drawer-width: 70vw; }
+:root[data-drawer="80"] { --drawer-width: 80vw; }
+:root[data-drawer="92"] { --drawer-width: 92vw; }
+@media (max-width: 1024px) { :root[data-drawer] { --drawer-width: 92vw; } } /* tablet: at least 92% */
+
+:root[data-density="compact"]  { --space-1: 3px; --space-2: 6px; --space-3: 8px;  --space-4: 12px; --space-5: 16px; --space-6: 24px; }
+:root[data-density="spacious"] { --space-1: 5px; --space-2: 10px; --space-3: 16px; --space-4: 20px; --space-5: 32px; --space-6: 40px; }
+
+:root[data-text="small"] { --font-size-xs: 11px; --font-size-sm: 12px; --font-size-md: 13px; --font-size-lg: 15px; --font-size-xl: 18px; --font-size-xxl: 22px; }
+:root[data-text="large"] { --font-size-xs: 13px; --font-size-sm: 14px; --font-size-md: 16px; --font-size-lg: 18px; --font-size-xl: 22px; --font-size-xxl: 26px; }
+
+:root[data-search="narrow"] { --search-w: 300px; }
+:root[data-search="medium"] { --search-w: 440px; }
+:root[data-search="wide"]   { --search-w: 580px; }

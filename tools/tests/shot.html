@@ -1,0 +1,9 @@
+<!doctype html><html><body style="margin:0"><iframe id="f" style="border:0"></iframe><script>
+var a = location.hash.slice(1).split(","), id = a[0], w = +a[1], tab = a[2];
+var f = document.getElementById("f"); f.style.width = w + "px"; f.style.height = "800px";
+f.onload = function () { setTimeout(function () {
+  var W = f.contentWindow; W.App.openProfile(id, { state: "normal" });
+  if (tab) setTimeout(function () { W.document.querySelector('[data-tab-k="' + tab + '"]').click(); }, 100);
+}, 600); };
+f.src = "../../features/profile/index.html";
+</script></body></html>

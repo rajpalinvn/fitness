@@ -1,0 +1,166 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../";
+var LEADS = ROOT + "features/leads/index.html", PREV = ROOT + "features/profile/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { setTimeout(cb, 800); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function vis(el) { return !!el && el.getClientRects().length > 0 && W().getComputedStyle(el).visibility !== "hidden"; }
+function key(k, o) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", Object.assign({ key: k, bubbles: true }, o || {}))); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function chip(root, text) { return Array.prototype.find.call(root.querySelectorAll(".chip"), function (c) { return c.textContent.trim() === text; }); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function badText(el) { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec((el || Dc().body).innerText); }
+function badge(label) { var a = Array.prototype.find.call(qa(".nav-item"), function (x) { return x.dataset.tip === label; }); var b = a && a.querySelector(".nav-badge"); return b ? b.textContent : "0"; }
+function attn() { var c = q('[data-card="attention"] .count'); return c ? c.textContent : "?"; }
+function pickSel(id, val) { click(q('[data-dd="sel-' + id + '"]')); click(q('[data-sel="' + id + '"][data-val="' + val + '"]')); }
+function openP(id) { W().App.openProfile(id, { state: "normal" }); }
+function left() { return text(".pd-left"); }
+function modalOpen(id) { var m = Dc().getElementById(id); return !!m && m.classList.contains("open"); }
+function D() { return W().DUMMY; } function person(id) { return W().App.byId(D().people, id); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+
+load(LEADS, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(LEADS, function () {
+    step("leads basics", function () {
+      ok("placeholder shortened", q("#fSearch").placeholder === "Filter: name, mobile, email");
+      var natives = Array.prototype.filter.call(qa(".main select"), vis);
+      ok("no visible native selects on list", natives.length === 0, natives.length);
+      ok("styled filter pills exist (stage, owner, source, branch)", ["fStage", "fOwner", "fSource", "fBranch"].every(function (i) { return vis(q('[data-dd="sel-' + i + '"]')); }));
+      pickSel("fStage", "Lost");
+      ok("styled stage dropdown filters to Lost", qa("#rows tr[data-id]").length === 1 && !!q('#rows tr[data-id="p3"]'));
+      ok("styled pill shows selection", /Lost/.test(q('[data-dd="sel-fStage"]').textContent) && q('[data-dd="sel-fStage"]').classList.contains("is-set"));
+      ok("lost row follow-up disabled", q('#rows tr[data-id="p3"] .row-actions button[disabled]') != null);
+      pickSel("fStage", "");
+      ok("badge == card (CEO, all)", badge("Today") === attn(), badge("Today") + " vs " + attn());
+    });
+
+    step("drawer: open from row", function () {
+      click(q('#rows tr[data-id="p1"] td'));
+      ok("row click opens real drawer", q("#profileDrawer").classList.contains("open"));
+    });
+    setTimeout(function () {
+      step("drawer: p1 content", function () {
+        ok("left has name, Lead badge, Overdue NEXT STEP", /Aarav Patel/.test(left()) && /Lead/.test(left()) && /Overdue since/.test(left()));
+        ok("lead tabs = Timeline, Tasks, Details, Docs", Array.prototype.map.call(qa(".pd-tabs .tab"), function (t) { return t.firstChild.textContent.trim(); }).join(",") === "Timeline,Tasks,Details,Docs");
+        ok("timeline human text with next call", /Priya called · Interested · next call/.test(text(".pd-scroll")), text(".pd-scroll").slice(0, 200));
+        ok("prev/next position shown", /of \d+/.test(text(".pd-pos")));
+        ok("no bad text in drawer", !badText(q("#profileDrawer")), badText(q("#profileDrawer")));
+      });
+      step("log outcome -> next follow-up", function () {
+        click(q('.next-step [data-pd="outcome"]'));
+        ok("outcome modal opens", modalOpen("fuOutcomeModal"));
+        click(q('#fuOutcomeModal [data-save]'));
+        ok("outcome required", vis(q("#fuOutcomeModal [data-oerr]")));
+        click(chip(q("#fuOutcomeModal"), "Interested")); click(q('#fuOutcomeModal [data-save]'));
+        ok("asks next follow-up", /Next follow-up/.test(text("#fuOutcomeModal [data-m-title]")) && !!q("#fuOutcomeModal .ff"));
+        click(q('#fuOutcomeModal [data-save]'));
+        ok("modal closes after next saved", !modalOpen("fuOutcomeModal"));
+        ok("NEXT STEP now green", q(".pd-left .next-step").classList.contains("green"), q(".pd-left .next-step").className);
+        ok("timeline links next follow-up", /Interested · next call tomorrow/.test(text(".pd-scroll")), text(".pd-scroll").slice(0, 300));
+        ok("badge == card after outcome", badge("Today") === attn(), badge("Today") + " vs " + attn());
+      });
+      step("composer note", function () {
+        q("[data-ctext]").value = "Prefers 7 am batch"; click(q('[data-pd="saveNote"]'));
+        ok("note in timeline", /noted: Prefers 7 am batch/.test(text(".pd-scroll")));
+        click(q('[data-mode="follow"]'));
+        ok("composer follow-up uses shared form", !!q("[data-composer] .ff"));
+      });
+      step("esc order: modal before drawer", function () {
+        click(q('.pd-actions [data-pd="follow"]')); ok("add follow-up modal from quick action", modalOpen("fuAddModal"));
+        key("Escape"); ok("Esc closed modal only", !modalOpen("fuAddModal") && q("#profileDrawer").classList.contains("open"));
+      });
+      step("not interested -> lost -> reopen (Kavya)", function () {
+        openP("p4");
+        click(q('.next-step [data-pd="outcome"]'));
+        click(chip(q("#fuOutcomeModal"), "Not interested")); click(q('#fuOutcomeModal [data-save]'));
+        ok("asks Mark as Lost?", /Mark as Lost\?/.test(text("#fuOutcomeModal [data-m-title]")));
+        click(q("#fuOutcomeModal [data-lost]"));
+        click(chip(q("#fuOutcomeModal"), "Other")); click(q('#fuOutcomeModal [data-save]'));
+        ok("Other requires text", vis(q("#fuOutcomeModal [data-lerr]")) && person("p4").stage !== "Lost");
+        q("#lostOther").value = "Moved to Pune"; click(q('#fuOutcomeModal [data-save]'));
+        ok("marked lost with reason", person("p4").stage === "Lost" && person("p4").lostReason === "Other: Moved to Pune", person("p4").stage + "/" + person("p4").lostReason);
+        ok("open follow-ups cancelled", !D().followUps.some(function (f) { return f.personId === "p4" && f.status === "Open"; }));
+        ok("NEXT STEP grey + Re-open button", q(".pd-left .next-step").classList.contains("grey") && !!q('[data-pd="reopen"]'));
+        ok("composer follow-up disabled on lost", q('[data-mode="follow"]').disabled);
+        ok("quick follow-up disabled on lost", q('.pd-actions [data-pd="follow"]').disabled);
+        click(q('[data-pd="reopen"]')); click(q("#reopenModal [data-save]"));
+        ok("re-open restores stage, clears reason", person("p4").stage === "Contacted" && !person("p4").lostReason, person("p4").stage);
+        ok("timeline says Re-opened", /Re-opened by/.test(text(".pd-scroll")));
+        ok("re-open asks next follow-up", modalOpen("fuAddModal"));
+        click(q("#fuAddModal [data-save]"));
+        ok("next follow-up set after re-open", q(".pd-left .next-step").classList.contains("green"));
+      });
+      step("mark lost from menu", function () {
+        openP("p10"); click(q('[data-dd="pdmore"]')); click(q('[data-pd="lost"]'));
+        ok("lost modal opens from More", modalOpen("lostModal"));
+        click(chip(q("#lostModal"), "Price high")); click(q("#lostModal [data-save]"));
+        ok("lost via menu", person("p10").stage === "Lost" && person("p10").lostReason === "Price high");
+      });
+      step("clients", function () {
+        openP("p6");
+        ok("client tabs include Membership", /Membership/.test(text(".pd-tabs")));
+        ok("Ananya amber renewal due soon", q(".pd-left .next-step").classList.contains("amber") && /Renewal due soon/.test(left()));
+        ok("no Convert on client", !q('[data-pd="convert"]'));
+        click(q('[data-tab-k="membership"]'));
+        ok("trial paid has no key fob", /trial memberships don't get one/.test(text(".pd-scroll")));
+        openP("p7"); click(q('[data-tab-k="membership"]'));
+        ok("Vivaan green + fob actions", q(".pd-left .next-step").classList.contains("green") && !!q('[data-pd="fobReturn"]') && !!q('[data-pd="fobLost"]') && !!q('[data-pd="fobReplace"]'));
+        var before = D().keyFobs.filter(function (k) { return k.branchId === "b1" && k.status === "In stock"; }).length;
+        click(q('[data-pd="fobReplace"]')); click(q("#fobModal [data-save]"));
+        var after = D().keyFobs.filter(function (k) { return k.branchId === "b1" && k.status === "In stock"; }).length;
+        ok("replace assigns new fob, stock down 1", person("p7").keyFob !== "KF-S31-0012" && after === before - 1, before + "->" + after);
+        ok("old fob marked Lost", D().keyFobs.filter(function (k) { return k.no === "KF-S31-0012"; })[0].status === "Lost");
+      });
+      step("details edit + duplicates", function () {
+        openP("p2"); click(q('[data-tab-k="details"]')); click(q('[data-pd="edit"]'));
+        var f = q("[data-details]");
+        f.elements.mobile.value = "90000 01244"; click(q('[data-pd="saveEdit"]'));
+        ok("other-branch duplicate message", /Already exists in Golf Course · Owner: Pooja/.test(text("[data-derr]")) && !!q('[data-pd="reqAccess"]'), text("[data-derr]"));
+        f.elements.mobile.value = "+91 90000 01234"; click(q('[data-pd="saveEdit"]'));
+        ok("same-branch duplicate: name + Open profile", /Already exists: Aarav Patel/.test(text("[data-derr]")) && !!q('[data-pd="openDup"]'), text("[data-derr]"));
+        f.elements.mobile.value = "90000 01235"; f.elements.email.value = "aarav.patel@example.com"; click(q('[data-pd="saveEdit"]'));
+        ok("email unique", /already used/.test(text("[data-derr]")));
+        f.elements.email.value = "sneha@example.com"; click(q('[data-pd="saveEdit"]'));
+        ok("valid save updates + timeline", person("p2").email === "sneha@example.com" && /updated email/.test((click(q('[data-tab-k="timeline"]')), text(".pd-scroll"))));
+      });
+      step("docs", function () {
+        click(q('[data-tab-k="docs"]'));
+        ok("docs empty state", /No documents yet/.test(text(".pd-scroll")));
+        ok("doc type picker has 5 types", qa('[data-sel="docType"]').length === 5);
+        click(q('[data-pd="upload"]'));
+        ok("upload adds placeholder row", /ID proof \(placeholder\)\.pdf/.test(text(".pd-scroll")));
+      });
+      step("every person renders cleanly", function () {
+        var bad = [];
+        D().people.forEach(function (p) {
+          openP(p.id);
+          ["timeline", "tasks", "details", "docs", "membership"].forEach(function (t) {
+            var tb = q('[data-tab-k="' + t + '"]'); if (!tb) return; click(tb);
+            var b = badText(q("#profileDrawer")); if (b) bad.push(p.id + "/" + t + ":" + b[0]);
+          });
+        });
+        ok("no null/undefined/NaN in any profile tab", !bad.length, bad.join(" "));
+        ok("badge == card at end", (key("Escape"), badge("Today") === attn()), badge("Today") + " vs " + attn());
+      });
+      load(PREV + "?debug", function () {
+        step("preview page", function () {
+          ok("preview cards for all people", qa("[data-open]").length === D().people.length);
+          click(q('[data-open-state="loading"]')); ok("loading skeleton", !!q("#profileDrawer .skeleton"));
+          click(q('[data-open-state="error"]')); ok("error state + retry", /Couldn't load this profile/.test(text("#profileDrawer")) && !!q('[data-pd="retry"]'));
+          click(q(".overlay")); ok("outside click closes drawer", !q("#profileDrawer").classList.contains("open"));
+        });
+        load(PREV, function () {
+          ok("preview: debug bar hidden without ?debug", !vis(q("#debugBar")));
+          document.getElementById("out").textContent = out.join("\n");
+        });
+      });
+    }, 500);
+  });
+});
+</script></body></html>

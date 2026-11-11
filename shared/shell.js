@@ -1,9 +1,34 @@
-/* App shell: sidebar, top bar, dropdowns, command palette, SVG icons.
+/* App shell: sidebar, top bar, dropdowns, inline search, display preferences, SVG icons.
    ONE place for every page. Usage in a page:
      <div class="app" data-shell="leads" data-root="../../"> <main class="main">…</main> </div>
    Load order: data.js, app.js, shell.js. */
 (function () {
   var $ = App.$, $all = App.$all, esc = App.esc;
+
+  // ---------- Display preferences (decision #35) ----------
+  // Per user in the real app; session storage in the mockup. Applied as data attributes
+  // on <html>; tokens.css switches token values, so pages need no changes.
+  var PREF_DEFAULTS = { drawer: "70", density: "comfortable", text: "medium", search: "medium", sidebar: "expanded" };
+  App.PREF_DEFAULTS = PREF_DEFAULTS;
+  App.prefs = (function () {
+    var saved = {}; try { saved = JSON.parse(App.sessionGet("prefs") || "{}") || {}; } catch (e) {}
+    return Object.assign({}, PREF_DEFAULTS, saved);
+  })();
+  App.applyPrefs = function () {
+    var r = document.documentElement;
+    ["drawer", "density", "text", "search"].forEach(function (k) { r.setAttribute("data-" + k, App.prefs[k]); });
+  };
+  App.setPref = function (k, v) {
+    App.prefs[k] = v; App.sessionSet("prefs", JSON.stringify(App.prefs)); App.applyPrefs();
+    if (k === "sidebar" && app) { App.sessionSet("sidebar", ""); if (!isTablet.matches) setCollapsed(v === "collapsed", false); }
+    document.dispatchEvent(new CustomEvent("mock:prefs", { detail: App.prefs }));
+  };
+  App.resetPrefs = function () {
+    App.prefs = Object.assign({}, PREF_DEFAULTS); App.sessionSet("prefs", "{}"); App.applyPrefs();
+    if (app) { App.sessionSet("sidebar", ""); if (!isTablet.matches) setCollapsed(false, false); }
+    document.dispatchEvent(new CustomEvent("mock:prefs", { detail: App.prefs }));
+  };
+  App.applyPrefs();
 
   // ---------- Icons: 24x24, line style, stroke = currentColor ----------
   var ICONS = {
@@ -119,7 +144,7 @@
     dueToday: { cls: "amber", say: "follow-ups due today" },
     openTasks: { cls: "neutral", say: "open tasks" }
   };
-  App.built = ["leads"]; // screens that exist; others show a toast instead of a broken link
+  App.built = ["leads", "settings"]; // screens that exist; others show a toast instead of a broken link
 
   var app, root, active, isTablet = window.matchMedia("(max-width: 1024px)");
 
@@ -164,10 +189,9 @@
     var counts = App.counts(), u = App.demoUser(), role = App.state.role, br = App.state.branchId;
     var title = app.dataset.title || (GROUPS.concat([{ items: [SETTINGS] }]).reduce(function (a, g) { return a.concat(g.items); }, [])
       .filter(function (n) { return n.key === active; })[0] || {}).label || "";
-    $(".topbar", app).innerHTML =
-      '<div class="tb-title">' + esc(title) + "</div>" +
-      '<button class="search-trigger" data-palette-open aria-label="Search (Ctrl K)">' + App.icon("search") +
-        '<span class="st-text">Search leads, clients, FF ID…</span><span class="st-text-short">Search…</span><kbd>Ctrl K</kbd></button>' +
+    $(".tb-title", app).textContent = title;
+    var tmp = document.createElement("div");
+    tmp.innerHTML =
       '<div class="tb-right">' +
         '<button class="demo-chip" data-dd="user" aria-haspopup="menu" title="Demo tool: change the role you are viewing as">' + App.icon("eye") +
           '<span class="dc-long">Demo · Viewing as:</span><span class="dc-short">Demo:</span><strong>' + esc(role) + "</strong></button>" +
@@ -206,6 +230,7 @@
             menuItem('data-toast="Sign out is not part of the mockup" data-toast-kind=""', "Sign out", null, "logout") +
           "</div></div>" +
       "</div>";
+    $(".tb-right", app).replaceWith(tmp.firstChild);
   }
 
   function render() { renderSidebar(); renderTopbar(); }
@@ -220,7 +245,8 @@
   function initialCollapsed() {
     var saved = App.sessionGet("sidebar");
     if (isTablet.matches) return true;            // tablet always starts collapsed
-    return saved === "collapsed";
+    if (saved) return saved === "collapsed";      // a toggle this session wins
+    return App.prefs.sidebar === "collapsed";     // Settings > Display > Sidebar default
   }
 
   // ---------- Dropdowns ----------
@@ -234,6 +260,7 @@
   }
   function items(menu) { return $all(".dd-item, [data-mark-read]", menu); }
   function openMenu(name, trigger) {
+    collapseSearch();
     closeDD(false);
     var menu = $('[data-dd-menu="' + name + '"]'); if (!menu) return;
     menu.hidden = false;
@@ -243,61 +270,64 @@
     if (sel) sel.focus();
   }
 
-  // ---------- Command palette (placeholder) ----------
-  var palette, palTrigger, palIndex = 0;
-  function buildPalette() {
-    palette = document.createElement("div");
-    palette.className = "palette-backdrop"; palette.hidden = true;
-    palette.innerHTML =
-      '<div class="palette" role="dialog" aria-modal="true" aria-label="Search">' +
-        '<div class="pal-input">' + App.icon("search") +
-          '<input type="text" placeholder="Search leads, clients, FF ID, mobile, key fob…" aria-label="Search" data-pal-input>' +
-          "<kbd>Esc</kbd></div>" +
-        '<div class="pal-list" role="listbox" data-pal-list></div>' +
-        '<div class="pal-foot">' + App.icon("search", "ico-sm") + " Full search comes in a later screen. Showing recent leads only.</div>" +
-      "</div>";
-    document.body.appendChild(palette);
-    palette.addEventListener("click", function (e) { if (e.target === palette) closePalette(); });
+  // ---------- Inline search (decision #34): the top-bar field expands in place ----------
+  var sIndex = 0;
+  function sBox() { return $("[data-tb-search]"); }
+  function sInput() { return $("[data-search-input]"); }
+  function searchHTML() {
+    return '<div class="tb-search" data-tb-search>' +
+      '<div class="tb-search-box">' + App.icon("search") +
+        '<input type="text" class="tb-search-input" data-search-input autocomplete="off" spellcheck="false" role="combobox" ' +
+          'aria-label="Search leads, clients, FF ID (Ctrl K)" aria-expanded="false" aria-controls="tbSearchResults" placeholder="Search leads, clients, FF ID…">' +
+        "<kbd data-search-kbd>Ctrl K</kbd></div>" +
+      '<div class="tb-search-results" id="tbSearchResults" role="listbox" hidden></div></div>';
   }
-  function palResults() {
-    var q = ($("[data-pal-input]").value || "").toLowerCase().trim();
+  function sResults() {
+    var q = (sInput().value || "").toLowerCase().trim(), qd = App.mobileDigits(q);
     var recent = App.visibleLeads("all").slice().sort(function (a, b) { return new Date(b.lastActivityAt) - new Date(a.lastActivityAt); });
-    if (q) recent = recent.filter(function (p) { return p.name.toLowerCase().indexOf(q) > -1 || (p.cc + p.mobile).replace(/\D/g, "").indexOf(q.replace(/\D/g, "") || "~") > -1; });
-    return recent.slice(0, 3);
+    if (q) recent = recent.filter(function (p) { return p.name.toLowerCase().indexOf(q) > -1 || (qd && App.mobileDigits(p.cc + p.mobile).indexOf(qd) > -1); });
+    return recent.slice(0, 5);
   }
-  function renderPalette() {
-    var res = palResults(), q = $("[data-pal-input]").value.trim();
-    palIndex = Math.min(palIndex, Math.max(res.length - 1, 0));
-    $("[data-pal-list]").innerHTML = res.length
-      ? '<div class="pal-section">' + (q ? "Matching recent leads" : "Recent") + "</div>" + res.map(function (p, i) {
-          return '<div class="pal-item' + (i === palIndex ? " active" : "") + '" role="option" aria-selected="' + (i === palIndex) + '" data-pal-id="' + p.id + '">' +
+  function renderSearch() {
+    var res = sResults(), q = sInput().value.trim(), box = $("#tbSearchResults");
+    sIndex = Math.min(sIndex, Math.max(res.length - 1, 0));
+    box.innerHTML = (res.length
+      ? '<div class="pal-section">' + (q ? "Matching leads" : "Recent leads") + "</div>" + res.map(function (p, i) {
+          return '<div class="pal-item' + (i === sIndex ? " active" : "") + '" role="option" id="sr-' + p.id + '" aria-selected="' + (i === sIndex) + '" data-sr-id="' + p.id + '">' +
             '<span class="avatar avatar-sm">' + esc(App.initials(p.name)) + '</span><span class="pal-main"><span>' + esc(p.name) +
             '</span><span class="pal-sub">' + esc(p.cc + " " + p.mobile) + " · " + esc(App.branchName(p.branchId)) + "</span></span>" +
             '<span class="badge badge-info">Lead</span></div>';
         }).join("")
-      : '<div class="pal-empty">No recent leads match "' + esc(q) + '".</div>';
+      : '<div class="pal-empty">No leads match "' + esc(q) + '".</div>') +
+      '<div class="pal-foot">' + App.icon("search", "ico-sm") + " Placeholder results. Full search comes in a later screen.</div>";
+    sInput().setAttribute("aria-activedescendant", res[sIndex] ? "sr-" + res[sIndex].id : "");
   }
-  function openPalette(trigger) {
+  function expandSearch() {
+    var s = sBox(); if (!s || s.classList.contains("open")) return;
     closeDD(false);
-    palTrigger = trigger || document.activeElement; palIndex = 0;
-    palette.hidden = false; $("[data-pal-input]").value = ""; renderPalette();
-    $("[data-pal-input]").focus();
+    s.classList.add("open"); sIndex = 0;
+    sInput().setAttribute("aria-expanded", "true"); $("[data-search-kbd]").textContent = "Esc";
+    $("#tbSearchResults").hidden = false; renderSearch();
   }
-  function closePalette() {
-    if (!palette || palette.hidden) return false;
-    palette.hidden = true;
-    if (palTrigger && palTrigger.focus && document.contains(palTrigger)) palTrigger.focus();
+  function collapseSearch() {
+    var s = sBox(); if (!s || !s.classList.contains("open")) return false;
+    s.classList.remove("open");
+    $("#tbSearchResults").hidden = true; sInput().value = "";
+    sInput().setAttribute("aria-expanded", "false"); $("[data-search-kbd]").textContent = "Ctrl K";
+    if (document.activeElement === sInput()) sInput().blur();
     return true;
   }
-  function choosePal(id) {
-    closePalette();
+  App.isSearchOpen = function () { var s = sBox(); return !!s && s.classList.contains("open"); };
+  function chooseResult(id) {
+    collapseSearch();
     if (App.openLead) App.openLead(id);
-    else App.toast("Opening profiles from here works on the Leads page for now", "");
+    else if (App.openProfile) App.openProfile(id);
+    else App.toast("Opening profiles from here comes with the search screen", "");
   }
 
-  // Esc order: palette → dropdown → tablet overlay sidebar → (app.js) modal → drawer
+  // Esc order: search → dropdown → tablet overlay sidebar → (app.js) modal → drawer
   App.closeShellLayer = function () {
-    if (closePalette()) return true;
+    if (collapseSearch()) return true;
     if (closeDD(true)) return true;
     if (app && app.classList.contains("sb-overlay-open")) { setCollapsed(true, false); return true; }
     return false;
@@ -330,8 +360,9 @@
     }
     if (openDD && !e.target.closest(".dd-menu")) closeDD(false);
     if (e.target.closest(".dd-menu .dd-item")) closeDD(false);
-    if (e.target.closest("[data-palette-open]")) { openPalette(e.target.closest("[data-palette-open]")); return; }
-    if ((t = e.target.closest("[data-pal-id]"))) { choosePal(t.dataset.palId); return; }
+    if ((t = e.target.closest("[data-sr-id]"))) { chooseResult(t.dataset.srId); return; }
+    if (e.target.closest("[data-tb-search]")) { expandSearch(); if (document.activeElement !== sInput()) sInput().focus(); return; }
+    collapseSearch(); // outside click
     if (e.target.closest("[data-sb-toggle]")) { setCollapsed(!app.classList.contains("sb-collapsed"), true); return; }
     if (e.target.closest(".sb-scrim")) { setCollapsed(true, false); return; }
     if (e.target.closest("[data-new-lead]") && !App.onNewLead) App.toast("Quick lead form comes in a later screen", "");
@@ -341,7 +372,7 @@
   document.addEventListener("keydown", function (e) {
     if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
       e.preventDefault();
-      if (palette.hidden) openPalette(document.activeElement); else closePalette();
+      if (App.isSearchOpen()) collapseSearch(); else { sInput().focus(); expandSearch(); }
       return;
     }
     // Dropdown keyboard
@@ -357,16 +388,17 @@
     // Arrow down on a closed trigger opens it
     var trg = e.target.closest && e.target.closest("[data-dd]");
     if (trg && e.key === "ArrowDown") { e.preventDefault(); openMenu(trg.dataset.dd, trg); return; }
-    // Palette keyboard
-    if (palette && !palette.hidden) {
-      var res = palResults();
-      if (e.key === "ArrowDown") { e.preventDefault(); palIndex = Math.min(palIndex + 1, res.length - 1); renderPalette(); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); palIndex = Math.max(palIndex - 1, 0); renderPalette(); }
-      else if (e.key === "Enter" && res[palIndex]) { e.preventDefault(); choosePal(res[palIndex].id); }
-      else if (e.key === "Tab") { e.preventDefault(); $("[data-pal-input]").focus(); } // keep focus inside
+    // Search keyboard
+    if (App.isSearchOpen() && e.target === sInput()) {
+      var res = sResults();
+      if (e.key === "ArrowDown") { e.preventDefault(); sIndex = Math.min(sIndex + 1, res.length - 1); renderSearch(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); sIndex = Math.max(sIndex - 1, 0); renderSearch(); }
+      else if (e.key === "Enter" && res[sIndex]) { e.preventDefault(); chooseResult(res[sIndex].id); }
+      else if (e.key === "Tab") collapseSearch();
     }
   });
-  document.addEventListener("input", function (e) { if (e.target.matches("[data-pal-input]")) { palIndex = 0; renderPalette(); } });
+  document.addEventListener("input", function (e) { if (e.target.matches("[data-search-input]")) { sIndex = 0; renderSearch(); } });
+  document.addEventListener("focusin", function (e) { if (e.target.matches && e.target.matches("[data-search-input]")) expandSearch(); });
   document.addEventListener("mock:context", render);
   document.addEventListener("mock:data", render);
 
@@ -383,13 +415,15 @@
     app.appendChild(scrim);
     app.appendChild(content);
     content.appendChild(top);
+    top.innerHTML = '<div class="tb-title"></div>' + searchHTML() + '<div class="tb-right"></div>';
+    var setPh = function () { sInput().placeholder = isTablet.matches ? "Search…" : "Search leads, clients, FF ID…"; };
+    setPh();
     if (main) content.appendChild(main);
     app.classList.toggle("sb-collapsed", initialCollapsed());
-    buildPalette();
     render();
     App.fillIcons(document);
     // Leaving tablet width removes the overlay state.
-    var onMQ = function () { app.classList.remove("sb-overlay-open"); if (isTablet.matches) app.classList.add("sb-collapsed"); renderSidebar(); };
+    var onMQ = function () { setPh(); app.classList.remove("sb-overlay-open"); if (isTablet.matches) app.classList.add("sb-collapsed"); renderSidebar(); };
     if (isTablet.addEventListener) isTablet.addEventListener("change", onMQ); else isTablet.addListener(onMQ);
   });
 })();

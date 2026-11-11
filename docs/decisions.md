@@ -91,3 +91,25 @@
     pick a new fob from the home branch stock; stock goes down by one).
     A Paid client without a fob can "Assign from stock". Trial Paid never
     shows a fob.
+31. Client profiles hide the stage and temperature badges. They show
+    "Client" plus a membership status badge: Active (> 15 days left),
+    Renewal due (15 or fewer), Expired, the same rule as NEXT STEP (#27).
+32. The timeline section for open follow-ups (including overdue ones) is
+    called "Open follow-ups".
+33. Linkable profiles: opening a drawer sets the URL hash to
+    #lead-<firstname> or #client-<firstname> (plus -<id> if two people share
+    a first name). Opening a page with that hash opens the drawer; a lead
+    link still works after the person becomes a client. Closing the drawer
+    clears the hash. Works on every page that loads the profile drawer.
+34. Search is inline: click or Ctrl+K expands the same top-bar field in place
+    (smooth width animation) with results attached directly below. Esc or
+    outside click collapses it. No separate command palette. Animations
+    respect the reduced-motion setting.
+35. Settings → Display holds per-user preferences (session storage in the
+    mockup, per-user settings in the real app), as presets only: drawer
+    width 60/70/80/92% (default 70%), density Compact/Comfortable/Spacious,
+    text size Small/Medium/Large, search bar width Narrow/Medium/Wide,
+    sidebar default Expanded/Collapsed, plus "Reset to default". They are
+    applied as data attributes on <html> that switch token values, so pages
+    need no changes. On tablet the drawer is always at least 92%. Other
+    Settings sections show as "Coming soon" until built.

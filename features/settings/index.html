@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings · Fitness Labs</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <script src="../../shared/data.js"></script>
+  <script src="../../shared/app.js"></script>
+  <script src="../../shared/shell.js"></script>
+  <script src="../../shared/followup.js"></script>
+  <script src="../../shared/profile.js"></script>
+</head>
+<body>
+<div class="app" data-shell="settings" data-root="../../">
+  <main class="main">
+
+    <section class="settings-section" aria-labelledby="dispTitle">
+      <div class="panel-head">
+        <div>
+          <h2 id="dispTitle">Display</h2>
+          <p class="muted">Your personal preferences. Changes apply right away on every page.
+            Saved for this browser session in the mockup; saved per user in the real app.</p>
+        </div>
+        <div class="stack">
+          <button class="btn" id="btnPreview"><span data-icon="user"></span>Preview a profile</button>
+          <button class="btn" id="btnReset"><span data-icon="refresh"></span>Reset to default</button>
+        </div>
+      </div>
+      <div class="card pref-list" id="prefs"></div>
+    </section>
+
+    <section class="settings-section" aria-labelledby="clubTitle">
+      <div class="panel-head"><h2 id="clubTitle">Club setup</h2></div>
+      <div class="grid grid-3" id="soon"></div>
+    </section>
+
+  </main>
+</div>
+<script src="settings.js"></script>
+</body>
+</html>

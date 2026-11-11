@@ -9,16 +9,16 @@
 | Key fob modal | `shared/profile.js` | Return / Lost / Replace / Assign from stock. |
 
 ## 2. Flow
-- Leads list row click, Ctrl+K recent lead, or preview card → drawer. ‹ › step through the list it was opened from ("2 of 8").
+- Leads list row click, search result, preview card, or a link with #lead-<name> / #client-<name> (decision #33) → drawer. The URL hash follows the open profile and clears on close. ‹ › step through the list it was opened from ("2 of 8").
 - **Left column** (fixed, 300px; 260px on tablet):
   - Identity: initials avatar, name, mobile + copy, branch · created (or "Client since").
-  - Badges: Lead/Client, stage, temperature, source (or "Meta" when synced), Re-opened.
+  - Badges: Lead = Lead, stage, temperature, source (or "Meta"), Re-opened. Client = Client + membership status (Active / Renewal due / Expired) + source; no stage or temperature (decision #31).
   - Quick actions: Call (toast + timeline "called (no outcome logged)"), WhatsApp (opens composer in WhatsApp mode), Email (disabled "No email yet"), Follow-up (disabled on Lost: "Re-open the lead first").
   - NEXT STEP box → "Log outcome" / "Add follow-up".
   - Owner (Change / Assign), source, campaign, external ID, last activity.
   - Bottom: open lead → **Convert to Client** (toast: stepper is a later screen) + **More** (Mark as lost, Change owner). Lost → **Re-open lead**. Client → none.
 - **Tabs**: Lead = Timeline · Tasks · Details · Docs. Client adds **Membership**. Counts show on Tasks (open) and Docs.
-- **Timeline**: Upcoming open follow-ups pinned on top (Log outcome / Cancel), then history grouped by day, newest first. Filter chips: All, Follow-ups, Notes, WhatsApp, Milestones. Cancelled follow-ups are struck through.
+- **Timeline**: "Open follow-ups" (incl. overdue) pinned on top (Log outcome / Cancel), then history grouped by day, newest first. Filter chips: All, Follow-ups, Notes, WhatsApp, Milestones. Cancelled follow-ups are struck through.
 - **Composer** (Timeline tab only): Note | Follow-up | WhatsApp. Follow-up mode is the shared form; disabled on Lost leads.
 - Esc / outside click / X close. Esc closes the top layer first (menu → modal → drawer).
 

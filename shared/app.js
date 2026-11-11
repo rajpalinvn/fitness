@@ -28,6 +28,7 @@
   App.close = function (el) {
     if (!el || !el.classList.contains("open")) return;
     el.classList.remove("open"); syncOverlay();
+    if (el.onCloseHook) el.onCloseHook();
     var r = returnFocus.pop(); if (r && r.focus && document.contains(r)) r.focus();
   };
   App.closeAll = function () {

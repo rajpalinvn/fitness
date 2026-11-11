@@ -77,3 +77,5 @@
 - Max 3 row actions; drawer/modals close with Esc and outside click.
 - README and index.html updated.
 - Report this checklist with pass/fail in your reply.
+- Run tests only via tools/run-tests.sh (single command: `bash tools/run-tests.sh`).
+  Test pages live in tools/tests/; results and screenshots go to tools/out/.
