@@ -30,6 +30,10 @@ load(SALES, function () {
       ok("saved + Changed marker", D().discountLimits["Sales Executive"] === 15 && /Changed/.test(text("#panel")));
       ok("Sell mode uses it", W().App.discountLimit("Sales Executive") === 15);
       change('[data-limit="Sales Executive"]', "10");
+      ok("Minimum first payment: 30% default", q("[data-minpay]").value === "30" && /Minimum first payment on packages/.test(text("#panel")));
+      change("[data-minpay]", "120"); ok("min %: 0-100 only", /between 0 and 100/.test(text("#panel")) && D().salesRules.minFirstPayPct === 30);
+      change("[data-minpay]", "40"); ok("min % saved", D().salesRules.minFirstPayPct === 40 && W().App.minFirstPayPct() === 40);
+      change("[data-minpay]", "30");
     });
     step("Payment methods", function () {
       click(q('[data-stab="methods"]'));
@@ -64,6 +68,7 @@ load(SALES, function () {
         ok("PT balance is a pending item", /Payment due · PT ₹6,500/.test(text(".next-step")));
         click(Array.prototype.filter.call(qa('[data-pd="pay"][data-item="pt"]'), function (b) { return b.closest("[data-pay-sec]"); })[0]);
         ok("Collect payment modal: receipt no. + balance", q("#payModal").classList.contains("open") && /S31-000124/.test(text("#payModal")) && q("#cpAmt").value === "6500");
+        ok("Collect payment: no minimum rule (any amount up to the balance)", !/Minimum/.test(text("#payModal")));
         q("#cpAmt").value = "1000"; pickSel("cpMethod", "UPI"); click(q("#payModal [data-save]"));
         ok("UPI needs a reference", /Reference no. is needed for UPI/.test(text("#payModal")));
         q("#cpRef").value = "UPI-1111"; click(q("#payModal [data-save]"));

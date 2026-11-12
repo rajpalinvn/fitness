@@ -132,6 +132,7 @@
     App.fillIcons(body);
     if (S.tab === "timeline") mountComposer(p);
     body.querySelectorAll("select").forEach(function (s) { App.enhanceSelect(s); });
+    body.querySelectorAll('input[type="date"]').forEach(App.enhanceDate);
   }
   function skel(n) { var h = ""; for (var k = 0; k < n; k++) h += '<div class="skeleton"></div>'; return h; }
 
@@ -238,7 +239,7 @@
     // Balance due (decision #82): "Payment due" until collected.
     [["membership", p.membership, ""], ["pt", p.pt, "PT "]].forEach(function (x) {
       var b = x[1] && App.payBalance(x[1].payment);
-      if (b) out.push({ k: "pay", t: "Payment due · " + x[2] + App.fmtMoney(b) + (x[1].payment.dueDate ? " by " + App.fmtDay(x[1].payment.dueDate + "T00:00") : ""), a: "Collect payment", itemId: x[0] });
+      if (b) out.push({ k: "pay", t: "Payment due · " + x[2] + App.fmtMoney(b) + (x[1].payment.dueDate ? " by " + App.fmtIsoDate(x[1].payment.dueDate) : ""), a: "Collect payment", itemId: x[0] });
     });
     return out;
   }
@@ -434,7 +435,7 @@
         '<button class="btn btn-sm" data-pd="edit">' + icon("edit") + "Edit</button></div>" +
         '<h4 class="sec-title">Contact</h4><dl class="kv kv-wide">' +
           kv("Name", p.name) + kv("Mobile", p.cc + " " + p.mobile) + kv("Email", p.email) + kv("Gender", p.gender) +
-          kv("Birth date", p.birthDate && new Date(p.birthDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })) + kv("FF ID", p.ffId) + "</dl>" +
+          kv("Birth date", p.birthDate && App.fmtIsoDate(p.birthDate)) + kv("FF ID", p.ffId) + "</dl>" +
         '<h4 class="sec-title">' + (client ? "Lead history" : "Lead info") + '</h4><dl class="kv kv-wide">' +
           kv("Stage", p.stage) + (isLost(p) ? kv("Lost reason", p.lostReason) : "") + kv("Temperature", p.temperature) + kv("Source", p.source) +
           kv("Inquiry type", p.inquiryType) + kv("Campaign", p.campaign) + kv("Owner", p.ownerUserId && App.userName(p.ownerUserId)) +
@@ -553,7 +554,7 @@
     var bal = App.payBalance(pay), can = App.access.pendingActions(p);
     return '<section class="corp-sec" data-pay-sec><h4 class="sec-title">' + esc(title) + '</h4><dl class="kv kv-wide">' + (extra || "") +
         kv("Total", App.fmtMoney(pay.total)) + kv("Paid", App.fmtMoney(pay.paid)) +
-        "<dt>Balance due</dt><dd>" + (bal ? '<span class="badge badge-warning">' + App.fmtMoney(bal) + (pay.dueDate ? " by " + esc(App.fmtDay(pay.dueDate + "T00:00")) : "") + "</span>" +
+        "<dt>Balance due</dt><dd>" + (bal ? '<span class="badge badge-warning">' + App.fmtMoney(bal) + (pay.dueDate ? " by " + esc(App.fmtIsoDate(pay.dueDate)) : "") + "</span>" +
           (can ? ' <button class="link-btn" data-pd="pay" data-item="' + (line === p.pt ? "pt" : "membership") + '">Collect payment</button>' : "") : '<span class="badge badge-success">Paid in full</span>') + "</dd>" +
         "<dt>Receipts</dt><dd>" + pay.receipts.map(function (r) {
           return '<div><span class="mono">' + esc(r.no) + "</span> · " + esc(App.fmtDate(r.at)) + " · " + r.rows.map(function (x) {
@@ -758,6 +759,7 @@
       "</div>" : "") +
       '<p class="hint mt-3">After saving, the profile opens and asks for the first follow-up.</p>';
     b.querySelectorAll("select").forEach(function (s) { App.enhanceSelect(s); });
+    b.querySelectorAll('input[type="date"]').forEach(App.enhanceDate);
   }
   function qlInput(e) {
     var k = e.target.dataset && e.target.dataset.q; if (!k) return;

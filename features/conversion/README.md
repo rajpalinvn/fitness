@@ -106,9 +106,12 @@ refundable line, GST included, Total to pay) is in the bill summary. Button: **N
 | Slip (per row) | upload | No | No | — | Mockup: toggles "Slip attached" (placeholder file). |
 | + Add payment row | link | — | — | 1 row | Split payment (e.g. Cash + UPI). Rows can be removed (×). |
 | Total · Paid now · Balance due | derived, live | — | — | — | Also in the bill (Paid now, Balance due). |
-| Balance due date | date | Yes when balance > 0 | No | — | After today. Only for Paid **Membership / PT** packages (partial allowed). "Pick a due date for the balance." |
+| Balance due date | date ("12 Nov 2026") | Yes when balance > 0 | No | — | **Shown only when Balance due > 0** (#87). After today. Only for Paid **Membership / PT** packages (partial allowed). "Pick a due date for the balance." |
+| Minimum first payment | derived, live | — | — | 30% (Settings → Sales rules) | = accessories in full + key fob deposit in full + 30% of the package after discount (#85). Below it **Save payment is disabled** and the line turns red: "Minimum ₹7,189 (accessories ₹349 + 30% of package)". Paid trial: "Pay the full amount …". |
 
-Rules: Paid now can't be more than the total. **Accessories and the key fob deposit are settled first and in full**
+Rules: Paid now can't be more than the total. **Allocation** (#85): accessories first, then the key fob deposit, then the
+package; the bill shows "Paid in full" on a line only when it is covered, otherwise "Paid ₹X · Balance ₹Y" (e.g. ₹340 paid with a
+₹349 accessory → "Paid ₹340 · Balance ₹9"). Collect payment later has no minimum. **Accessories and the key fob deposit are settled first and in full**
 ("Accessories and the key fob deposit (₹1,200) must be paid in full first."). Partial payment only on main packages
 (Paid Membership, PT); a paid trial must be paid in full ("Pay the full amount for this package.").
 **PT sessions** (#83): per-session price = (PT price − discount) / sessions; unlocked = floor(paid towards PT / per-session

@@ -195,6 +195,7 @@
   };
   // ---------- Sales rules + payments (decisions #77–#84) ----------
   App.discountLimit = function (role) { var l = DUMMY.discountLimits[role || App.state.role]; return typeof l === "number" ? l : 0; };
+  App.minFirstPayPct = function () { var v = DUMMY.salesRules && DUMMY.salesRules.minFirstPayPct; return typeof v === "number" ? v : 0; };
   App.payBalance = function (pay) { return pay ? Math.max(0, Math.round((pay.total - pay.paid) * 100) / 100) : 0; };
   App.activePayMethods = function () { return DUMMY.paymentMethods.filter(function (m) { return m.active; }); };
   App.payMethod = function (name) { return DUMMY.paymentMethods.filter(function (m) { return m.name === name; })[0] || null; };
@@ -266,6 +267,27 @@
       unread: DUMMY.notifications.filter(function (n) { return n.unread; }).length
     };
   };
+
+  // ---------- Date fields: always show "12 Nov 2026", never mm/dd/yyyy (decision #86) ----------
+  // Every <input type="date"> is wrapped: the visible text is formatted; the real input (ISO value) sits on top,
+  // transparent, so clicking / typing / the native picker still work. Applied automatically to new inputs.
+  App.fmtIsoDate = function (v) { return v ? new Date(v + "T00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""; };
+  App.enhanceDate = function (inp) {
+    if (inp._df || !inp.parentNode) return; inp._df = true;
+    var w = document.createElement("span"); w.className = "date-field"; inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    var t = document.createElement("span"); t.className = "date-text"; t.setAttribute("aria-hidden", "true"); w.insertBefore(t, inp);
+    if (App.icon) { var ic = document.createElement("span"); ic.className = "date-ico"; ic.setAttribute("aria-hidden", "true"); ic.innerHTML = App.icon("calendar", "ico-sm"); w.insertBefore(ic, inp); }
+    function sync() { t.textContent = inp.value ? App.fmtIsoDate(inp.value) : (inp.getAttribute("placeholder") || "Pick a date"); t.classList.toggle("is-empty", !inp.value); }
+    inp.addEventListener("input", sync); inp.addEventListener("change", sync);
+    inp.addEventListener("click", function () { try { if (inp.showPicker) inp.showPicker(); } catch (e) {} });
+    inp._syncDate = sync; sync();
+  };
+  function enhanceDates(root) { if (root.querySelectorAll) $all('input[type="date"]', root).forEach(App.enhanceDate); if (root.matches && root.matches('input[type="date"]')) App.enhanceDate(root); }
+  document.addEventListener("DOMContentLoaded", function () {
+    enhanceDates(document);
+    new MutationObserver(function (list) { list.forEach(function (r) { r.addedNodes.forEach(function (n) { if (n.nodeType === 1) enhanceDates(n); }); }); })
+      .observe(document.body, { childList: true, subtree: true });
+  });
 
   // ---------- Global wiring ----------
   document.addEventListener("click", function (e) {

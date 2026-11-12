@@ -18,6 +18,7 @@ function type(sel, v, ev) { var e = q(sel); e.value = v; e.dispatchEvent(new (W(
 function D() { return W().DUMMY; } function person(id) { return W().App.byId(D().people, id); }
 function M() { return q("#sellMode"); } function mtext() { return M() ? M().innerText : ""; }
 function next() { click(q('#sellMode [data-cv="next"]')); }
+function btnSave() { return q('#sellMode [data-cv="finish"]'); }
 function save() { click(q('#sellMode [data-cv="finish"]')); }
 function finish() { if (q('#sellMode [data-cv="next"]')) next(); save(); }   // through the Payment step (prefilled full, Cash)
 function isoPlus(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
@@ -96,6 +97,7 @@ load(LEADS, function () {
       W().App.state.role = "CEO"; type("#cvDisc", "10"); next();
       ok("step 3: sale type automatic = Paid", /Sale type · automatic/i.test(mtext()) && /Paid/.test(mtext()));
       ok("end date shown, start day included", /start day included/.test(mtext()) && /365 days/.test(mtext()));
+      ok("date shows as '12 Nov 2026' (not mm/dd/yyyy)", /^\d{1,2} [A-Z][a-z]{2} \d{4}$/.test(q("#cvStart").closest(".date-field").querySelector(".date-text").textContent.trim()), q("#cvStart").closest(".date-field") && q("#cvStart").closest(".date-field").textContent);
       ok("start date limited to today..+30", q("#cvStart").min && q("#cvStart").max && q("#cvStart").min < q("#cvStart").max);
       scan("p1/3"); next();
       ok("step 4: one Corporate entry section (FF ID + key fob)", /Corporate entry: FF ID & key fob/.test(mtext()) && !!q("#cvFf"));
@@ -117,13 +119,20 @@ load(LEADS, function () {
       ok("step 6 Payment: receipt no. per branch, prefilled total", /S31-000124/.test(text("[data-receipt]")) && q("#payA0").value === "22800" && /Save payment/.test(text('#sellMode [data-cv="finish"]')));
       ok("bill: Paid now + Balance due", /Paid now\s*₹22,800/.test(text(".cv-bill")) && /Balance due\s*₹0/.test(text(".cv-bill")));
       ok("footer aligned with the steps column", q(".cv-foot-btns").getBoundingClientRect().right <= q(".cv-main").getBoundingClientRect().right + 2);
-      type("#payA0", "1000"); save();
-      ok("accessories + fob deposit must be paid first", /must be paid in full first/.test(mtext()) && person("p1").kind === "Lead");
-      type("#payA0", "10000"); save();
-      ok("partial membership needs a due date", /Pick a due date/.test(mtext()));
+      ok("full payment: no due date field, Save enabled", !q("#payDue") && !btnSave().disabled);
+      type("#payA0", "1000");
+      ok("allocation: deposit not 'paid in full' when not covered", /Paid ₹1,000 · Balance ₹200/.test(text('[data-bl="dep"]')) && /Paid ₹0 · Balance ₹21,600/.test(text('[data-bl="pkg"]')), text('[data-bl="dep"]'));
+      ok("BELOW minimum: Save disabled + message", btnSave().disabled && /Minimum ₹7,680 \(key fob deposit ₹1,200 \+ 30% of package\)/.test(text("[data-min-msg]")), text("[data-min-msg]"));
+      type("#payA0", "7679"); ok("₹1 below the minimum: still disabled", btnSave().disabled);
+      save(); ok("disabled Save does not convert", person("p1").kind === "Lead");
+      type("#payA0", "7680"); ok("EXACT minimum: Save enabled + due date field shows", !btnSave().disabled && !!q("#payDue"));
+      ok("allocation at minimum: deposit paid in full, package Paid ₹6,480 · Balance ₹15,120", /Paid in full/.test(text('[data-bl="dep"]')) && /Paid ₹6,480 · Balance ₹15,120/.test(text('[data-bl="pkg"]')));
+      type("#payA0", "10000"); ok("ABOVE minimum: Save enabled", !btnSave().disabled);
+      save(); ok("partial membership needs a due date", /Pick a due date/.test(mtext()));
       click(q("[data-pay-add]")); pickSel("payM1", "UPI"); type("#payA1", "6200"); save();
       ok("split: UPI needs a reference", /Reference no. is needed for UPI/.test(mtext()));
       type("#payR1", "UPI-99887766"); type("#payDue", isoPlus(5));
+      ok("due date text in bill as '17 Nov 2026'", /by \d{1,2} [A-Z][a-z]{2} \d{4}/.test(text("[data-bill-paid]")));
       ok("live: Paid now ₹16,200 · Balance ₹6,600", /Paid now\s*₹16,200/.test(text("[data-pay-sum]")) && /Balance due\s*₹6,600/.test(text("[data-pay-sum]")));
       save();
       var p = person("p1");
@@ -186,6 +195,21 @@ load(LEADS, function () {
       ok("still a Lead, stage Trial, count 3", p.kind === "Lead" && p.stage === "Trial" && p.freeTrialCount === 3);
       ok("open follow-up kept (not closed)", W().App.byId(D().followUps, "f3").status === "Open");
       ok("modal closed", !M());
+    });
+
+    step("Arnav: paid accessory allocation (₹340 bug) + minimum", function () {
+      startConvert("p17"); next(); pick("pk4", "Membership");
+      click(q("[data-x-add]")); click(q('[data-x-pick="it3"]'));
+      next(); next(); next(); next();
+      ok("on Payment step", !!q("#payA0") && q("#payA0").value === "3349");
+      type("#payA0", "340");
+      ok("₹340 paid: accessories NOT 'paid in full'", /Paid ₹340 · Balance ₹9/.test(text('[data-bl="acc"]')) && !/Paid in full/.test(text('[data-bl="acc"]')), text('[data-bl="acc"]'));
+      ok("minimum message with accessories", /Minimum ₹1,249 \(accessories ₹349 \+ 30% of package\)/.test(text("[data-min-msg]")) && btnSave().disabled, text("[data-min-msg]"));
+      type("#payA0", "1249");
+      ok("exact minimum: accessories paid in full, package Paid ₹900", /Paid in full/.test(text('[data-bl="acc"]')) && /Paid ₹900 · Balance ₹2,100/.test(text('[data-bl="pkg"]')) && !btnSave().disabled);
+      type("#payA0", "3349"); ok("paid in full: due date hidden again", !q("#payDue"));
+      click(q("[data-dm-back]"));
+      ok("left without saving", person("p17").kind === "Lead");
     });
 
     step("Fatima: unassigned Meta lead, fob later", function () {

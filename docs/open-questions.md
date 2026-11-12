@@ -26,3 +26,5 @@ Every question we have not decided yet. When one is decided, move it to
 | Q21 | **GST invoice rounding** | GST is calculated per line and summed (2 decimals). Should the tax invoice round per line or on the total, and is a GSTIN on the receipt needed? | Accounts | Per line, summed. |
 | Q22 | **Discount above the limit** | Today over the limit is blocked. Should a manager be able to approve a higher discount in the moment? | Management | Blocked (no approval flow). |
 | Q23 | **PT with membership in one sale** | Leads can't buy PT now (needs an active membership). Should "Membership + PT" be sellable together in one Sell mode (PT partial payment)? | Operations + PT head | Not allowed at conversion; PT sold later. |
+| Q24 | **Short dates on follow-ups** | Full dates now show as "12 Nov 2026" (#86). Follow-up due dates still use the short form ("today", "Tue, 10 Nov, 5:00 pm") because staff scan them by day. Keep that, or show "10 Nov 2026, 5:00 pm" there too? | Product owner | Short form for follow-ups. |
+

@@ -314,3 +314,21 @@
     content in headed cards (24px between, 16px inside), inputs max ~480px,
     bill fixed ~380px with grouped lines and a highlighted Total to pay,
     footer buttons aligned with the steps column.
+85. Minimum first payment at conversion = accessories in full + key fob
+    deposit in full + a minimum % of the package after discount. The % is
+    one setting in Settings → Sales rules, "Minimum first payment on
+    packages" (Default, can change: 30%; SuperAdmin / CEO edit). Below the
+    minimum "Save payment" is disabled with "Minimum ₹7,189 (accessories
+    ₹349 + 30% of package)". The bill shows the real allocation (accessories
+    first, then the fob deposit, then the package): "Paid in full" only when
+    covered, else "Paid ₹X · Balance ₹Y". Later installments (Collect
+    payment) have no minimum: any amount up to the balance.
+86. Dates show as "12 Nov 2026" everywhere a full date is shown, including
+    date fields (no mm/dd/yyyy); stored as ISO. Follow-up due dates keep the
+    short human form ("today", "Tue, 10 Nov, 5:00 pm") from #24 (see Q24).
+87. Payment step: "Balance due date" shows only when Balance due > 0.
+88. Real app: payments are separate tables Sale -> SaleLine (GST snapshot,
+    discount, sales rep) -> Payment / receipt (+ rows, allocation to lines);
+    one sale can have many payments. The mockup keeps its simple storage.
+    See docs/data-model.md.
+

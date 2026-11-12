@@ -21,7 +21,12 @@
   }
   function limits() {
     var roles = D.roles;
-    return '<p class="muted">Highest discount each role can give on a <strong>package</strong> in Sell mode. Accessories and the key fob deposit are never discounted. ' +
+    var mp = App.minFirstPayPct(), mpd = D.salesRuleDefaults.minFirstPayPct;
+    return '<div class="card mb-3 min-pay"><div><div class="pref-title" id="mpT">Minimum first payment on packages</div><div class="cell-sub">At conversion at least this % of the package after discount ' +
+        "must be paid, plus accessories and the key fob deposit in full. Later installments (Collect payment) can be any amount up to the balance.</div></div>" +
+        '<div class="row row-tight">' + (can() ? '<input class="input input-num input-xs" type="number" min="0" max="100" value="' + mp + '" data-minpay aria-labelledby="mpT"><span>%</span>' : "<strong>" + mp + "%</strong>") +
+        ' <span class="cell-sub">default ' + mpd + "%</span>" + (mp !== mpd ? ' <span class="badge badge-info">Changed</span>' : "") + ' <span class="badge badge-demo">Default, can change</span></div></div>' +
+      '<p class="muted">Highest discount each role can give on a <strong>package</strong> in Sell mode. Accessories and the key fob deposit are never discounted. ' +
       '<span class="badge badge-demo">Default, can change</span></p>' +
       '<div class="table-wrap"><table class="table table-admin"><thead><tr><th>Role</th><th>Max discount</th><th>Default</th></tr></thead><tbody>' +
       roles.map(function (r) {
@@ -66,6 +71,11 @@
       var v = Number(t.value);
       if (t.value === "" || !(v >= 0 && v <= 100)) { S.err = "Max discount must be between 0 and 100%."; render(); return; }
       S.err = ""; D.discountLimits[t.dataset.limit] = Math.round(v * 100) / 100; App.toast(t.dataset.limit + ": max discount " + v + "%", "success"); render();
+    }
+    if (t.hasAttribute("data-minpay")) {
+      var x = Number(t.value);
+      if (t.value === "" || !(x >= 0 && x <= 100)) { S.err = "Minimum first payment must be between 0 and 100%."; render(); return; }
+      S.err = ""; D.salesRules.minFirstPayPct = Math.round(x * 100) / 100; App.toast("Minimum first payment: " + x + "%", "success"); render(); return;
     }
     if (t.dataset.pm) {
       var m = App.byId(D.paymentMethods, t.dataset.pm);

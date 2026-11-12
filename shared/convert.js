@@ -110,6 +110,15 @@
     m.foot.querySelector("[data-dm-back]") && (m.foot.querySelector("[data-dm-back]").onclick = function () { m.exit(); });
     m.foot.querySelector("[data-cv=next], [data-cv=finish]").onclick = last ? finish : function () { go(1); };
     App.$all("select", m.body).forEach(App.enhanceSelect);
+    App.$all('input[type="date"]', m.body).forEach(App.enhanceDate);
+    syncPay();
+  }
+  // Save payment is disabled below the minimum; the message turns red (decision #85).
+  function syncPay() {
+    if (!C || C.step !== 6) return;
+    var b = m.foot.querySelector("[data-cv=finish]"), low = belowMin(), msg = m.body.querySelector("[data-min-msg]");
+    if (b) { b.disabled = low; b.title = low ? minMsg() : ""; }
+    if (msg) { msg.textContent = minMsg(); msg.className = low ? "error" : "hint"; }
   }
 
   // ---------- Bill summary (updates live on every step) ----------
@@ -163,6 +172,31 @@
     var paid = Math.round(C.pay.rows.reduce(function (s, r) { return s + (Number(r.amount) || 0); }, 0) * 100) / 100;
     return { total: total, must: acc + dep, paid: paid, balance: Math.max(0, Math.round((total - paid) * 100) / 100), towardsPkg: Math.max(0, paid - acc - dep) };
   }
+  // Minimum first payment (decision #85): accessories + key fob deposit in full + X% of the package after discount.
+  // Packages that can't be part-paid (paid trial) need the full total.
+  function minPay() {
+    var t = payTotals(), pct = App.minFirstPayPct();
+    if (!partialOk()) return { amount: t.total, full: true };
+    return { amount: Math.round((t.must + Math.ceil(money().final * pct / 100)) * 100) / 100, pct: pct };
+  }
+  function minMsg() {
+    var mi = minPay(), acc = extrasPaid(), dep = depositDue(), parts = [];
+    if (mi.full) return "Pay the full amount " + App.fmtMoney(mi.amount) + " (partial payment is only allowed on Membership and PT packages)";
+    if (acc) parts.push("accessories " + App.fmtMoney(acc));
+    if (dep) parts.push("key fob deposit " + App.fmtMoney(dep));
+    parts.push(mi.pct + "% of package");
+    return "Minimum " + App.fmtMoney(mi.amount) + " (" + parts.join(" + ") + ")";
+  }
+  function belowMin() { return payTotals().paid + 1e-9 < minPay().amount; }
+  // Real allocation of what is paid now: accessories first, then the fob deposit, then the package.
+  function alloc() {
+    var t = payTotals(), acc = extrasPaid(), dep = depositDue(), left = t.paid;
+    var a = Math.min(left, acc); left -= a; var d = Math.min(left, dep); left -= d;
+    return { acc: a, dep: d, pkg: Math.min(left, money().final) };
+  }
+  function paidSub(paid, due, prefix) {
+    return (prefix || "") + (paid + 1e-9 >= due ? "Paid in full" : "Paid " + App.fmtMoney(paid) + " · Balance " + App.fmtMoney(Math.round((due - paid) * 100) / 100));
+  }
   function ptLine(t) {
     var k = pkg(); if (!k || k.type !== "PT" || !k.sessions) return "";
     var un = App.ptUnlocked(k.price, money().disc, k.sessions, C.step === 6 ? t.towardsPkg : t.total);
@@ -171,15 +205,16 @@
   function totalsHtml() {
     var mo = money(), dep = depositDue(), acc = extrasPaid(), rates = gstByRate(), t = payTotals();
     var gst = Math.round(rates.reduce(function (s, r) { return s + r.gst; }, 0) * 100) / 100;
-    var h = '<div class="bill-group">' + bline("Package after discount", App.fmtMoney(mo.final));
-    if (acc) h += bline("Accessories", App.fmtMoney(acc), "Paid in full");
-    if (dep) h += bline("Key fob deposit", App.fmtMoney(dep), "Refundable · paid in full");
+    var pay6 = C.step === 6, al = pay6 ? alloc() : null;
+    var h = '<div class="bill-group">' + bline("Package after discount", App.fmtMoney(mo.final), pay6 && mo.final ? paidSub(al.pkg, mo.final) : "", "", ' data-bl="pkg"');
+    if (acc) h += bline("Accessories", App.fmtMoney(acc), pay6 ? paidSub(al.acc, acc) : "Paid first, in full", "", ' data-bl="acc"');
+    if (dep) h += bline("Key fob deposit", App.fmtMoney(dep), pay6 ? paidSub(al.dep, dep, "Refundable · ") : "Refundable · paid first, in full", "", ' data-bl="dep"');
     h += "</div>";
     h += '<div class="bill-gst" data-gst><div class="bill-line"><div class="bill-what">GST included</div><div class="bill-amt">' + App.fmtMoney2(gst) + "</div></div>" +
       rates.map(function (r) { return '<div class="bill-subline"><span>GST ' + r.rate + "%</span><span>" + App.fmtMoney2(r.gst) + "</span></div>"; }).join("") + "</div>";
     h += '<div class="bill-total"><span>Total to pay</span><strong data-total>' + App.fmtMoney(t.total) + "</strong></div>";
     if (C.step === 6) h += '<div class="bill-paid" data-bill-paid>' + bline("Paid now", App.fmtMoney(t.paid)) + bline("Balance due", App.fmtMoney(t.balance),
-      t.balance && C.payDue ? "by " + esc(App.fmtDay(C.payDue + "T00:00")) : "") + "</div>";
+      t.balance && C.payDue ? "by " + esc(App.fmtIsoDate(C.payDue)) : "") + "</div>";
     var pl = ptLine(t); if (pl) h += '<p class="bill-pt" data-bill-pt>' + pl + "</p>";
     return h;
   }
@@ -416,11 +451,13 @@
       '<dl class="kv"><dt>Receipt no.</dt><dd><span class="mono" data-receipt>' + esc(App.nextReceiptNo(p.branchId)) + '</span> <span class="cell-sub">auto, per branch · read-only</span></dd></dl>' +
       rows + '<button type="button" class="link-btn bill-add" data-pay-add>' + icon("plus", "ico-sm") + "Add payment row (split payment)</button>" +
       '<div class="pay-sum" data-pay-sum>' + paySum() + "</div>" + (C.errors.pay ? '<p class="error" data-pay-err>' + C.errors.pay + "</p>" : "") +
+      '<p class="' + (belowMin() ? "error" : "hint") + '" data-min-msg>' + esc(minMsg()) + "</p>" +
       (t.must ? '<p class="hint">Accessories and the key fob deposit (' + App.fmtMoney(t.must) + ") are settled first and must be paid in full.</p>" : "") +
-      (partialOk()
+      // Due date only when there is a balance (decision #87).
+      (partialOk() && t.balance > 0
         ? '<div class="field"><label for="payDue">Balance due date</label><input class="input' + inv("payDue") + '" id="payDue" type="date" data-k="payDue" min="' + tomorrow + '" value="' + esc(C.payDue) + '">' +
-          (C.errors.payDue ? err("payDue") : '<span class="hint">Needed only when there is a balance. Creates "Payment due" on the profile and in Today, and a Payment expected follow-up on that date.</span>') + "</div>"
-        : '<p class="hint">Pay in full: partial payment is only allowed on Membership and PT packages.</p>'),
+          (C.errors.payDue ? err("payDue") : '<span class="hint">Creates "Payment due" on the profile and in Today, and a Payment expected follow-up on that date.</span>') + "</div>"
+        : ""),
       ' data-pay-card');
   }
   function check6() {
@@ -430,8 +467,7 @@
       var pm = App.payMethod(r.method); if (pm && pm.needsRef && !r.ref.trim()) e["pr" + i] = "Reference no. is needed for " + esc(r.method) + ".";
     });
     if (t.paid > t.total + 1e-9) e.pay = "Paid now is more than the total (" + App.fmtMoney(t.total) + ").";
-    else if (t.paid + 1e-9 < t.must) e.pay = "Accessories and the key fob deposit (" + App.fmtMoney(t.must) + ") must be paid in full first.";
-    else if (t.balance && !partialOk()) e.pay = "Pay the full amount for this package.";
+    else if (belowMin()) e.pay = esc(minMsg()) + ".";
     else if (t.balance && !C.payDue) e.payDue = "Pick a due date for the balance.";
     else if (t.balance && C.payDue <= today) e.payDue = "The due date must be after today.";
     return e;
@@ -488,8 +524,12 @@
     if (d.pay) {   // payment rows: update totals live without re-rendering the input
       C.pay.rows[+d.i][d.pay] = e.target.value;
       if (d.pay === "method" && e.type === "change") { render(); return; }
+      var needDue = partialOk() && payTotals().balance > 0;
+      if (needDue !== !!m.body.querySelector("#payDue")) {   // due date appears / disappears with the balance
+        var id = e.target.id; render(); var back = m.body.querySelector("#" + id); if (back) back.focus(); return;
+      }
       var ps = m.body.querySelector("[data-pay-sum]"); if (ps) ps.innerHTML = paySum();
-      updateTotals(); return;
+      updateTotals(); syncPay(); return;
     }
     if (e.target.hasAttribute("data-fobfree")) { C.fobFree = e.target.checked; if (!C.fobFree) C.fobFreeWhy = ""; render(); var fw = m.body.querySelector("#cvFobWhy"); if (fw) fw.focus(); return; }
     var k = d.k; if (!k) return;
@@ -565,7 +605,7 @@
     if (k.type === "PT") p.membership.sessions = k.sessions;
     var closed = App.Followup.closeBySystem(p.id, "Client converted");
     App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(T.paid) + " received · " + rows.map(function (r) { return r.method + " " + App.fmtMoney(r.amount); }).join(" + ") +
-      " · receipt " + receiptNo + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + App.fmtDay(C.payDue + "T00:00") : " · paid in full"));
+      " · receipt " + receiptNo + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + App.fmtIsoDate(C.payDue) : " · paid in full"));
     if (T.balance) App.Followup.create(p.id, { type: "Payment expected", dueDate: C.payDue, dueTime: null, note: "Balance " + App.fmtMoney(T.balance) + " · receipt " + receiptNo });
     App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + " · " + App.fmtMoney(mo.final) +
       (mo.disc ? " (" + App.fmtMoney(mo.disc) + " off: " + why + ")" : "") + (p.keyFob ? " · key fob " + p.keyFob + (C.fobFree ? " (free)" : "") : "") +
@@ -574,7 +614,7 @@
     var pend = App.profilePending ? App.profilePending(p) : [];
     C.done = true;
     C.doneHtml = '<div class="state">' + icon("check") + "<h3>" + esc(p.name) + " is now a client (" + esc(clientNo) + ")</h3>" +
-      '<p class="muted">Receipt <span class="mono">' + esc(receiptNo) + "</span> · paid " + App.fmtMoney(T.paid) + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + esc(App.fmtDay(C.payDue + "T00:00")) : " · paid in full") + "</p>" +
+      '<p class="muted">Receipt <span class="mono">' + esc(receiptNo) + "</span> · paid " + App.fmtMoney(T.paid) + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + esc(App.fmtIsoDate(C.payDue)) : " · paid in full") + "</p>" +
       (closed ? '<p class="hint">' + closed + " open follow-up" + (closed > 1 ? "s" : "") + " closed by system · client converted.</p>" : "") +
       (pend.length ? '<div class="stack">' + pend.map(function (x) { return '<span class="badge badge-warning">' + esc(x.t) + "</span>"; }).join("") + "</div>" : "") + "</div>";
     render();

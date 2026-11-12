@@ -191,6 +191,7 @@ Methods: **+ Payment method** opens an inline form (name, reference required); t
 ## 3. Field table
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
+| Minimum first payment on packages | number % | Yes | — | 30 | 0–100. At conversion: accessories + fob deposit in full + this % of the package after discount (#85). Not used for later installments. |
 | Max discount (per role) | number % | Yes | — | SE 10, SM 20, Club Manager 30, Regional Manager 50, CEO 50, SuperAdmin 100, Trainer 0, MXM 0 | 0–100 ("Max discount must be between 0 and 100%."). "Changed" badge when it differs from the default. Package only. |
 | Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Net banking, Card | "Enter a name." / "This method already exists." |
 | Reference no. required | switch | — | — | On (Cash: off) | Payment step asks for a reference when on. |

@@ -351,6 +351,8 @@
     // Max discount % by role (decision #77). Default, can change in Settings → Sales rules. Every role has a number; never "no limit".
     discountLimits: { "SuperAdmin": 100, "CEO": 50, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0 },
     discountLimitDefaults: { "SuperAdmin": 100, "CEO": 50, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0 },
+    // Minimum first payment on packages (decision #85). Default, can change (Settings → Sales rules).
+    salesRules: { minFirstPayPct: 30 }, salesRuleDefaults: { minFirstPayPct: 30 },
     // Payment methods (decision #80). Default, can change. needsRef: reference / transaction no. required.
     paymentMethods: [
       { id: "pm1", name: "Cash", needsRef: false, active: true, isDefault: true },
