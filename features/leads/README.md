@@ -8,7 +8,7 @@
 | Profile drawer | `shared/profile.js` | Opens on row click. Spec: `features/profile/README.md`. |
 | Assign owner modal | `shared/followup.js` | Opens from "Assign" in the Owner cell of an unassigned lead. |
 | Add follow-up modal | `shared/followup.js` | Opens from "+ Follow-up" (disabled on Lost rows: "Re-open the lead first"). Spec: `features/followups/README.md`. |
-| Quick lead modal | — | Top-bar "+ Lead" (the only one on the page) / "Create lead with this number" show a toast for now (later screen). |
+| Quick lead drawer | `shared/profile.js` → `App.QuickLead.open({ mobile })` | Create a lead (app brief screen 4, decision #68). Opens as a drawer, not a modal. |
 
 App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shared/shell.js` — see decisions #22–23.
 
@@ -23,7 +23,7 @@ App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shar
   - WhatsApp (message icon) → toast (mockup)
   - + Follow-up → add follow-up modal → Save → row, cards and sidebar badges update, toast
 - Owner cell "Assign" (unassigned leads only) → assign modal → Assign → row updates, toast.
-- No results + search looks like a phone number → "Create lead with this number" (toast for now; later opens quick lead modal prefilled).
+- No results + search looks like a phone number → "Create lead with this number" → quick lead drawer with the number prefilled.
 - Top-bar branch switcher changes the list's branch filter. "View as role" changes what is visible (placeholder rules below).
 
 ## 3. Field table
@@ -70,6 +70,25 @@ Pipeline card counts use role + branch only (they ignore search and other filter
 | Time | time | No | No | 11:00 | `dueTime`, optional. See docs/data-model.md. |
 | Note | text | No | No | empty | |
 | Assigned to | staff (hidden) | — | — | Lead owner | Decision #7. |
+
+### Quick lead drawer (decision #68)
+Opens from the top-bar **+ Lead** (any page; pages without the form go to Leads `?new=1`),
+the list's "Create lead with this number" and the top-bar search "Create lead with this number"
+(country code and number prefilled). After **Save lead**: toast "Lead created · <name>", the
+drawer closes, the new lead opens in the profile drawer and the shared follow-up modal asks
+"Set first follow-up" (Later allowed; then the lead shows "No follow-up set", decision #5).
+List, sidebar badges and Today update.
+
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Name | text | Yes | No | — | "Name is required." |
+| Country code + Mobile | select + tel | Yes | Yes, company-wide | +91 | 10 digits. Live check while typing: same branch "Already exists: <name>" + Open profile; other branch "Already exists in <branch> · Owner: <first name>" + Request access (#19). Save blocked while duplicate. Saved as "90000 01234". |
+| Source | select (lead sources) | Yes | No | — (Choose…) | "Choose a source." |
+| Temperature | chips Hot / Warm / Cold | Yes | No | Warm | |
+| Owner | select | Yes | No | me | Me + sales staff of the chosen branch. Changeable. |
+| Branch | select | Yes | No | top-bar branch (or my first branch when "All") | Only my branches. Changing it refreshes the owner list. |
+| More details (collapsed) | link | — | — | closed | Email (unique if given), Gender, Birth date (not future), Inquiry type, Campaign, Remarks. FF ID is NOT here (it belongs to Corporate entry after conversion). |
+| Stage / Created by / Created | system | — | — | New / me / now | |
 
 ## 4. States
 - **Loading:** skeleton rows for ~400 ms on open, and on Retry.

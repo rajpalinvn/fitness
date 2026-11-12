@@ -233,3 +233,26 @@
     Width = the larger of the user's drawer width and 80% (tablet 92%).
     Esc or outside click also go back to the profile (nothing saved).
     Renewal, Upgrade and Transfer will reuse the same mode (App.DrawerMode).
+65. Sell mode is laid out like a checkout: steps on the left, a sticky Bill
+    summary on the right (below the steps on tablet). It shows the person,
+    every sale line (package, free items, key fob deposit), price, discount +
+    reason, GST included and "Total to pay", and updates live. No separate
+    "Final price" box.
+66. Package step: packages in accordions by category (Free trial, Paid trial,
+    Membership, Personal training) with a count; the first group with
+    packages is open. Search by name across groups. Each card shows its free
+    items; a "Once per client" item already received shows "(already
+    received)" and is Skipped.
+67. FF ID and key fob are ONE section "Corporate entry: FF ID & key fob": a
+    conversion step (Paid membership only, both optional, each pending until
+    filled), a section on the profile Membership tab, and a group in NEXT STEP
+    and Today's pending items. FF ID is no longer in the Details step.
+68. Quick lead opens in a drawer (not a modal) from "+ Lead" and "Create lead
+    with this number". Fields: name, mobile (live duplicate check #19),
+    source, temperature (Warm), owner (me, changeable), branch (top-bar);
+    More details: email, gender, birth date, inquiry type, campaign, remarks.
+    FF ID is not asked for here (overrides the app brief list). After save the
+    profile opens and asks for the first follow-up (#5).
+69. The Drawer width setting applies to every drawer (profile, quick lead,
+    package / item forms, fob and history drawers). Sell mode is at least
+    80%; tablet is always 92%.

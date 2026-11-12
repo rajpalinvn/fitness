@@ -40,6 +40,7 @@
     settings: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
     building: '<path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h3a1 1 0 0 1 1 1v11M3 21h18M8 7h4M8 11h4M8 15h4"/>',
     bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
     "chevron-down": '<path d="M6 9l6 6 6-6"/>',
@@ -302,7 +303,8 @@
             '</span><span class="pal-sub">' + esc(p.cc + " " + p.mobile) + " · " + esc(App.branchName(p.branchId)) + "</span></span>" +
             '<span class="badge badge-info">Lead</span></div>';
         }).join("")
-      : '<div class="pal-empty">No leads match "' + esc(q) + '".</div>') +
+      : '<div class="pal-empty">No leads match "' + esc(q) + '".' +
+          (/^[+\d\s-]{6,}$/.test(q) ? ' <button type="button" class="btn btn-sm btn-primary" data-sr-create>' + App.icon("plus", "ico-sm") + "Create lead with this number</button>" : "") + "</div>") +
       '<div class="pal-foot">' + App.icon("search", "ico-sm") + " Placeholder results. Full search comes in a later screen.</div>";
     sInput().setAttribute("aria-activedescendant", res[sIndex] ? "sr-" + res[sIndex].id : "");
   }
@@ -327,6 +329,12 @@
     if (App.openLead) App.openLead(id);
     else if (App.openProfile) App.openProfile(id);
     else App.toast("Opening profiles from here comes with the search screen", "");
+  }
+
+  // Quick lead (screen 4) lives in profile.js. Pages without it go to the Leads page and open it there.
+  function newLead(o) {
+    if (App.QuickLead) { App.QuickLead.open(o); return; }
+    location.href = root + "features/leads/index.html?new=1" + (o.mobile ? "&mobile=" + encodeURIComponent(o.mobile) : "");
   }
 
   // Esc order: search → dropdown → tablet overlay sidebar → (app.js) modal → drawer
@@ -365,12 +373,12 @@
     if (openDD && !e.target.closest(".dd-menu")) closeDD(false);
     if (e.target.closest(".dd-menu .dd-item")) closeDD(false);
     if ((t = e.target.closest("[data-sr-id]"))) { chooseResult(t.dataset.srId); return; }
+    if ((t = e.target.closest("[data-sr-create]"))) { var num = sInput().value.trim(); collapseSearch(); newLead({ mobile: num }); return; }
     if (e.target.closest("[data-tb-search]")) { expandSearch(); if (document.activeElement !== sInput()) sInput().focus(); return; }
     collapseSearch(); // outside click
     if (e.target.closest("[data-sb-toggle]")) { setCollapsed(!app.classList.contains("sb-collapsed"), true); return; }
     if (e.target.closest(".sb-scrim")) { setCollapsed(true, false); return; }
-    if (e.target.closest("[data-new-lead]") && !App.onNewLead) App.toast("Quick lead form comes in a later screen", "");
-    if (e.target.closest("[data-new-lead]") && App.onNewLead) App.onNewLead();
+    if (e.target.closest("[data-new-lead]")) newLead({});
   });
 
   document.addEventListener("keydown", function (e) {

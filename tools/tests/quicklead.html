@@ -1,0 +1,113 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", TODAY = ROOT + "features/today/index.html", PKGS = ROOT + "features/settings/packages.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb, w) { fr.style.width = (w || 1280) + "px"; fr.onload = function () { setTimeout(cb, 800); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function type(sel, v, ev) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)(ev || "input", { bubbles: true })); }
+function pickSel(id, val) { click(q('[data-dd="sel-' + id + '"]')); click(q('[data-sel="' + id + '"][data-val="' + val + '"]')); }
+function D() { return W().DUMMY; }
+function QD() { return q("#quickLeadDrawer"); } function qOpen() { return !!QD() && QD().classList.contains("open"); }
+function width(id) { return q("#" + id).getBoundingClientRect().width; }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+
+load(LEADS, function () {
+  W().sessionStorage.setItem("mock.role", "Sales Executive"); W().sessionStorage.setItem("mock.branch", "b1");
+  W().sessionStorage.removeItem("mock.prefs");
+  load(LEADS, function () {
+    step("+ Lead opens the quick lead drawer", function () {
+      click(q(".topbar [data-new-lead]"));
+      ok("opens as a drawer, not a modal", qOpen() && !q(".modal.open"));
+      ok("defaults: Warm, owner me, branch Sec 31", /Warm/.test(text("#quickLeadDrawer .seg-btn.active")) && q("#qlOwner").value === "u6" && q("#qlBranch").value === "b1");
+      ok("More details hidden until asked", !q("[data-ql-more]") && !q("#qlEmail"));
+      click(q('[data-ql="save"]'));
+      ok("required: name, mobile, source", /Name is required/.test(text("#quickLeadDrawer")) && /10-digit/.test(text("#quickLeadDrawer")) && /Choose a source/.test(text("#quickLeadDrawer")));
+      type("#qlMobile", "90000 01234");
+      ok("live duplicate (same branch): name + Open profile", /Already exists: Aarav Patel/.test(text("[data-qldup]")) && !!q('[data-ql="openDup"]'));
+      type("#qlMobile", "90000 01244");
+      ok("live duplicate (other branch): branch + owner + Request access", /Already exists in Golf Course · Owner: Pooja/.test(text("[data-qldup]")) && /Request access/.test(text("[data-qldup]")));
+      type("#qlMobile", "90000 07777");
+      ok("unique number clears the message", q("[data-qldup]").hidden);
+      click(q('[data-ql="more"]'));
+      ok("More details: email, gender, birth date, inquiry, campaign, remarks", !!q("#qlEmail") && !!q("#qlGender") && !!q("#qlBirth") && !!q("#qlInq") && !!q("#qlCamp") && !!q("#qlRem") && !q("#qlFf"));
+      type("#qlName", "Tanvi Desai"); pickSel("qlSource", "Referral");
+      type("#qlEmail", "aarav.patel@example.com"); click(q('[data-ql="save"]'));
+      ok("email must be unique", /already used/.test(text("#quickLeadDrawer")) && qOpen());
+      type("#qlEmail", "tanvi.desai@example.com");
+      click(q('[data-qltemp="Hot"]'));
+      ok("width follows the drawer setting (70%)", Math.abs(width("quickLeadDrawer") - W().innerWidth * 0.7) < 3, width("quickLeadDrawer"));
+      var before = D().people.length, badgeBefore = text('.nav-item[data-tip="Today"] .nav-badge');
+      click(q('[data-ql="save"]'));
+      var p = D().people[D().people.length - 1];
+      ok("lead saved with defaults", D().people.length === before + 1 && p.name === "Tanvi Desai" && p.stage === "New" && p.temperature === "Hot" && p.ownerUserId === "u6" && p.branchId === "b1" && p.mobile === "90000 07777" && p.createdByUserId === "u6");
+      ok("profile opens on the new lead", q("#profileDrawer").classList.contains("open") && /Tanvi Desai/.test(text(".pd-left")) && !qOpen());
+      ok("asks for the first follow-up", q("#fuAddModal").classList.contains("open") && /Set first follow-up/.test(text("#fuAddModal")));
+      ok("list shows the new lead", !!q('#rows tr[data-id="' + p.id + '"]'));
+      ok("Today badge counts it (no follow-up yet)", +text('.nav-item[data-tip="Today"] .nav-badge') === +badgeBefore + 1, badgeBefore + " -> " + text('.nav-item[data-tip="Today"] .nav-badge'));
+      click(q("#fuAddModal [data-save]"));
+      ok("follow-up saved, badge back", +text('.nav-item[data-tip="Today"] .nav-badge') === +badgeBefore);
+      key("Escape");
+      ok("no bad text", !badText(), badText());
+    });
+    step("Create lead with this number (list + search)", function () {
+      type("#fSearch", "90000 05555");
+      click(q("[data-create-number]"));
+      ok("list empty state prefills the number", qOpen() && q("#qlMobile").value === "90000 05555");
+      key("Escape"); ok("Esc closes the quick lead", !qOpen());
+      var s = q("[data-search-input]"); click(q("[data-tb-search]")); s.value = "+91 90000 06666"; s.dispatchEvent(new (W().Event)("input", { bubbles: true }));
+      click(q("[data-sr-create]"));
+      ok("search: Create lead with this number prefills cc + number", qOpen() && q("#qlMobile").value === "90000 06666" && q("#qlCc").value === "+91");
+      click(QD().querySelector("[data-close]"));
+    });
+    step("Drawer width setting applies to every drawer", function () {
+      Dc().documentElement.setAttribute("data-drawer", "60");
+      click(q(".topbar [data-new-lead]"));
+      ok("quick lead 60%", Math.abs(width("quickLeadDrawer") - W().innerWidth * 0.6) < 3, width("quickLeadDrawer"));
+      key("Escape");
+      W().App.openProfile("p1", { state: "normal" });
+      ok("profile 60%", Math.abs(width("profileDrawer") - W().innerWidth * 0.6) < 3);
+      click(q('#profileDrawer [data-pd="convert"]'));
+      ok("sell mode at least 80%", width("profileDrawer") >= W().innerWidth * 0.79, width("profileDrawer"));
+      key("Escape"); key("Escape");
+      Dc().documentElement.setAttribute("data-drawer", "70");
+    });
+    step("Profile: Corporate entry section on Membership", function () {
+      W().App.setRole("CEO"); W().App.setBranch("all");
+      W().App.openProfile("p12", { state: "normal", tab: "membership" });
+      ok("one section: Corporate entry: FF ID & key fob", /Corporate entry: FF ID & key fob/i.test(text("[data-corp]")) && /FF ID pending/.test(text("[data-corp]")) && /Key fob pending/.test(text("[data-corp]")), text("[data-corp]") + " / " + text(".pd-tabs .tab.active"));
+      ok("NEXT STEP groups the two", /Corporate entry: FF ID & key fob/.test(text(".next-step")));
+      key("Escape");
+    });
+    load(PKGS, function () {
+      step("package edit drawer follows the setting", function () {
+        W().App.setRole("CEO");
+        var add = q("#btnNew");
+        if (add) click(add);
+        var d = q(".drawer.open");
+        ok("package drawer uses the drawer width (70%)", !!d && Math.abs(d.getBoundingClientRect().width - W().innerWidth * 0.7) < 3, d ? d.getBoundingClientRect().width : "no drawer");
+        key("Escape");
+      });
+      load(PKGS + "?x=1", function () {
+        step("+ Lead on a page without the form goes to Leads", function () {
+          fr.onload = null; click(q(".topbar [data-new-lead]"));
+        });
+        setTimeout(function () {
+          ok("leads page opens with quick lead (?new=1)", /features\/leads\/index\.html/.test(W().location.href) && qOpen(), W().location.href);
+          load(LEADS, function () {
+            ok("tablet 900px: drawer 92%", (click(q(".topbar [data-new-lead]")), Math.abs(width("quickLeadDrawer") - W().innerWidth * 0.92) < 3), width("quickLeadDrawer"));
+            document.getElementById("out").textContent = out.join("\n");
+          }, 900);
+        }, 1500);
+      });
+    });
+  });
+});
+</script></body></html>

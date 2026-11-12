@@ -20,6 +20,7 @@ function M() { return q("#sellMode"); } function mtext() { return M() ? M().inne
 function next() { click(q('#sellMode [data-cv="next"]')); }
 function finish() { click(q('#sellMode [data-cv="finish"]')); }
 function steps() { return Array.prototype.map.call(qa("#sellMode .step"), function (s) { return s.textContent.replace(/^\d/, "").trim(); }).join(","); }
+function pick(id, grp) { if (!q('[data-pkg="' + id + '"]')) click(q('[data-acc="' + grp + '"]')); click(q('[data-pkg="' + id + '"]')); }
 function startConvert(id) { W().App.openProfile(id, { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); }
 function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
 var bad = [];
@@ -36,18 +37,32 @@ load(LEADS, function () {
       ok("header: <Name> › Convert to client + Back", /Aarav Patel/.test(text(".dm-crumb")) && /Convert to client/.test(text(".dm-crumb")) && !!q("[data-dm-back]"));
       ok("profile hidden while in Sell mode", !vis(q("#profileDrawer .pd-body")));
       ok("drawer is wide (>= 80% of window)", q("#profileDrawer").getBoundingClientRect().width >= W().innerWidth * 0.79, q("#profileDrawer").getBoundingClientRect().width);
-      ok("5 steps before a package is chosen", steps() === "Details,Package,Sale & start,Key fob,Summary", steps());
+      ok("5 steps before a package is chosen", steps() === "Details,Package,Sale & start,Corporate entry,Summary", steps());
+      ok("checkout layout: steps left, bill right", !!q("#sellMode .cv-main") && !!q("#sellMode .cv-bill") && q("#sellMode .cv-bill").getBoundingClientRect().left > q("#sellMode .cv-main").getBoundingClientRect().left);
+      ok("bill shows the person + waits for a package", /Bill summary/.test(text(".cv-bill")) && /Aarav Patel/.test(text(".cv-bill")) && /Choose a package/.test(text(".cv-bill")));
+      ok("FF ID not in Details step", !q("#cvFf"));
       ok("name + mobile read-only, gender required", /Aarav Patel/.test(mtext()) && /\+91 90000 01234/.test(mtext()) && /Gender \*/.test(mtext()));
       scan("p1/1"); next();
-      ok("step 2 package", /Membership/.test(mtext()) && !!q('[data-pkg="pk7"]'));
+      ok("step 2: groups as accordions with counts, first open", qa("#sellMode .acc").length === 4 && q('[data-acc="Trial"]').getAttribute("aria-expanded") === "true" &&
+        q('[data-acc="Membership"]').getAttribute("aria-expanded") === "false" && !q('[data-pkg="pk7"]') && /Membership\s*\d+/.test(text('[data-acc="Membership"]')));
+      type("#cvPkgQ", "annual");
+      ok("search filters across groups + auto-expands", !!q('[data-pkg="pk7"]') && !!q('[data-pkg="pk11"]') && !q('[data-pkg="pk1"]') && /1 of|2 of/.test(text("[data-pkglist]")));
+      type("#cvPkgQ", "zumba"); ok("search: No packages match", /No packages match/.test(text("[data-pkglist]")));
+      type("#cvPkgQ", "");
+      click(q('[data-acc="PT"]'));
       ok("PT disabled for leads with reason", q('[data-pkg="pk9"]').disabled && /PT needs an active membership/.test(q('[data-pkg="pk9"]').textContent));
       next(); ok("package required", /Choose a package/.test(mtext()));
+      click(q('[data-acc="Membership"]'));
+      ok("card shows free items", /Free: T-shirt, Gym towel/.test(q('[data-pkg="pk7"]').textContent));
       click(q('[data-pkg="pk7"]'));
+      ok("bill: package + free items with status", /Annual Membership/.test(text(".cv-bill")) && /T-shirt × 1/.test(text(".cv-bill")) && /Pending issue/.test(text(".cv-bill")) && /Gym towel × 1/.test(text(".cv-bill")) && /Issued/.test(text(".cv-bill")));
+      ok("bill: GST included + total", /GST included/.test(text(".cv-bill")) && /Total to pay/.test(text(".cv-bill")) && /₹24,000/.test(text("[data-total]")));
+      ok("no Final price box at the bottom", !q(".cv-total") && !q("[data-final]"));
       ok("price locked shown", /₹24,000/.test(mtext()) && /locked/.test(mtext()));
       ok("sales rep defaults to lead owner (Priya)", q("#cvRep").value === "u6");
       ok("discount limit marked placeholder", /Placeholder/.test(mtext()));
       type("#cvDisc", "15");
-      ok("final price live", /₹20,400/.test(text("[data-final]")), text("[data-final]"));
+      ok("bill total live with discount", /₹20,400/.test(text("[data-total]")) && /− ₹3,600/.test(text(".cv-bill")) && /Reason needed/.test(text(".cv-bill")), text("[data-total]"));
       next(); ok("reason required for discount", /A reason is needed/.test(mtext()));
       W().App.state.role = "Sales Executive"; type("#cvReason", "Diwali offer"); next();
       ok("Sales Executive capped at 10% (placeholder)", /Your limit is 10%/.test(mtext()));
@@ -56,8 +71,14 @@ load(LEADS, function () {
       ok("end date shown, start day included", /start day included/.test(mtext()) && /365 days/.test(mtext()));
       ok("start date limited to today..+30", q("#cvStart").min && q("#cvStart").max && q("#cvStart").min < q("#cvStart").max);
       scan("p1/3"); next();
+      ok("step 4: one Corporate entry section (FF ID + key fob)", /Corporate entry: FF ID & key fob/.test(mtext()) && !!q("#cvFf"));
+      type("#cvFf", "FF-20431"); next();
+      ok("duplicate FF ID (other branch) shows branch + owner", /Already exists in Sec 65 · Owner: Arjun/.test(mtext()), mtext().slice(0, 300));
+      type("#cvFf", "");
       ok("step 4: fob chips from Sec 31 stock", !!q('[data-fob="KF-S31-0013"]') && !q('[data-fob="KF-S65-0101"]'));
-      click(q('[data-fob="KF-S31-0013"]')); next();
+      click(q('[data-fob="KF-S31-0013"]'));
+      ok("bill adds the key fob deposit line + total", /Key fob deposit · KF-S31-0013/.test(text(".cv-bill")) && /₹22,800/.test(text("[data-total]")), text("[data-total]"));
+      next();
       ok("summary shows final price + reason + fob", /₹21,600/.test(mtext()) && /Diwali offer/.test(mtext()) && /KF-S31-0013/.test(mtext()));
       ok("summary warns follow-ups will be closed by system", /closed by system · client converted/.test(mtext()));
       ok("button = Proceed to Payment", /Proceed to Payment/.test(text('#sellMode [data-cv="finish"]')));
@@ -86,11 +107,9 @@ load(LEADS, function () {
       ok("no email hint", /No email: receipts go by WhatsApp only/.test(mtext()));
       type("#cvEmail", "aarav.patel@example.com"); next();
       ok("duplicate email blocked", /Already used by/.test(mtext()) && /Aarav Patel/.test(mtext()));
-      type("#cvEmail", ""); type("#cvFf", "FF-20431"); next();
-      ok("duplicate FF ID (other branch) shows branch + owner", /Already exists in Sec 65 · Owner: Arjun/.test(mtext()), mtext().slice(0, 300));
-      type("#cvFf", ""); next();
-      click(q('[data-pkg="pk2"]'));
-      ok("paid trial: no Key fob step", steps() === "Details,Package,Sale & start,Summary", steps());
+      type("#cvEmail", ""); next();
+      pick("pk2", "Trial Paid");
+      ok("paid trial: no Corporate entry step", steps() === "Details,Package,Sale & start,Summary", steps());
       next(); ok("sale type Paid trial", /Paid trial/.test(mtext()) && /No key fob/.test(mtext()));
       next(); finish();
       var p = person("p2");
@@ -100,7 +119,12 @@ load(LEADS, function () {
     });
 
     step("Ishaan: free trial again stays a Lead with warning", function () {
-      startConvert("p5"); next(); click(q('[data-pkg="pk1"]'));
+      startConvert("p5"); next();
+      click(q('[data-acc="Membership"]'));
+      ok("once per client: T-shirt already received", /T-shirt \(already received\)/.test(q('[data-pkg="pk7"]').textContent));
+      click(q('[data-pkg="pk7"]')); ok("bill: T-shirt Skipped", /Skipped/.test(text(".cv-bill")));
+      click(q('[data-pkg="pk1"]'));
+      ok("free trial bill: total ₹0", /₹0/.test(text("[data-total]")) && /no payment/.test(text(".cv-bill")));
       ok("3rd free trial warning", /This is their 3rd free trial/.test(mtext()));
       ok("no discount for free", !q("#cvDisc"));
       next(); ok("sale type: stays a Lead", /stays a Lead/.test(mtext()));
@@ -116,7 +140,7 @@ load(LEADS, function () {
       startConvert("p8");
       next(); ok("gender required", /Choose a gender/.test(mtext()));
       pickSel("cvGender", "Female"); next();
-      click(q('[data-pkg="pk4"]'));
+      pick("pk4", "Membership");
       ok("rep defaults to converting user when unassigned", q("#cvRep").value === W().App.me().id || !!q("#cvRep").value);
       next(); next(); click(q('#sellMode [data-fob=""]')); next();
       ok("summary: owner = you", /lead was unassigned/.test(mtext()));

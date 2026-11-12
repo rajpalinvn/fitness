@@ -41,6 +41,7 @@ load(TODAY, function () {
       ok("one action per row", Array.prototype.every.call(qa(".today-row"), function (r) { return r.querySelectorAll("button").length === 1; }));
       ok("pending row: 3 badges + first action Add FF ID", /FF ID pending/.test(rowOf("pending", "Rohit").textContent) && /Key fob pending/.test(rowOf("pending", "Rohit").textContent) &&
         /Pending issue · T-shirt/.test(rowOf("pending", "Rohit").textContent) && /Add FF ID/.test(rowOf("pending", "Rohit").querySelector("button").textContent));
+      ok("pending row groups Corporate entry: FF ID & key fob", /Corporate entry: FF ID & key fob/.test(rowOf("pending", "Rohit").textContent));
       ok("View all links to leads filter", /view=attention/.test(q("#sec-attention .today-all").getAttribute("href")));
       scan("se");
     });

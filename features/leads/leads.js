@@ -292,7 +292,7 @@
   $("btnRetry").addEventListener("click", load);
   document.addEventListener("click", function (e) {
     if (e.target.closest("#btnClear2")) clearAll();
-    if (e.target.closest("[data-create-number]")) App.toast("Quick lead form will open with " + S.search.trim() + " prefilled (later screen)", "");
+    if (e.target.closest("[data-create-number]")) App.QuickLead.open({ mobile: S.search.trim() });
   });
   document.addEventListener("mock:context", function (e) { S.branch = e.detail.branchId; syncControls(); render(); });
   App.openLead = openProfile; // used by the command palette

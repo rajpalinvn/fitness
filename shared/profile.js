@@ -238,12 +238,15 @@
     return out;
   }
   function pendingItems(p) {
-    var can = App.access.pendingActions(p);
-    return pendingList(p).map(function (x) {
+    var can = App.access.pendingActions(p), list = pendingList(p);
+    function one(x) {
       return '<div class="ns-pending"><span class="badge badge-warning">' + esc(x.t) + "</span> " +
         (can ? '<button class="link-btn" data-pd="' + x.k + '"' + (x.itemId ? ' data-item="' + x.itemId + '"' : "") + ">" + esc(x.a) + "</button>" : "") + "</div>";
-    }).join("");
+    }
+    var corp = list.filter(function (x) { return x.k !== "issue"; }), rest = list.filter(function (x) { return x.k === "issue"; });
+    return (corp.length ? '<div class="corp-label">' + esc(App.CORP_LABEL) + "</div>" + corp.map(one).join("") : "") + rest.map(one).join("");
   }
+  App.CORP_LABEL = "Corporate entry: FF ID & key fob";
   App.profilePending = pendingList;
 
   // ---------- Pending-item actions, shared by the profile and Today (decisions #40, #46, #62) ----------
@@ -525,13 +528,15 @@
         (m.discount ? kv("Discount", App.fmtMoney(m.discount) + " · " + App.empty(m.discountReason)) : "") +
         kv("Final price", App.fmtMoney(m.finalPrice != null ? m.finalPrice : m.price)) +
         kv("Sales rep", m.salesRepUserId ? App.userName(m.salesRepUserId) : "Not set yet") + kv("Client no", p.clientNo) +
-        "<dt>FF ID</dt><dd>" + (p.ffId ? esc(p.ffId) : paid ? '<span class="badge badge-warning">FF ID pending</span> <button class="link-btn" data-pd="addFf">Add</button>' : "Not set yet") + "</dd>" +
-        "<dt>Key fob</dt><dd>" + fobHtml + "</dd>" +
         ((m.freeItems || []).length ? "<dt>Free items</dt><dd>" + m.freeItems.map(function (f) {
           var b = f.status === "Issued" ? "badge-success" : f.status === "Pending issue" ? "badge-warning" : "";
           return '<div>' + esc(f.name) + " × " + f.qty + ' <span class="badge ' + b + '">' + esc(f.status) + "</span></div>";
-        }).join("") + "</dd>" : "") +
-        (paid ? kv("Fob stock", App.branchName(p.homeBranchId) + ": " + stock.length + " in stock") : "") + "</dl>" +
+        }).join("") + "</dd>" : "") + "</dl>" +
+      // One combined section for the two IDs from the corporate software (FF ID + key fob).
+      '<section class="corp-sec" data-corp><h4 class="sec-title">' + esc(App.CORP_LABEL) + '</h4><dl class="kv kv-wide">' +
+        "<dt>FF ID</dt><dd>" + (p.ffId ? esc(p.ffId) : paid ? '<span class="badge badge-warning">FF ID pending</span> <button class="link-btn" data-pd="addFf">Add FF ID</button>' : "Not set yet") + "</dd>" +
+        "<dt>Key fob</dt><dd>" + fobHtml + "</dd>" +
+        (paid ? kv("Fob stock", App.branchName(p.homeBranchId) + ": " + stock.length + " in stock") : "") + "</dl></section>" +
       '<p class="hint">Renewals and payments come with the Payment module.</p>';
   }
 
@@ -631,6 +636,135 @@
     }
   }
   function onChange() { /* details form reads values on save */ }
+
+  // ---------- Quick lead (app brief screen 4; decisions #5, #11, #19, #38) ----------
+  //   App.QuickLead.open({ mobile })   opens in a drawer (not a modal). Top-bar "+ Lead" and search "Create lead with this number".
+  var OWNER_ROLES = ["Sales Executive", "Sales Manager", "Club Manager", "Regional Manager"];
+  var QL = null, ql = null;
+  function qlBuild() {
+    var d = document.createElement("aside");
+    d.className = "drawer"; d.id = "quickLeadDrawer";
+    d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "qlTitle");
+    d.innerHTML = '<div class="drawer-head"><h2 id="qlTitle">New lead</h2><button class="btn btn-ghost icon-btn" data-close aria-label="Close">' + icon("x") + "</button></div>" +
+      '<div class="drawer-body" data-ql-body></div><div class="drawer-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-ql="save">Save lead</button></div>';
+    document.body.appendChild(d);
+    d.addEventListener("input", qlInput); d.addEventListener("change", qlInput); d.addEventListener("click", qlClick);
+    return d;
+  }
+  function qlOwners(branchId) {
+    var me = App.me(), list = D.users.filter(function (u) { return u.branches.indexOf(branchId) > -1 && OWNER_ROLES.indexOf(u.role) > -1 && u.id !== me.id; });
+    return [me].concat(list);
+  }
+  function qlBranches() { var me = App.me(); return D.branches.filter(function (b) { return me.branches.indexOf(b.id) > -1; }); }
+  function fmtMobile(s) { var d = App.mobileDigits(s); return d.length === 10 ? d.slice(0, 5) + " " + d.slice(5) : String(s || "").trim(); }
+  function qlDup() {
+    var d = App.mobileDigits(QL.mobile); if (d.length < 10) return null;
+    return D.people.filter(function (o) { return App.mobileDigits(o.cc + o.mobile) === d; })[0] || null;
+  }
+  // Decision #19: same branch -> name + Open profile; other branch -> branch + owner + Request access.
+  function qlDupHtml(o) {
+    if (!o) return "";
+    return o.branchId === QL.branchId
+      ? "Already exists: <strong>" + esc(o.name) + '</strong> <button type="button" class="link-btn" data-ql="openDup" data-id="' + o.id + '">Open profile</button>'
+      : "Already exists in " + esc(App.branchName(o.branchId)) + " · Owner: " + esc(o.ownerUserId ? App.firstName(App.byId(D.users, o.ownerUserId)) : "Unassigned") +
+        ' <button type="button" class="link-btn" data-toast="Access request sent (mockup)" data-toast-kind="">Request access</button>';
+  }
+  function qlRender() {
+    var b = ql.querySelector("[data-ql-body]"), e = QL.errors;
+    function opt(list, v, empty) { return (empty ? '<option value="">' + empty + "</option>" : "") + list.map(function (o) { return "<option" + (o === v ? " selected" : "") + ">" + esc(o) + "</option>"; }).join(""); }
+    function er(k) { return e[k] ? '<span class="error">' + e[k] + "</span>" : ""; }
+    function inv(k) { return e[k] ? " invalid" : ""; }
+    var dup = qlDup();
+    b.innerHTML =
+      '<div class="form-grid">' +
+        '<div class="field"><label for="qlName">Name <span class="req">*</span></label><input class="input' + inv("name") + '" id="qlName" data-q="name" value="' + esc(QL.name) + '" autocomplete="off">' + er("name") + "</div>" +
+        '<div class="field"><label for="qlMobile">Mobile <span class="req">*</span></label><div class="row row-tight"><select class="input cc" id="qlCc" data-q="cc" data-no-highlight aria-label="Country code">' + opt(L.countryCodes, QL.cc) + "</select>" +
+          '<input class="input' + inv("mobile") + (dup ? " invalid" : "") + '" id="qlMobile" data-q="mobile" inputmode="tel" value="' + esc(QL.mobile) + '" placeholder="90000 01234"></div>' +
+          '<span class="error" data-qldup' + (dup ? "" : " hidden") + ">" + qlDupHtml(dup) + "</span>" + (dup ? "" : er("mobile")) + '<span class="hint">Unique across all branches.</span></div>' +
+        '<div class="field"><label for="qlSource">Source <span class="req">*</span></label><select class="input' + inv("source") + '" id="qlSource" data-q="source">' + opt(L.sources, QL.source, "Choose…") + "</select>" + er("source") + "</div>" +
+        '<div class="field"><label>Temperature</label><div class="seg" role="radiogroup" aria-label="Temperature">' + L.temperatures.map(function (t) {
+          return '<button type="button" class="seg-btn' + (QL.temperature === t ? " active" : "") + '" role="radio" aria-checked="' + (QL.temperature === t) + '" data-qltemp="' + t + '">' + t + "</button>"; }).join("") + "</div></div>" +
+        '<div class="field"><label for="qlOwner">Owner <span class="req">*</span></label><select class="input" id="qlOwner" data-q="ownerUserId">' + qlOwners(QL.branchId).map(function (u, i) {
+          return '<option value="' + u.id + '"' + (u.id === QL.ownerUserId ? " selected" : "") + ">" + esc(u.name) + (i === 0 ? " (me)" : "") + "</option>"; }).join("") + "</select></div>" +
+        '<div class="field"><label for="qlBranch">Branch <span class="req">*</span></label><select class="input" id="qlBranch" data-q="branchId">' + qlBranches().map(function (x) {
+          return '<option value="' + x.id + '"' + (x.id === QL.branchId ? " selected" : "") + ">" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
+      "</div>" +
+      '<button type="button" class="link-btn ql-more" data-ql="more" aria-expanded="' + QL.more + '">' + icon(QL.more ? "minus" : "plus", "ico-sm") + "More details</button>" +
+      (QL.more ? '<div class="form-grid mt-3" data-ql-more>' +
+        '<div class="field"><label for="qlEmail">Email</label><input class="input' + inv("email") + '" id="qlEmail" type="email" data-q="email" value="' + esc(QL.email) + '" placeholder="name@example.com">' + (e.email ? er("email") : '<span class="hint">Optional. Unique if given.</span>') + "</div>" +
+        '<div class="field"><label for="qlGender">Gender</label><select class="input" id="qlGender" data-q="gender">' + opt(L.genders, QL.gender, "Not set yet") + "</select></div>" +
+        '<div class="field"><label for="qlBirth">Birth date</label><input class="input" id="qlBirth" type="date" data-q="birthDate" value="' + esc(QL.birthDate) + '" max="' + App.todayIso() + '"></div>' +
+        '<div class="field"><label for="qlInq">Inquiry type</label><select class="input" id="qlInq" data-q="inquiryType">' + opt(L.inquiryTypes, QL.inquiryType, "Not set yet") + "</select></div>" +
+        '<div class="field"><label for="qlCamp">Campaign</label><input class="input" id="qlCamp" data-q="campaign" value="' + esc(QL.campaign) + '"></div>' +
+        '<div class="field"><label for="qlRem">Remarks</label><textarea class="input" id="qlRem" rows="2" data-q="remarks">' + esc(QL.remarks) + "</textarea></div>" +
+      "</div>" : "") +
+      '<p class="hint mt-3">After saving, the profile opens and asks for the first follow-up.</p>';
+    b.querySelectorAll("select").forEach(function (s) { App.enhanceSelect(s); });
+  }
+  function qlInput(e) {
+    var k = e.target.dataset && e.target.dataset.q; if (!k) return;
+    QL[k] = e.target.value;
+    if (k === "branchId" && e.type === "change") {   // owner list follows the branch
+      if (!qlOwners(QL.branchId).some(function (u) { return u.id === QL.ownerUserId; })) QL.ownerUserId = App.me().id;
+      qlRender(); return;
+    }
+    if (k === "mobile" || k === "cc") {   // live duplicate check
+      var dup = qlDup(), box = ql.querySelector("[data-qldup]");
+      box.innerHTML = qlDupHtml(dup); box.hidden = !dup; ql.querySelector("#qlMobile").classList.toggle("invalid", !!dup);
+    }
+  }
+  function qlClick(e) {
+    var t = e.target.closest("[data-ql],[data-qltemp]"); if (!t) return;
+    if (t.dataset.qltemp) { QL.temperature = t.dataset.qltemp; qlRender(); return; }
+    var a = t.dataset.ql;
+    if (a === "more") { QL.more = !QL.more; qlRender(); var f = ql.querySelector(QL.more ? "#qlEmail" : "[data-ql=more]"); if (f) f.focus(); }
+    if (a === "openDup") { var id = t.dataset.id; App.close(ql); App.openProfile(id, { state: "normal" }); }
+    if (a === "save") qlSave();
+  }
+  function qlSave() {
+    var e = {}, em = QL.email.trim().toLowerCase();
+    if (!QL.name.trim()) e.name = "Name is required.";
+    if (App.mobileDigits(QL.mobile).length < 10) e.mobile = "Enter a 10-digit mobile number.";
+    if (!QL.source) e.source = "Choose a source.";
+    if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) e.email = "Check the email format.";
+    else if (em && D.people.some(function (o) { return (o.email || "").toLowerCase() === em; })) e.email = "This email is already used by another person.";
+    if (e.email) QL.more = true;
+    QL.errors = e;
+    if (Object.keys(e).length || qlDup()) { qlRender(); var f = ql.querySelector(".invalid"); if (f) f.focus(); return; }
+    var now = new Date().toISOString(), me = App.me(), id = "p" + (D.people.length + 1);
+    while (App.byId(D.people, id)) id += "x";
+    var p = { id: id, kind: "Lead", name: QL.name.trim(), cc: QL.cc, mobile: fmtMobile(QL.mobile), email: em || null, gender: QL.gender || null,
+      birthDate: QL.birthDate || null, ffId: null, source: QL.source, temperature: QL.temperature, stage: "New", lostReason: null,
+      inquiryType: QL.inquiryType || null, campaign: QL.campaign.trim() || null, ownerUserId: QL.ownerUserId, branchId: QL.branchId,
+      remarks: QL.remarks.trim() || null, externalId: null, createdAt: now, lastActivityAt: now, createdByUserId: me.id, ownerHistory: [], freeTrialCount: 0 };
+    D.people.push(p);
+    App.close(ql);
+    App.toast("Lead created · " + p.name, "success");
+    App.dataChanged();
+    App.openProfile(p.id, { state: "normal" });
+    // Decision #5: a new lead asks for its first follow-up right away.
+    App.Followup.openAdd(p.id, { title: "Set first follow-up", intro: "Lead saved. When will you follow up with " + p.name.split(" ")[0] + "?", cancelText: "Later" });
+  }
+  App.QuickLead = {
+    open: function (o) {
+      o = o || {};
+      if (drawer && drawer.classList.contains("open")) { App.close(drawer); if (drawer.classList.contains("open")) App.close(drawer); }
+      if (!ql) ql = qlBuild();
+      var me = App.me(), br = App.state.branchId !== "all" && me.branches.indexOf(App.state.branchId) > -1 ? App.state.branchId : me.branches[0];
+      var num = String(o.mobile || "").trim(), cc = "+91";
+      var m1 = /^(\+\d{1,3})\s+(.*)$/.exec(num); if (m1 && L.countryCodes.indexOf(m1[1]) > -1) { cc = m1[1]; num = m1[2]; }
+      QL = { name: "", cc: cc, mobile: num, source: "", temperature: "Warm", ownerUserId: me.id, branchId: br, more: false,
+        email: "", gender: "", birthDate: "", inquiryType: "", campaign: "", remarks: "", errors: {} };
+      qlRender();
+      App.openDrawer("quickLeadDrawer");
+    }
+  };
+  // Pages without the quick lead send "+ Lead" here as ?new=1 (&mobile=…).
+  document.addEventListener("DOMContentLoaded", function () {
+    if (!/[?&]new=1\b/.test(location.search)) return;
+    var mm = /[?&]mobile=([^&]*)/.exec(location.search);
+    setTimeout(function () { App.QuickLead.open({ mobile: mm ? decodeURIComponent(mm[1]) : "" }); }, 50);
+  });
 
   // Re-render when data changes anywhere (outcome saved, owner changed, …)
   document.addEventListener("mock:data", function () { if (drawer && drawer.classList.contains("open") && !S.editing) render(); });

@@ -8,10 +8,17 @@
 | Screen / part | File | Purpose |
 |---|---|---|
 | Convert to Client stepper (Sell mode in the profile drawer) | `shared/convert.js` → `App.Convert.open(personId)` (uses `App.DrawerMode`) | Turns an open lead into a client, or books a free trial (stays a lead). |
-| Done screen | same modal | "<name> is now a client (CL-1003)" + payment note + pending items. |
+| Bill summary | right column of Sell mode (below the steps on tablet) | Checkout-style, sticky, updates live on every step (decision #65). |
+| Done screen | same drawer | "<name> is now a client (CL-1003)" + payment note + pending items. |
 
-Steps: **1 Details · 2 Package · 3 Sale & start · 4 Key fob · 5 Summary**.
-Step 4 only appears for a Paid **Membership** package (decision #13, #20).
+Steps: **1 Details · 2 Package · 3 Sale & start · 4 Corporate entry · 5 Summary**.
+Step 4 "**Corporate entry: FF ID & key fob**" only appears for a Paid **Membership** package (decisions #13, #20, #67).
+
+Layout (decision #65): steps on the LEFT, sticky **Bill summary** on the RIGHT:
+person (name, mobile, branch) · package line (price) · discount + reason (+ "Package after discount") ·
+free items (Free, with Issued / Pending issue / Skipped) · key fob deposit (or "Key fob · Pending") ·
+**GST included** (price is incl. GST; package tax category rate, deposit at the Key fob item's rate) · **Total to pay**.
+Before a package is chosen: "Choose a package to see the bill." Tablet: the bill moves below the steps.
 
 ## 2. Flow
 - Profile drawer (open lead) → **Convert to Client** → the drawer itself switches to wide
@@ -47,34 +54,35 @@ Step 4 only appears for a Paid **Membership** package (decision #13, #20).
 | Email | email | No | Yes, company-wide when given | lead email | Empty → hint "No email: receipts go by WhatsApp only". Duplicate: same branch "Already used by <name>"; other branch "Already exists in <branch> · Owner: <first name>" + Request access (#19). |
 | Gender | select | Yes | No | lead gender | Female / Male / Other. |
 | Birth date | date | No | No | lead birth date | Not in the future. |
-| FF ID | text | No (here) | Yes, company-wide | lead FF ID | From the corporate software; usually added later. Paid membership without it shows "FF ID pending". |
 
 ### Step 2 · Package
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Package | cards grouped Free trial / Paid trial / Membership / Personal training | Yes | No | none | Only active packages sold at the lead's branch with audience New or Both; no Add-ons (#57). Price = current price from the price history. PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). |
+| Search packages | search text | No | — | empty | Filters by name across all groups; groups with matches open; none → "No packages match "<text>"" (decision #66). |
+| Package | cards in accordions (+ / −) Free trial / Paid trial / Membership / Personal training, count per group; first group with packages open | Yes | No | none | Only active packages sold at the lead's branch with audience New or Both; no Add-ons (#57). Price = current price from the price history. PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
 | Price | read-only | — | — | package price | Locked (#14). |
 | Discount | % or ₹ chips + number | No | No | 0, % | Not shown for free packages. Can't be negative or more than the price. **Limit by role — PLACEHOLDER:** Sales Executive 10%, Sales Manager 20%, others no limit (admin settings later). Over the limit: "Your limit is 10%." |
 | Discount reason | text | When discount > 0 | No | — | "A reason is needed for a discount." |
 | Sales rep (`salesRepUserId`) | select | Yes (paid packages) | No | lead owner (or you if unassigned) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. |
-| Final price | derived | — | — | — | Updates live. |
 
 ### Step 3 · Sale & start
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Sale type | derived from package | — | — | — | Free trial (stays a Lead) / Paid trial (becomes a Client, no fob) / Paid (becomes a Client; FF ID + fob required, pending until filled). |
+| Sale type | derived from package | — | — | — | Free trial (stays a Lead) / Paid trial (becomes a Client, no fob) / Paid (becomes a Client; next step Corporate entry). |
 | Start date | date | Yes | No | today | Today up to 30 days ahead; no back dates (#41). |
 | Ends | derived | — | — | — | Start + days − 1 ("365 days, start day included"). Overlap check (#41) applies to clients; a lead has no membership yet. |
 
-### Step 4 · Key fob (Paid membership only)
+### Step 4 · Corporate entry: FF ID & key fob (Paid membership only)
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
+| FF ID | text | No (here) | Yes, company-wide | lead FF ID | From the corporate software; usually added later. Empty → "FF ID pending". Duplicate: same branch "Already used by <name>"; other branch "Already exists in <branch> · Owner: <first name>" + Request access. |
 | Key fob | chips from the lead branch's stock + "Add later" | No (here) | Yes | Add later | Shows "<branch> stock: N in stock". No stock → message and the conversion can finish; "Key fob pending" shows. |
 
 ### Step 5 · Summary
-Read-only list: person, package, sale type, start – end, price, discount, final price,
-sales rep, FF ID / key fob (or "Pending"), **Key fob deposit** (₹1,200 from the Key fob item, refundable, its own sale line) and **Total to pay**, **free items** (Issued / Pending issue · out of stock / Skipped · already received free once; issued items reduce branch stock), owner (if it was unassigned), and how many open
-follow-ups will be closed by system. Button: **Proceed to Payment** or **Book free trial**.
+Read-only list: person, package, sale type, start – end, sales rep, discount reason,
+Corporate entry (FF ID / key fob or "Pending"), owner (if it was unassigned), and how many open
+follow-ups will be closed by system. All money (price, discount, free items, ₹1,200 key fob deposit as its own
+refundable line, GST included, Total to pay) is in the bill summary. Button: **Proceed to Payment** or **Book free trial**.
 
 ## 4. States
 - **Validation**: "Choose a gender.", "Check the email format.", duplicate messages,

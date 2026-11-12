@@ -206,15 +206,15 @@ load(PK, function () {
             load(SET.replace("index.html", "") + "../leads/index.html", function () {
               step("convert uses package masters", function () {
                 role("CEO");
-                W().App.openProfile("p1", { state: "normal" }); click(q('[data-pd="convert"]')); click(q('#sellMode [data-cv="next"]'));
+                W().App.openProfile("p1", { state: "normal" }); click(q('[data-pd="convert"]')); click(q('#sellMode [data-cv="next"]')); click(q('[data-acc="Membership"]'));
                 ok("inactive package hidden", !q('[data-pkg="pk15"]'));
                 ok("renewal-only package hidden for leads", !q('[data-pkg="pk16"]'));
                 ok("Add-on not sellable to a lead", !q('[data-pkg="pk13"]'));
                 ok("Student Monthly (new only, Sec 31) offered", !!q('[data-pkg="pk14"]'));
                 click(q('[data-pkg="pk7"]')); click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="next"]'));
                 click(q('[data-fob="KF-S31-0013"]')); click(q('#sellMode [data-cv="next"]'));
-                ok("summary: deposit line + total", /Key fob deposit\s*₹1,200/.test(text("#sellMode")) && /Total to pay\s*₹25,200/.test(text("#sellMode")));
-                ok("summary: T-shirt pending issue (out of stock), towel issued", /T-shirt × 1 · Pending issue/.test(text("#sellMode")) && /Gym towel × 1 · Issued/.test(text("#sellMode")));
+                ok("bill: deposit line + total", /Key fob deposit · KF-S31-0013/.test(text(".cv-bill")) && /₹1,200/.test(text(".cv-bill")) && /₹25,200/.test(text("[data-total]")));
+                ok("bill: T-shirt pending issue (out of stock), towel issued", /T-shirt × 1\s*Pending issue/.test(text(".cv-bill")) && /Gym towel × 1\s*Issued/.test(text(".cv-bill")));
                 click(q('#sellMode [data-cv="finish"]'));
                 var f = D().keyFobs.filter(function (k) { return k.no === "KF-S31-0013"; })[0];
                 ok("fob deposit recorded", f.deposit && f.deposit.amount === 1200 && /deposit ₹1,200 collected/.test(f.history[f.history.length - 1].text));

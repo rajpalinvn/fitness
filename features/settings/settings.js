@@ -2,7 +2,7 @@
 (function () {
   var esc = App.esc;
   var PREFS = [
-    { k: "drawer", t: "Drawer width", d: "How wide profiles open over the list. Tablet always uses at least 92%.",
+    { k: "drawer", t: "Drawer width", d: "How wide every drawer opens (profiles, quick lead, package and item forms, history). Sell mode is at least 80%. Tablet always uses 92%.",
       o: [["60", "60%"], ["70", "70%"], ["80", "80%"], ["92", "92%"]] },
     { k: "density", t: "Density", d: "Padding and spacing between items.",
       o: [["compact", "Compact"], ["comfortable", "Comfortable"], ["spacious", "Spacious"]] },

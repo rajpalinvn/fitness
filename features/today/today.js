@@ -103,11 +103,17 @@
         var first = x.items[0], act = { addFf: "ff", goFob: "fob", issue: "issue" }[first.k];
         return row({ open: x.p.id, tab: "membership", title: esc(x.p.name) + ' <span class="muted">· ' + esc(x.p.clientNo) + "</span>",
           sub: esc(x.p.membership.package) + " · " + esc(App.branchName(x.p.branchId)) + " · joined " + esc(App.fmtShortWhen(x.p.joinedAt)) +
-            '<div class="stack mt-1">' + x.items.map(function (i) { return '<span class="badge badge-warning">' + esc(i.t) + "</span>"; }).join("") + "</div>",
+            '<div class="stack mt-1">' + pendBadges(x.items) + "</div>",
           status: "",
           action: btn(act, first.a, { p: x.p.id, item: first.itemId || "" }) });
       } }
   ];
+  // Same grouping as the profile: "Corporate entry: FF ID & key fob" first, then free items.
+  function pendBadges(items) {
+    function b(i) { return '<span class="badge badge-warning">' + esc(i.t) + "</span>"; }
+    var corp = items.filter(function (i) { return i.k !== "issue"; }), rest = items.filter(function (i) { return i.k === "issue"; });
+    return (corp.length ? '<span class="corp-label">' + esc(App.CORP_LABEL) + "</span>" + corp.map(b).join("") : "") + rest.map(b).join("");
+  }
   function visible() { return SECTIONS.filter(function (s) { return (s.show ? s.show() : true) && (leadsRole() || s.k === "tasks"); }); }
 
   // ---------- render ----------
