@@ -344,11 +344,11 @@
   // Accordions per category (+ / −) with a count; search filters across all groups and opens the ones with matches.
   function card(p, x) {
     var pt = x.type === "PT", sel = x.id === C.pkgId, fl = freeLines(p, x);
-    return '<button type="button" class="pkg-card' + (sel ? " selected" : "") + '" data-pkg="' + x.id + '"' + (pt ? ' disabled title="PT needs an active membership"' : "") +
+    return '<button type="button" class="pkg-card' + (sel ? " selected" : "") + '" data-pkg="' + x.id + '"' + (pt ? ' disabled title="PT needs an active membership · sell it after joining"' : "") +
       ' aria-pressed="' + sel + '"><strong>' + esc(x.name) + '</strong><span class="cell-sub">' + x.days + (x.days === 1 ? " day" : " days") + (x.sessions ? " · " + x.sessions + " sessions" : "") +
       (x.people === 2 ? " · couple" : "") + '</span><span class="pkg-price">' + (x.price ? App.fmtMoney(x.price) : "Free") + "</span>" +
       (fl.length ? '<span class="pkg-free">Free: ' + fl.map(function (f) { return esc(f.name) + (f.status === "Skipped" ? " (already received)" : ""); }).join(", ") + "</span>" : "") +
-      (pt ? '<span class="hint">PT needs an active membership</span>' : "") + "</button>";
+      (pt ? '<span class="hint">PT needs an active membership · sell it after joining</span>' : "") + "</button>";
   }
   function pkgList(p) {
     var q = C.pkgQ.trim().toLowerCase(), all = sellable(p), any = false;

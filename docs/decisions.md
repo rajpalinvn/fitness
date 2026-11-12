@@ -325,7 +325,7 @@
     payment) have no minimum: any amount up to the balance.
 86. Dates show as "12 Nov 2026" everywhere a full date is shown, including
     date fields (no mm/dd/yyyy); stored as ISO. Follow-up due dates keep the
-    short human form ("today", "Tue, 10 Nov, 5:00 pm") from #24 (see Q24).
+    short human form ("today", "Tue, 10 Nov, 5:00 pm") from #24 (decided, #90).
 87. Payment step: "Balance due date" shows only when Balance due > 0.
 88. Real app: payments are separate tables Sale -> SaleLine (GST snapshot,
     discount, sales rep) -> Payment / receipt (+ rows, allocation to lines);
@@ -335,3 +335,7 @@
     At conversion PT stays disabled (#20, #57). PT is sold later, in its
     own Sell mode, only to a client who already has an active paid
     membership (PT longer than the membership: #42). May be revisited later.
+90. Follow-up due dates keep the short human form ("today", "Tomorrow",
+    "Tue, 10 Nov, 5:00 pm") everywhere they appear: list badges, NEXT STEP,
+    Today, timeline and modals. Every other full date stays "12 Nov 2026"
+    (#86). (Was Q24.)
