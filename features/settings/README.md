@@ -90,7 +90,6 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 | Couple PT 12 Sessions | PT · Couple · Needs membership. |
 | Branch transfer | Add-on · Transfer · free. |
 | Renewal Annual Offer | Renewals only (hidden in Convert). |
-| Couple Annual Membership | Older couple membership package (new couple packages are PT only — open question). |
 
 ## 5. Status
 Ready for review
@@ -165,7 +164,7 @@ Ready for review
 |---|---|
 | T-shirt at Sec 31, Shaker bottle at Sec 65 | Out of stock. |
 | Gym bag | Inactive item. |
-| KF-S31-0009 | Lost, deposit kept. |
+| KF-S31-0009 | Lost, deposit forfeited (no refund). |
 | KF-S65-0102 | Returned, ₹600 of ₹1,200 refunded ("Strap damaged"), ₹600 left to refund. |
 | KF-S31-0012 | Assigned to Vivaan, deposit held. |
 | Range KF-GC-0195 → KF-GC-0205 | 2 overlap existing (0201, 0202) → skipped. |

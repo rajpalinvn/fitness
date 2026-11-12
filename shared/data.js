@@ -233,7 +233,6 @@
     pk("pk6",  "Half-Yearly Membership",    "Membership", { subType: "Regular", days: 180, priceHistory: [{ price: 14000, from: dd(-365) }], soldCount: 2 }),
     pk("pk7",  "Annual Membership",         "Membership", { subType: "Regular", days: 365, priceHistory: [{ price: 24000, from: dd(-365) }], soldCount: 8,
       freeItems: [{ itemId: "it2", qty: 1, rule: "Once per client" }, { itemId: "it4", qty: 1, rule: "Every sale" }] }),  // EDGE: sold (locked) + free items; T-shirt out of stock at Sec 31
-    pk("pk8",  "Couple Annual Membership",  "Membership", { subType: "Regular", people: 2, days: 365, priceHistory: [{ price: 45000, from: dd(-365) }], soldCount: 1 }),
     pk("pk9",  "PT 12 Sessions",            "PT", { subType: "One-on-one", days: 90, sessions: 12, priceHistory: [{ price: 12000, from: dd(-365) }], soldCount: 4 }),
     pk("pk10", "PT 24 Sessions",            "PT", { subType: "One-on-one", days: 180, sessions: 24, priceHistory: [{ price: 22000, from: dd(-365) }], soldCount: 1 }),
     pk("pk11", "Annual + PT Premium Combo", "Membership", { subType: "Premium", days: 365, priceHistory: [{ price: 100000, from: dd(-200) }] }),

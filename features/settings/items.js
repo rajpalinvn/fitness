@@ -161,6 +161,7 @@
   function depositText(k) {
     if (!k.deposit) return '<span class="muted">—</span>';
     var d = k.deposit, left = d.amount - d.refunded;
+    if (k.status === "Lost") return A.money(d.amount) + ' <span class="cell-sub">forfeited (lost)</span>';
     if (!d.refunded) return A.money(d.amount) + ' <span class="cell-sub">held</span>';
     if (!left) return '<span class="muted">Refunded ' + A.money(d.refunded) + "</span>";
     return A.money(left) + ' <span class="cell-sub">held · ' + A.money(d.refunded) + " refunded</span>";

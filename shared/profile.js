@@ -441,7 +441,7 @@
       (needPick ? '<div class="field"><label for="fobPick">New fob from ' + esc(App.branchName(p.homeBranchId)) + ' stock <span class="req">*</span></label>' +
         (stock.length ? '<select class="input" id="fobPick">' + stock.map(function (k) { return "<option>" + esc(k.no) + "</option>"; }).join("") + "</select>"
           : '<div class="error">No fobs in stock at this branch.</div>') + "</div>" : "") +
-      '<p class="hint">' + { ret: "The fob status becomes Returned.", lost: "The fob status becomes Lost.", replace: "Stock goes down by one.", assign: "Stock goes down by one." }[kind] + "</p>";
+      '<p class="hint">' + { ret: "The fob status becomes Returned.", lost: "The fob status becomes Lost.", replace: "Old fob damaged / returned: the deposit moves to the new fob. Old fob lost: its deposit is forfeited and the new fob needs a new deposit (" + App.fmtMoney(App.fobDeposit()) + ", its own sale line). Stock goes down by one.", assign: "A deposit of " + App.fmtMoney(App.fobDeposit()) + " is collected as its own sale line. Stock goes down by one." }[kind] + "</p>";
     m.body.onclick = function (e) { var c = e.target.closest("[data-why]"); if (c) Array.prototype.forEach.call(c.parentNode.children, function (x) { x.classList.toggle("selected", x === c); }); };
     if (needPick && stock.length) App.enhanceSelect(m.body.querySelector("#fobPick"));
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save' + (needPick && !stock.length ? " disabled" : "") + ">Confirm</button>";
@@ -457,9 +457,13 @@
         if (cur) { cur.status = m.body.querySelector("[data-why].selected").dataset.why; cur.personId = null;
           cur.history.push({ at: now, text: (cur.status === "Lost" ? "Marked as Lost" : "Returned") + " · replaced by " + nf.no, by: App.me().id }); }
         nf.status = "Assigned"; nf.personId = p.id; p.keyFob = nf.no;
-        // Replace: the client's deposit moves to the new fob. Assign: a new deposit line is collected.
-        nf.deposit = cur && cur.deposit ? cur.deposit : { amount: App.fobDeposit(), refunded: 0 }; if (cur) cur.deposit = null;
-        nf.history.push({ at: now, text: "Assigned to " + p.name + (cur ? " (replacement)" : " · deposit " + App.fmtMoney(App.fobDeposit()) + " collected"), by: App.me().id });
+        // Decision #58. Replace, old fob damaged/returned: the deposit moves to the new fob.
+        // Replace, old fob LOST: its deposit is forfeited; the new fob needs a NEW deposit (sale line). Assign: new deposit.
+        var moved = cur && cur.status === "Returned" && cur.deposit;
+        if (moved) { nf.deposit = cur.deposit; cur.deposit = null; }
+        else { if (cur && cur.deposit) cur.deposit.forfeited = true; nf.deposit = { amount: App.fobDeposit(), refunded: 0 }; }
+        nf.history.push({ at: now, text: "Assigned to " + p.name + (moved ? " (replacement) · deposit moved from " + cur.no : (cur ? " (replacement, old fob lost)" : "") + " · deposit " + App.fmtMoney(App.fobDeposit()) + " collected (new sale line)"), by: App.me().id });
+        if (cur && !moved && cur.deposit) cur.history.push({ at: now, text: "Deposit " + App.fmtMoney(cur.deposit.amount) + " forfeited (fob lost)", by: App.me().id });
         text = cur ? "Key fob replaced · " + cur.no + " → " + nf.no : "Key fob " + nf.no + " assigned";
       }
       App.addTimeline(p.id, "milestone", text);

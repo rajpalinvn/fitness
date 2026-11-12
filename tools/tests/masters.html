@@ -26,7 +26,7 @@ load(PK, function () {
   W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
   load(PK, function () {
     step("packages list", function () {
-      ok("all 16 packages listed", rows() === 16, rows());
+      ok("all 15 packages listed", rows() === 15, rows());
       ok("title + breadcrumb", /Packages/.test(text(".tb-title")) && /Settings/.test(text(".crumbs")));
       click(q('[data-cat="Add-on"]')); ok("Add-on tab shows Transfer only", rows() === 1 && /Branch transfer/.test(text("#rows")));
       click(q('[data-cat="all"]'));
@@ -36,7 +36,7 @@ load(PK, function () {
       ok("couple PT tags", /Couple/.test(text('#rows tr[data-id="pk12"]')) && /Needs membership/.test(text('#rows tr[data-id="pk12"]')));
       ok("max 3 row actions", Math.max.apply(null, Array.prototype.map.call(qa(".row-actions"), function (r) { return r.children.length; })) <= 3);
       type("#fSearch", "zzz"); ok("no results state", /No packages match/.test(text("#rows")));
-      click(q('[data-act="clear"]')); ok("clear filters", rows() === 16, rows());
+      click(q('[data-act="clear"]')); ok("clear filters", rows() === 15, rows());
       scan("pk-list");
     });
     step("sold package locked + copy as new", function () {
@@ -52,7 +52,7 @@ load(PK, function () {
       ok("copy: name (copy), unlocked", q("#pkName").value === "Annual Membership (copy)" && !q("#pkDays").disabled);
       type("#pkDays", "400"); click(q("#pkgDrawer [data-save]"));
       var c = D().packages.filter(function (p) { return p.name === "Annual Membership (copy)"; })[0];
-      ok("copy saved as a new package", !!c && c.days === 400 && c.soldCount === 0 && D().packages.length === 17);
+      ok("copy saved as a new package", !!c && c.days === 400 && c.soldCount === 0 && D().packages.length === 16);
       ok("original unchanged", pk("pk7").days === 365);
     });
     step("new package validation + result box", function () {
@@ -221,6 +221,18 @@ load(PK, function () {
                 ok("towel stock down by one", D().itemStock.filter(function (x) { return x.itemId === "it4" && x.branchId === "b1"; })[0].qty === 39);
                 click(q('#convertModal [data-close]'));
                 ok("membership tab shows free items", /Pending issue/.test(text(".pd-scroll")) && /Issued/.test(text(".pd-scroll")));
+              });
+              step("replace fob: lost = new deposit, damaged = moved", function () {
+                W().App.openProfile("p7", { state: "normal", tab: "membership" }); click(q('[data-pd="fobReplace"]'));
+                ok("replace modal explains deposit rule", /forfeited/.test(text("#fobModal")) && /moves to the new fob/.test(text("#fobModal")));
+                click(q("#fobModal [data-save]"));
+                var old = D().keyFobs.filter(function (k) { return k.no === "KF-S31-0012"; })[0], nf = D().keyFobs.filter(function (k) { return k.personId === "p7"; })[0];
+                ok("old lost fob deposit forfeited", old.status === "Lost" && old.deposit.forfeited === true);
+                ok("new fob has a NEW deposit", nf && nf.deposit && nf.deposit !== old.deposit && /new sale line/.test(nf.history[nf.history.length - 1].text));
+                D().keyFobs.push({ no: "KF-S31-0099", branchId: "b1", status: "In stock", personId: null, deposit: null, history: [] }); W().App.openProfile("p7", { state: "normal", tab: "membership" });
+                click(q('[data-pd="fobReplace"]')); click(q('#fobModal [data-why="Returned"]')); var d0 = nf.deposit; click(q("#fobModal [data-save]"));
+                var nf2 = D().keyFobs.filter(function (k) { return k.personId === "p7"; })[0];
+                ok("damaged/returned: deposit moves", nf2.deposit === d0 && nf.deposit === null && /deposit moved/.test(nf2.history[nf2.history.length - 1].text));
               });
               ok("no null/undefined/NaN on admin pages", !bad.length, bad.join(" "));
               document.getElementById("out").textContent = out.join("\n");

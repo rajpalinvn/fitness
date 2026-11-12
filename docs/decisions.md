@@ -191,7 +191,7 @@
 55. Key fob deposit: one amount = the Key fob item's selling price (dummy
     ₹1,200), not per branch or per fob, collected as its own line in the same
     sale. Refund full or partial with a reason (only once the fob is
-    Returned). Replace moves the client's deposit to the new fob. Fobs are
+    Returned). Replace: see #58. Fobs are
     added one number or a range (same prefix, up to 500 at a time); existing
     numbers are listed and skipped. Each fob keeps an assignment history.
 56. Access, PLACEHOLDER until the permission matrix: packages and item
@@ -201,3 +201,11 @@
     above, for their own branches. Others see "You don't have access".
 57. Packages offered when converting a lead: active, sold at the lead's
     branch, audience New or Both, not Add-ons; PT stays disabled (#20).
+58. Key fob deposit on Replace: if the old fob was damaged / returned, the
+    deposit moves to the new fob. If the old fob was LOST, its deposit is
+    forfeited and the new fob needs a NEW deposit (its own sale line).
+    Refunds only once a fob is Returned; a Lost fob forfeits its deposit.
+    Assigning a fob to a client without one collects a new deposit.
+59. Couple packages are PT only. There is no couple membership package.
+60. Confirmed: a free Add-on (price 0) is allowed (#45, #50); accessory
+    stock is managed by Club Manager and above for their own branches (#56).
