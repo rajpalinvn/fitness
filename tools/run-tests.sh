@@ -30,7 +30,7 @@ run_chrome() { "$CHROME" --headless=new --disable-gpu --hide-scrollbars --allow-
 
 TOTAL_PASS=0; TOTAL_FAIL=0; STATUS=0
 echo "Mockup tests  $(date '+%Y-%m-%d %H:%M')"
-for suite in shell profile features convert masters; do
+for suite in shell profile features convert masters today; do
   RES="$OUT/$suite.txt"
   run_chrome --window-size=1400,1000 --virtual-time-budget=30000 --dump-dom "$BASE/tools/tests/$suite.html" \
     | sed -n '/<pre id="out">/,/<\/pre>/p' | sed 's/<[^>]*>//g; s/&gt;/>/g; s/&lt;/</g; s/&amp;/\&/g' > "$RES"
@@ -57,5 +57,8 @@ shot packages-900      900,800  "$BASE/tools/tests/shot.html#page,features%2Fset
 shot fobs-1280         1280,800 "$BASE/tools/tests/shot.html#page,features%2Fsettings%2Fitems.html%3Ftab%3Dfobs,1280,Club%20Manager"
 shot items-900         900,800  "$BASE/tools/tests/shot.html#page,features%2Fsettings%2Fitems.html%3Ftab%3Dstock,900,CEO"
 shot noaccess-1280     1280,800 "$BASE/features/settings/packages.html"
+shot today-1280        1280,800 "$BASE/tools/tests/shot.html#page,features%2Ftoday%2Findex.html,1280,Sales%20Manager"
+shot today-900         900,800  "$BASE/tools/tests/shot.html#page,features%2Ftoday%2Findex.html,900,CEO"
+shot today-se-1280     1280,800 "$BASE/features/today/index.html"
 echo "Screenshots: tools/out/*.png"
 exit $STATUS

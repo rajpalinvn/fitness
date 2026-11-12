@@ -1,0 +1,137 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../", TODAY = ROOT + "features/today/index.html", LEADS = ROOT + "features/leads/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { setTimeout(cb, 800); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function vis(el) { return !!el && el.getClientRects().length > 0 && W().getComputedStyle(el).visibility !== "hidden"; }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function badText(el) { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec((el || Dc().body).innerText); }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function D() { return W().DUMMY; } function person(id) { return W().App.byId(D().people, id); }
+function badge(label) { var a = Array.prototype.find.call(qa(".nav-item"), function (x) { return x.dataset.tip === label; }); var b = a && a.querySelector(".nav-badge"); return b ? b.textContent : "0"; }
+function cnt(k) { var c = q('[data-jump="' + k + '"] .count'); return c ? c.textContent : "none"; }
+function sec(k) { return q("#sec-" + k); }
+function rowOf(k, name) { return Array.prototype.find.call(qa("#sec-" + k + " .today-row"), function (r) { return r.textContent.indexOf(name) > -1; }); }
+function role(r) { W().App.setRole(r); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+var bad = [];
+function scan(tag) { var b = badText(); if (b) bad.push(tag + ":" + b[0]); }
+
+load(TODAY, function () {
+  W().sessionStorage.setItem("mock.role", "Sales Executive"); W().sessionStorage.setItem("mock.branch", "b1");
+  load(TODAY, function () {
+    step("Sales Executive (Priya, Sec 31)", function () {
+      ok("greeting with name + date", /Good (morning|afternoon|evening), Priya/.test(text("#greet")));
+      ok("sidebar Today is active + built", !!q('.nav-item.active[data-tip="Today"]') || /Today/.test(text(".nav-item.active")));
+      ok("sections: overdue, today, tasks, pending (no unassigned)", !!sec("attention") && !!sec("today") && !!sec("tasks") && !!sec("pending") && !sec("unassigned"));
+      ok("first section titled 'Overdue or not set'", /Overdue or not set/.test(text("#h-attention")));
+      ok("Overdue-or-not-set count == sidebar Today badge", cnt("attention") === badge("Today"), cnt("attention") + " vs " + badge("Today"));
+      ok("Due today count == sidebar Follow-ups badge", cnt("today") === badge("Follow-ups"), cnt("today") + " vs " + badge("Follow-ups"));
+      ok("my tasks count == sidebar Tasks badge", cnt("tasks") === badge("Tasks"), cnt("tasks") + " vs " + badge("Tasks"));
+      ok("overdue row: Log outcome", /Log outcome/.test(rowOf("attention", "Aarav Patel").textContent) && /Overdue · 2 days/.test(rowOf("attention", "Aarav Patel").textContent));
+      ok("not-set row: Add follow-up", /Add follow-up/.test(rowOf("attention", "Sneha Reddy").textContent) && /No follow-up set/.test(rowOf("attention", "Sneha Reddy").textContent));
+      ok("overdue first (oldest), then not set", qa("#sec-attention .today-row")[0].textContent.indexOf("Aarav") > -1);
+      ok("one action per row", Array.prototype.every.call(qa(".today-row"), function (r) { return r.querySelectorAll("button").length === 1; }));
+      ok("pending row: 3 badges + first action Add FF ID", /FF ID pending/.test(rowOf("pending", "Rohit").textContent) && /Key fob pending/.test(rowOf("pending", "Rohit").textContent) &&
+        /Pending issue · T-shirt/.test(rowOf("pending", "Rohit").textContent) && /Add FF ID/.test(rowOf("pending", "Rohit").querySelector("button").textContent));
+      ok("View all links to leads filter", /view=attention/.test(q("#sec-attention .today-all").getAttribute("href")));
+      scan("se");
+    });
+    step("actions update the page + badges", function () {
+      click(rowOf("attention", "Sneha Reddy").querySelector("button"));
+      ok("Add follow-up opens the shared modal", q("#fuAddModal").classList.contains("open"));
+      click(q("#fuAddModal [data-save]"));
+      ok("Sneha leaves the section", !rowOf("attention", "Sneha Reddy"));
+      ok("count still == badge", cnt("attention") === badge("Today"), cnt("attention") + " vs " + badge("Today"));
+      var before = +cnt("tasks"); click(rowOf("tasks", "Collect ID proof").querySelector("button"));
+      ok("Mark done removes the task", +cnt("tasks") === before - 1 && !rowOf("tasks", "Collect ID proof"));
+      click(rowOf("attention", "Aarav Patel").querySelector("button"));
+      ok("Log outcome opens the shared outcome modal", q("#fuOutcomeModal").classList.contains("open"));
+      key("Escape");
+    });
+    step("pending items: Add FF ID -> Assign fob -> Issue item", function () {
+      click(rowOf("pending", "Rohit").querySelector("button"));
+      ok("FF ID modal", q("#ffModal").classList.contains("open"));
+      type("#ffIn", "FF-20431"); click(q("#ffModal [data-save]"));
+      ok("duplicate FF ID blocked (other branch)", /Already exists in Sec 65/.test(text("#ffModal")));
+      type("#ffIn", "FF-30001"); click(q("#ffModal [data-save]"));
+      ok("FF ID saved, next action Assign fob", person("p12").ffId === "FF-30001" && /Assign fob/.test(rowOf("pending", "Rohit").querySelector("button").textContent));
+      click(rowOf("pending", "Rohit").querySelector("button"));
+      ok("shared fob modal over the profile", q("#fobModal").classList.contains("open") && q("#profileDrawer").classList.contains("open") && /deposit/.test(text("#fobModal")));
+      click(q("#fobModal [data-save]"));
+      ok("fob assigned with deposit", !!person("p12").keyFob && D().keyFobs.filter(function (k) { return k.no === person("p12").keyFob; })[0].deposit.amount === 1200);
+      key("Escape");
+      click(rowOf("pending", "Rohit").querySelector("button"));
+      ok("Issue item modal: out of stock, Issue disabled", q("#issueModal").classList.contains("open") && /Out of stock/.test(text("#issueModal")) && q("#issueModal [data-save]").disabled);
+      ok("Sales Executive cannot waive", !q("#issueModal [data-wv]"));
+      key("Escape");
+    });
+    step("row click opens profile", function () {
+      click(rowOf("today", "Kavya").querySelector(".tr-main"));
+      ok("profile drawer opens on Kavya", q("#profileDrawer").classList.contains("open") && W().location.hash === "#lead-kavya", W().location.hash);
+      key("Escape");
+    });
+    step("CEO, all branches", function () {
+      W().App.setBranch("all"); role("CEO");
+      ok("unassigned section for managers", !!sec("unassigned"));
+      ok("unassigned: Fatima (Meta) + Neha (walk-in)", /Fatima Shaikh/.test(text("#sec-unassigned")) && /Meta/.test(text("#sec-unassigned")) && /Neha Kulkarni/.test(text("#sec-unassigned")));
+      ok("count == badge (CEO)", cnt("attention") === badge("Today"), cnt("attention") + " vs " + badge("Today"));
+      ok("more than 5: shows 5 rows + more", qa("#sec-attention .today-row").length === 5 && /more/.test(text("#sec-attention")) && /View all \(\d+\)/.test(text("#sec-attention")));
+      ok("owner shown to managers", /Unassigned|Priya|Arjun|Rahul/.test(text("#sec-attention")));
+      ok("pending: Rohit + Harsh", /Rohit Verma/.test(text("#sec-pending")) && /Harsh Vardhan/.test(text("#sec-pending")));
+      click(rowOf("unassigned", "Neha").querySelector("button"));
+      ok("Assign opens the shared modal", q("#assignModal").classList.contains("open"));
+      var sel = q("#assignUser"); sel.value = "u6"; sel.dispatchEvent(new (W().Event)("change", { bubbles: true }));
+      click(q("#assignModal [data-save]"));
+      ok("Neha assigned and leaves unassigned", person("p14").ownerUserId === "u6" && !rowOf("unassigned", "Neha"));
+      click(rowOf("pending", "Rohit").querySelector("button"));
+      ok("CEO can waive", !!q("#issueModal [data-wv]"));
+      click(q("#issueModal [data-wv]")); click(q("#issueModal [data-wv]"));
+      ok("waive needs a reason", vis(q("#issueModal [data-werr]")));
+      type("#waiveWhy", "Client doesn't want it"); click(q("#issueModal [data-wv]"));
+      ok("waived, Rohit has no pending left", person("p12").membership.freeItems[0].status === "Waived" && !rowOf("pending", "Rohit"));
+      scan("ceo");
+    });
+    step("Club Manager (Sec 31 only)", function () {
+      W().App.setBranch("all"); role("Club Manager");
+      ok("pending: Harsh (Sec 65) not shown", !rowOf("pending", "Harsh"));
+      ok("unassigned only Sec 31 (Fatima is Golf Course)", !rowOf("unassigned", "Fatima"));
+    });
+    step("Trainer and MXM", function () {
+      role("Trainer");
+      ok("trainer: only My tasks + note", !!sec("tasks") && !sec("attention") && !sec("pending") && /aren't part of your role/.test(text("#sections")) || /All caught up/.test(text("#sections")));
+      role("MXM");
+      ok("MXM: no pending items section", !sec("pending") && !sec("unassigned") && !sec("attention"));
+      role("CEO");
+    });
+    load(TODAY + "?debug", function () {
+      step("debug states", function () {
+        ok("debug bar visible", vis(q("#debugBar")));
+        click(q('#debugBar [data-state="empty"]')); ok("all caught up card", /All caught up/.test(text("#sections")) && /All clear/.test(text("#strip")));
+        click(q('#debugBar [data-state="error"]')); ok("error + retry", /Couldn't load Today/.test(text("#sections")) && !!q('[data-act="retry"]'));
+        click(q('[data-act="retry"]')); ok("retry restores", !!sec("attention"));
+        click(q('#debugBar [data-state="loading"]')); ok("loading skeleton", !!q("#sections .skeleton"));
+      });
+      load(TODAY, function () {
+        ok("debug bar hidden without ?debug", !vis(q("#debugBar")));
+        load(LEADS + "?view=attention", function () {
+          var c = q('[data-card="attention"]');
+          ok("leads ?view=attention preselects Needs attention", c && c.classList.contains("selected") && qa("#rows tr[data-id]").length === +q('[data-card="attention"] .count').textContent);
+          load(LEADS + "?owner=none", function () {
+            ok("leads ?owner=none shows unassigned only", qa("#rows tr[data-id]").length >= 1 && Array.prototype.every.call(qa("#rows tr[data-id]"), function (r) { return /Unassigned/.test(r.textContent); }));
+            ok("no null/undefined/NaN on Today", !bad.length, bad.join(" "));
+            document.getElementById("out").textContent = out.join("\n");
+          });
+        });
+      });
+    });
+  });
+});
+</script></body></html>

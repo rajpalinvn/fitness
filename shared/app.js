@@ -27,6 +27,8 @@
   App.openModal = open;
   App.close = function (el) {
     if (!el || !el.classList.contains("open")) return;
+    // A drawer in a work mode (e.g. Sell mode) goes back to its normal view first (Esc / outside click).
+    if (el.beforeClose && el.beforeClose() === false) return;
     el.classList.remove("open"); syncOverlay();
     if (el.onCloseHook) el.onCloseHook();
     var r = returnFocus.pop(); if (r && r.focus && document.contains(r)) r.focus();
@@ -195,6 +197,16 @@
     editMasters: function () { return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1; },
     viewMasters: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; },
     stock: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager"].indexOf(App.state.role) > -1; },
+    // Add FF ID / Assign fob / Issue item (decision #62): the client's sales rep, Sales Executives and
+    // Sales Managers of that branch (front desk), and managers above. Not Trainer, not MXM.
+    pendingActions: function (p) {
+      var r = App.state.role, u = App.demoUser();
+      if (["SuperAdmin", "CEO"].indexOf(r) > -1) return true;
+      if (!u || ["Regional Manager", "Club Manager", "Sales Manager", "Sales Executive"].indexOf(r) < 0) return false;
+      return (p.membership && p.membership.salesRepUserId === u.id) || u.branches.indexOf(p.branchId) > -1;
+    },
+    // Only managers assign leads (decision #63).
+    assignLeads: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; },
     stockBranches: function () {
       var u = App.demoUser(); if (!App.access.stock() || !u) return [];
       return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1 ? DUMMY.branches.map(function (b) { return b.id; }) : u.branches.slice();

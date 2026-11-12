@@ -1,0 +1,21 @@
+# Open questions
+
+Every question we have not decided yet. When one is decided, move it to
+`docs/decisions.md` (with its number) and delete it here.
+
+| # | Question | Context | Who decides | Mockup does now |
+|---|---|---|---|---|
+| Q1 | **Back-dated start date** | Start date is today up to 30 days ahead (#41). Front desk sometimes enters a sale a day late. Allow a back date, how many days, and who approves? | Operations head | Not allowed. |
+| Q2 | **Trainer change on PT upgrade** | Upgrade keeps the original start and freezes past payouts (#44). If the client also switches trainer, who gets the remaining sessions and payout? | Operations head + PT head | Not built (Upgrade later). |
+| Q3 | **Can trainers see package prices?** | Trainers see the "Rate updated · upgrade" badge (#44). Should they see the client's package price or only their own rate? | Permission matrix owner | Trainers see no prices. |
+| Q4 | **Key fob on transfer** | Transfer changes the home branch (#45). Fobs belong to a branch's stock (#13). Keep the old fob, swap it for a new-branch fob, and what happens to the deposit? | Operations head | Not built (Transfer later). |
+| Q5 | **Paid trial: FF ID and fob rule** | #40 says "Paid trial: admin rule later". Required, optional or never? | Admin / operations | Paid trial shows no FF ID / fob pending items. |
+| Q6 | **Fob on membership expiry / returning client** | When a membership ends, must the fob be returned (deposit refunded)? If the client renews or comes back later, do they keep the same fob and deposit? | Operations head | Fob stays Assigned after expiry. |
+| Q7 | **Front desk role in the matrix** | Sales Executives and Sales Managers act as front desk (#62). Is "Front desk" a separate role later, and what can MXM do? | Management | SE / SM do front-desk actions; MXM does not. |
+| Q8 | **Permission matrix** | All access is a placeholder (#15, #56, #62, #63): who sees which leads, edits masters, stock, waives, etc. | Management | Placeholders, labelled "Placeholder" on screen. |
+| Q9 | **Free-item and audience defaults** | Free item rule default "Once per client" (#46) and package audience default "Both" (#47) are marked "Default, can change". Confirm? | Operations + marketing | Uses those defaults. |
+| Q10 | **Auto-assign new leads** | Only managers assign today (#63). With Meta sync, should new leads be round-robined to Sales Executives of the branch (and skip people on leave)? | Sales head | Manual assign by managers. |
+| Q11 | **Discount limits by role** | Sales Executive 10%, Sales Manager 20%, others no limit are placeholders (#48). Real limits and an approval flow above the limit? | Management | Placeholder limits, over-limit is blocked. |
+| Q12 | **Free trial cap** | Free trials are unlimited with a warning ("3rd free trial", #39). Cap per person / per period? | Admin | Warning only. |
+| Q13 | **Payment failure** | The real app converts only on payment success (#3, #48). What does staff see if payment fails or is partial? | Payment module owner | Not built (Payment later). |
+| Q14 | **Couple PT partner** | Couple PT needs both people as active clients (#43). How is the partner picked at sale, and who is the "main" client for the sale line? | Operations + PT head | Not built (PT sale later). |

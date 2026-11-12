@@ -16,11 +16,13 @@
   - Quick actions: Call (toast + timeline "called (no outcome logged)"), WhatsApp (opens composer in WhatsApp mode), Email (disabled "No email yet"), Follow-up (disabled on Lost: "Re-open the lead first").
   - NEXT STEP box → "Log outcome" / "Add follow-up".
   - Owner (Change / Assign), source, campaign, external ID, last activity.
-  - Bottom: open lead → **Convert to Client** (opens the stepper, see `features/conversion/README.md`) + **More** (Mark as lost, Change owner). Lost → **Re-open lead**. Client → none.
+  - Bottom: open lead → **Convert to Client** (the drawer switches to wide **Sell mode**, see `features/conversion/README.md`) + **More** (Mark as lost, Change owner). Lost → **Re-open lead**. Client → none.
 - **Tabs**: Lead = Timeline · Tasks · Details · Docs. Client adds **Membership**. Counts show on Tasks (open) and Docs.
 - **Timeline**: "Open follow-ups" (incl. overdue) pinned on top (Log outcome / Cancel), then history grouped by day, newest first. Filter chips: All, Follow-ups, Notes, WhatsApp, Milestones. Cancelled and "Closed by system" follow-ups are struck through (decision #37).
 - **Composer** (Timeline tab only): Note | Follow-up | WhatsApp. Follow-up mode is the shared form; disabled on Lost leads.
 - Esc / outside click / X close. Esc closes the top layer first (menu → modal → drawer).
+- **Work modes** (decision #64): `App.DrawerMode.open(personId, { key, title, onExit })` turns the drawer into a wide mode (the larger of the drawer width setting and 80%; tablet 92%) with header "<Name> › <title>" and **Back**. The profile is hidden, not closed; Back, Esc or outside click return to it. Used by Convert to Client; Renewal, Upgrade and Transfer will reuse it.
+- **Pending items** (decision #62): NEXT STEP lists "FF ID pending", "Key fob pending" and "Pending issue · <item>" with Add FF ID / Assign fob / Issue item (same modals as Today: `App.addFfId`, `App.assignFob`, `App.issueItem`). The links only show for staff allowed to do them.
 
 ## 3. Field table
 
@@ -29,7 +31,7 @@
 |---|---|---|---|---|---|
 | Lead status | derived | — | — | — | Green "Next: <date, time>"; amber "Due today · <time>"; red "Overdue since <date>" or "No follow-up set" (decision #24). |
 | Client status | derived | — | — | — | Green "Membership active · N days left" (> 15); amber "Renewal due soon" (≤ 15); red "Membership expired on <date>" (decision #27). Shows the next follow-up too, if any. |
-| Pending items | derived | — | — | — | Paid membership only: "FF ID pending" (→ Add FF ID opens Details edit) and "Key fob pending" (→ Membership tab) as separate amber badges until filled (decision #40). |
+| Pending items | derived | — | — | — | Paid membership: "FF ID pending" (→ Add FF ID modal) and "Key fob pending" (→ shared fob modal), separate badges until filled (decision #40). Any membership: "Pending issue · <item>" for free items not given yet (→ Issue item; Waive for Sales Manager and above). |
 | Lost | derived | — | — | — | Grey "Lost · <reason>" + "Re-open the lead to follow up again." |
 
 ### Details tab (edit mode)

@@ -71,6 +71,8 @@
   --modal-width: 520px;
   --modal-width-lg: 820px;
   --drawer-form-width: 620px;
+  --drawer-mode-min: 80vw;
+  --mode-content-max: 1040px;
   --palette-width: 600px;
   --icon-size: 20px;
 
@@ -107,7 +109,7 @@
 :root[data-drawer="70"] { --drawer-width: 70vw; }
 :root[data-drawer="80"] { --drawer-width: 80vw; }
 :root[data-drawer="92"] { --drawer-width: 92vw; }
-@media (max-width: 1024px) { :root[data-drawer] { --drawer-width: 92vw; } } /* tablet: at least 92% */
+@media (max-width: 1024px) { :root[data-drawer], :root { --drawer-width: 92vw; --drawer-mode-min: 92vw; } } /* tablet: at least 92% */
 
 :root[data-density="compact"]  { --space-1: 3px; --space-2: 6px; --space-3: 8px;  --space-4: 12px; --space-5: 16px; --space-6: 24px; }
 :root[data-density="spacious"] { --space-1: 5px; --space-2: 10px; --space-3: 16px; --space-4: 20px; --space-5: 32px; --space-6: 40px; }

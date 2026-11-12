@@ -30,7 +30,46 @@
     drawer.addEventListener("click", onClick);
     drawer.addEventListener("change", onChange);
     drawer.onCloseHook = function () { setHash(null); };
+    drawer.beforeClose = function () { if (MODE) { MODE.exit(); return false; } };
   }
+
+  // ---------- Drawer work modes (decision #64) ----------
+  // The profile drawer itself switches to a wide mode: header "<Name> › <title>", "Back" returns to the profile.
+  // Used by Convert to Client; Renewal, Upgrade and Transfer will open the same way.
+  //   var m = App.DrawerMode.open(personId, { key: "convert", title: "Convert to client", onExit: fn })
+  //   -> { el, title, body, foot, exit() }
+  var MODE = null;
+  App.DrawerMode = {
+    open: function (personId, opts) {
+      opts = opts || {};
+      if (!drawer || !drawer.classList.contains("open") || S.id !== personId) App.openProfile(personId, { state: "normal" });
+      if (MODE) MODE.exit(true);
+      var p = P(), root = document.createElement("div");
+      root.className = "dmode"; root.id = opts.id || "sellMode"; root.dataset.dmode = opts.key || "work";
+      root.innerHTML = '<div class="drawer-head dm-head">' +
+          '<div class="dm-crumb"><button class="btn btn-ghost btn-sm" data-dm-back>' + icon("chevron-left") + 'Back</button>' +
+          '<span class="dm-name">' + esc(p.name) + '</span><span class="muted" aria-hidden="true">›</span><h2 class="dm-title" id="dmTitle" data-dm-title>' + esc(opts.title || "") + "</h2></div></div>" +
+        '<div class="dm-body" data-dm-body></div><div class="drawer-foot" data-dm-foot></div>';
+      drawer.appendChild(root);
+      drawer.classList.add("mode-wide", "in-mode");
+      drawer.setAttribute("aria-labelledby", "dmTitle");
+      var api = {
+        el: root, title: root.querySelector("[data-dm-title]"), body: root.querySelector("[data-dm-body]"), foot: root.querySelector("[data-dm-foot]"),
+        exit: function (silent) {
+          if (MODE !== api) return;
+          MODE = null; root.remove(); drawer.classList.remove("mode-wide", "in-mode");
+          drawer.setAttribute("aria-labelledby", "pdTitle");
+          if (!silent && opts.onExit) opts.onExit();
+          render();
+        }
+      };
+      root.querySelector("[data-dm-back]").onclick = function () { api.exit(); };
+      MODE = api;
+      var f = root.querySelector("[data-dm-back]"); setTimeout(function () { f.focus(); }, 30);
+      return api;
+    },
+    active: function () { return MODE ? MODE.el.dataset.dmode : null; }
+  };
 
   // ---------- open ----------
   App.openProfile = function (id, opts) {
@@ -73,6 +112,7 @@
   document.addEventListener("DOMContentLoaded", function () { setTimeout(openFromHash, 0); });
 
   function render() {
+    if (MODE) return;   // a work mode owns the drawer; the profile re-renders when it exits
     var p = P(), body = drawer.querySelector(".pd-body");
     var i = S.list.indexOf(S.id);
     drawer.querySelector("#pdTitle").textContent = p ? (isClient(p) ? "Client profile" : "Lead profile") : "Profile";
@@ -184,19 +224,85 @@
   }
 
   // Decision #38: Paid membership needs FF ID and key fob; each shows as its own pending item until filled.
+  // Free items not yet given (decision #46) are pending items too: "Pending issue · T-shirt" -> Issue item.
   function pendingList(p) {
     var out = [];
-    if (!p.membership || p.membership.saleType !== "Paid") return out;
-    if (!p.ffId) out.push({ k: "addFf", t: "FF ID pending", a: "Add FF ID" });
-    if (!p.keyFob) out.push({ k: "goFob", t: "Key fob pending", a: "Assign fob" });
+    if (!p.membership) return out;
+    if (p.membership.saleType === "Paid") {
+      if (!p.ffId) out.push({ k: "addFf", t: "FF ID pending", a: "Add FF ID" });
+      if (!p.keyFob) out.push({ k: "goFob", t: "Key fob pending", a: "Assign fob" });
+    }
+    (p.membership.freeItems || []).forEach(function (f) {
+      if (f.status === "Pending issue") out.push({ k: "issue", t: "Pending issue · " + f.name, a: "Issue item", itemId: f.itemId });
+    });
     return out;
   }
   function pendingItems(p) {
+    var can = App.access.pendingActions(p);
     return pendingList(p).map(function (x) {
-      return '<div class="ns-pending"><span class="badge badge-warning">' + esc(x.t) + '</span> <button class="link-btn" data-pd="' + x.k + '">' + esc(x.a) + "</button></div>";
+      return '<div class="ns-pending"><span class="badge badge-warning">' + esc(x.t) + "</span> " +
+        (can ? '<button class="link-btn" data-pd="' + x.k + '"' + (x.itemId ? ' data-item="' + x.itemId + '"' : "") + ">" + esc(x.a) + "</button>" : "") + "</div>";
     }).join("");
   }
   App.profilePending = pendingList;
+
+  // ---------- Pending-item actions, shared by the profile and Today (decisions #40, #46, #62) ----------
+  function canWaive() { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; }
+  App.addFfId = function (pid) {
+    var p = App.byId(D.people, pid), m = App.makeModal("ffModal");
+    m.title.textContent = "Add FF ID · " + p.name;
+    m.body.innerHTML = '<div class="field"><label for="ffIn">FF ID <span class="req">*</span></label><input class="input mono" id="ffIn" placeholder="e.g. FF-20500">' +
+      '<span class="hint">Permanent client ID from the corporate software. Unique company-wide.</span><span class="error" data-fferr hidden></span></div>';
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save FF ID</button>';
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var v = m.body.querySelector("#ffIn").value.trim(), er = m.body.querySelector("[data-fferr]");
+      var dup = v && D.people.filter(function (o) { return o.id !== p.id && (o.ffId || "").toLowerCase() === v.toLowerCase(); })[0];
+      var bad = !v ? "Enter the FF ID." : dup ? (dup.branchId === p.branchId ? "Already used by <strong>" + esc(dup.name) + "</strong>."
+        : "Already exists in " + esc(App.branchName(dup.branchId)) + " · Owner: " + esc(App.firstName(App.byId(D.users, dup.ownerUserId))) + ".") : "";
+      if (bad) { er.innerHTML = bad; er.hidden = false; m.body.querySelector("#ffIn").classList.add("invalid"); return; }
+      p.ffId = v; App.addTimeline(p.id, "milestone", "FF ID added · " + v);
+      App.close(m.el); App.toast("FF ID saved for " + p.name, "success"); App.dataChanged();
+    };
+    App.openModal("ffModal");
+  };
+  App.assignFob = function (pid) {
+    if (!drawer || !drawer.classList.contains("open") || S.id !== pid) App.openProfile(pid, { state: "normal", tab: "membership" });
+    else { S.tab = "membership"; render(); }
+    fobAction("assign");
+  };
+  App.issueItem = function (pid, itemId) {
+    var p = App.byId(D.people, pid), line = (p.membership.freeItems || []).filter(function (f) { return f.itemId === itemId && f.status === "Pending issue"; })[0];
+    if (!line) return;
+    var st = D.itemStock.filter(function (x) { return x.itemId === itemId && x.branchId === p.branchId; })[0], qty = st ? st.qty : 0, ok = qty >= line.qty;
+    var m = App.makeModal("issueModal"), waive = canWaive();
+    m.title.textContent = "Issue " + line.name + " · " + p.name;
+    m.body.innerHTML = '<dl class="kv kv-wide"><dt>Item</dt><dd>' + esc(line.name) + " × " + line.qty + " (free with " + esc(p.membership.package) + ")</dd>" +
+        "<dt>" + esc(App.branchName(p.branchId)) + " stock</dt><dd>" + qty + (ok ? ' <span class="badge badge-success">In stock</span>' : ' <span class="badge badge-danger">Out of stock</span>') + "</dd></dl>" +
+      (ok ? '<p class="hint">Stock goes down by ' + line.qty + ".</p>" : '<div class="callout callout-warn mt-3">' + icon("alert") + "<span>Out of stock at " + esc(App.branchName(p.branchId)) +
+        ". Stock in from Settings → Items &amp; stock, or a manager can waive it.</span></div>") +
+      (waive ? '<div class="field mt-3" data-waive hidden><label for="waiveWhy">Reason to waive <span class="req">*</span></label><input class="input" id="waiveWhy" placeholder="e.g. Client doesn\'t want it">' +
+        '<span class="error" data-werr hidden>A reason is needed.</span></div>' : "");
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button>' + (waive ? '<button class="btn" data-wv>Waive</button>' : "") +
+      '<button class="btn btn-primary" data-save' + (ok ? "" : ' disabled title="Out of stock"') + ">Issue item</button>";
+    m.foot.querySelector("[data-save]").onclick = function () {
+      st.qty -= line.qty; line.status = "Issued";
+      D.stockMoves.push({ itemId: itemId, branchId: p.branchId, qty: -line.qty, at: new Date().toISOString(), by: App.me().id, note: "Free with " + p.membership.package + " · " + p.name });
+      p.freeItemsReceived = (p.freeItemsReceived || []).concat(itemId);
+      App.addTimeline(p.id, "milestone", line.name + " given (free with " + p.membership.package + ")");
+      App.close(m.el); App.toast(line.name + " issued to " + p.name, "success"); App.dataChanged();
+    };
+    var wb = m.foot.querySelector("[data-wv]");
+    if (wb) wb.onclick = function () {
+      var box = m.body.querySelector("[data-waive]");
+      if (box.hidden) { box.hidden = false; wb.textContent = "Confirm waive"; m.body.querySelector("#waiveWhy").focus(); return; }
+      var why = m.body.querySelector("#waiveWhy").value.trim();
+      if (!why) { m.body.querySelector("[data-werr]").hidden = false; return; }
+      line.status = "Waived"; line.waiveReason = why; line.waivedBy = App.me().id;
+      App.addTimeline(p.id, "milestone", "Free " + line.name + " waived · " + why);
+      App.close(m.el); App.toast(line.name + " waived for " + p.name, ""); App.dataChanged();
+    };
+    App.openModal("issueModal");
+  };
 
   // ---------- RIGHT: tabs ----------
   function tabsFor(p) {
@@ -495,8 +601,9 @@
       case "lost": App.Lead.markLost(p.id); break;
       case "reopen": App.Lead.reopen(p.id); break;
       case "convert": App.Convert.open(p.id); break;
-      case "addFf": S.tab = "details"; S.editing = true; render(); break;
-      case "goFob": S.tab = "membership"; render(); break;
+      case "addFf": App.addFfId(p.id); break;
+      case "goFob": S.tab = "membership"; render(); fobAction("assign"); break;
+      case "issue": App.issueItem(p.id, t.dataset.item); break;
       case "task": App.toast("Task form comes with the Tasks screen", ""); break;
       case "edit": S.editing = true; render(); break;
       case "cancelEdit": S.editing = false; render(); break;

@@ -7,17 +7,20 @@
 ## 1. Screens
 | Screen / part | File | Purpose |
 |---|---|---|
-| Convert to Client stepper (large modal) | `shared/convert.js` → `App.Convert.open(personId)` | Turns an open lead into a client, or books a free trial (stays a lead). |
+| Convert to Client stepper (Sell mode in the profile drawer) | `shared/convert.js` → `App.Convert.open(personId)` (uses `App.DrawerMode`) | Turns an open lead into a client, or books a free trial (stays a lead). |
 | Done screen | same modal | "<name> is now a client (CL-1003)" + payment note + pending items. |
 
 Steps: **1 Details · 2 Package · 3 Sale & start · 4 Key fob · 5 Summary**.
 Step 4 only appears for a Paid **Membership** package (decision #13, #20).
 
 ## 2. Flow
-- Profile drawer (open lead) → **Convert to Client** → stepper over the drawer.
+- Profile drawer (open lead) → **Convert to Client** → the drawer itself switches to wide
+  **Sell mode** (decision #64): header "<Name> › Convert to client" with **Back**; width = the
+  larger of the user's drawer width and 80% (tablet 92%). Not a modal.
   Lost leads have no button (re-open first). Clients have no button (upgrade / renewal later).
-- Back / Next move between steps; Next validates the current step. Cancel, X, Esc or
-  outside click close it with the toast "Conversion not saved"; nothing is saved.
+- Previous / Next move between steps; Next validates the current step. Back (header),
+  Cancel (step 1), Esc or outside click return to the profile with the toast
+  "Conversion not saved"; nothing is saved.
 - **Free trial** → "Book free trial" → stays a **Lead**, stage Trial, timeline
   "Free trial booked · 1 day from today · 3rd free trial". If the lead has no open
   follow-up, the shared "Set next follow-up" modal opens (type Visit planned).
@@ -30,7 +33,7 @@ Step 4 only appears for a Paid **Membership** package (decision #13, #20).
   - open follow-ups → **Closed by system · Client converted**, owners notified (decision #37);
   - timeline: "Converted to Client · Annual Membership · ₹21,600 (₹2,400 off: Diwali offer) · key fob KF-S31-0013 · sales rep Priya";
   - unassigned lead → converting user becomes owner (owner history kept);
-  - done screen → **Done**. The drawer switches to the client view on the Membership tab,
+  - done screen → **Done · back to profile**. The drawer leaves Sell mode and shows the client view on the Membership tab,
     link becomes `#client-<name>`, the row leaves the Leads list, counts and badges update.
 - After a Paid membership: NEXT STEP shows **FF ID pending** and **Key fob pending**
   separately until filled (decision #40). Paid trial shows neither.

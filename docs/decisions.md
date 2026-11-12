@@ -209,3 +209,27 @@
 59. Couple packages are PT only. There is no couple membership package.
 60. Confirmed: a free Add-on (price 0) is allowed (#45, #50); accessory
     stock is managed by Club Manager and above for their own branches (#56).
+61. Today is the first screen staff see. Sections, each with a count, up to
+    5 rows, ONE main action per row and "View all": "Overdue or not set"
+    (overdue follow-ups AND open leads with no follow-up, so the page always
+    matches the sidebar Today badge, #22; action Log outcome or Add
+    follow-up), "Due today" (Log outcome), "My open tasks" (Mark done),
+    "Unassigned new leads" incl. Meta synced (Assign), "Clients with pending
+    items" (FF ID pending / Key fob pending / Pending issue; action for the
+    first item: Add FF ID / Assign fob / Issue item). Empty sections say
+    something positive ("All caught up", "Nothing due today"). Sections
+    follow the "View as" role and the top-bar branch. Trainer and MXM see
+    only My open tasks.
+62. Add FF ID, Assign fob and Issue item: the client's sales rep, Sales
+    Executives and Sales Managers of that branch (they are the front desk
+    and do sales / billing), and managers above them. NOT MXM, not Trainer.
+    Waiving a free item (#46) is for Sales Manager and above, with a reason.
+63. Only managers assign leads. Sales Executives do not see unassigned
+    leads. Auto-assign (round-robin) may come later with Meta sync (see
+    docs/open-questions.md).
+64. Bigger flows open IN the profile drawer as a wide work mode, never as a
+    modal over the drawer. Convert to Client = "Sell mode": header
+    "<Name> › Convert to client", "Back" returns to the profile, same steps.
+    Width = the larger of the user's drawer width and 80% (tablet 92%).
+    Esc or outside click also go back to the profile (nothing saved).
+    Renewal, Upgrade and Transfer will reuse the same mode (App.DrawerMode).

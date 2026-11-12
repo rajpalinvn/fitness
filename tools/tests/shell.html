@@ -46,7 +46,7 @@ load(BASE, function () {
   click(q('[data-role="CEO"]'));
   ok("role -> CEO, chip updated", /CEO/.test(q(".demo-chip").textContent));
   ok("CEO all branches: badge == card", badge("Today") === attnCard(), badge("Today") + " vs " + attnCard());
-  ok("CEO sees 8 open leads", rows() === 8, rows());
+  ok("CEO sees 12 open leads", rows() === 12, rows());
   click(q(".demo-chip")); ok("demo chip opens role menu", vis(q('[data-dd-menu="user"]')));
   click(Dc().body); ok("outside click closes menu", !vis(q('[data-dd-menu="user"]')));
 

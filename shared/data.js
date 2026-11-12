@@ -114,6 +114,41 @@
       externalId: null, createdAt: day(-8), lastActivityAt: day(-2), note: "EDGE: duplicate target in another branch" }
   ];
 
+  // ---- Today screen edge cases (decision #61) ----
+  people.push(
+    { id: "p12", kind: "Client", name: "Rohit Verma", cc: "+91", mobile: "90000 01245", email: "rohit.verma@example.com",
+      gender: "Male", birthDate: "1992-03-18", ffId: null, source: "Walk-in", temperature: "Hot", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
+      createdAt: day(-9), lastActivityAt: day(-3), clientNo: "CL-0998", homeBranchId: "b1", joinedAt: day(-3), keyFob: null, photo: null,
+      membership: { packageId: "pk7", package: "Annual Membership", saleType: "Paid", start: day(-3), end: day(361), price: 24000,
+        discount: 0, discountReason: null, finalPrice: 24000, salesRepUserId: "u6",
+        freeItems: [{ itemId: "it2", name: "T-shirt", qty: 1, status: "Pending issue" }, { itemId: "it4", name: "Gym towel", qty: 1, status: "Issued" }] },
+      freeItemsReceived: ["it4"], note: "EDGE (Today): FF ID pending + Key fob pending + T-shirt pending issue (Sec 31 stock 0)" },
+    { id: "p13", kind: "Client", name: "Harsh Vardhan", cc: "+91", mobile: "90000 01246", email: "harsh.v@example.com",
+      gender: "Male", birthDate: null, ffId: null, source: "Referral", temperature: "Warm", stage: "Converted",
+      inquiryType: "Call", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
+      createdAt: day(-20), lastActivityAt: day(-6), clientNo: "CL-0999", homeBranchId: "b2", joinedAt: day(-6), keyFob: "KF-S65-0103", photo: null,
+      membership: { packageId: "pk5", package: "Quarterly Membership", saleType: "Paid", start: day(-6), end: day(83), price: 8000,
+        discount: 0, discountReason: null, finalPrice: 8000, salesRepUserId: "u7", freeItems: [] },
+      note: "EDGE (Today): only FF ID pending, Sec 65" },
+    { id: "p14", kind: "Lead", name: "Neha Kulkarni", cc: "+91", mobile: "90000 01247", email: null,
+      gender: "Female", birthDate: null, ffId: null, source: "Walk-in", temperature: "Warm", stage: "New",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: null, createdByUserId: "u4", branchId: "b1", remarks: "Asked at the front desk",
+      externalId: null, createdAt: day(0, 10, 30), lastActivityAt: day(0, 10, 30), note: "EDGE (Today): unassigned walk-in, Sec 31, not from Meta" },
+    { id: "p15", kind: "Lead", name: "Manish Tiwari", cc: "+91", mobile: "90000 01248", email: "manish.t@example.com",
+      gender: "Male", birthDate: null, ffId: null, source: "Google", temperature: "Warm", stage: "Contacted",
+      inquiryType: "Call", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null,
+      externalId: null, createdAt: day(-7), lastActivityAt: day(-3), note: "EDGE (Today): overdue, Sec 65" },
+    { id: "p16", kind: "Lead", name: "Ritika Saxena", cc: "+91", mobile: "90000 01249", email: "ritika.s@example.com",
+      gender: "Female", birthDate: null, ffId: null, source: "Instagram", temperature: "Hot", stage: "Negotiation",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u10", branchId: "b3", remarks: null,
+      externalId: null, createdAt: day(-10), lastActivityAt: day(-5), note: "EDGE (Today): overdue 4 days, Golf Course" },
+    { id: "p17", kind: "Lead", name: "Arnav Chopra", cc: "+91", mobile: "90000 01250", email: "arnav.c@example.com",
+      gender: "Male", birthDate: null, ffId: null, source: "Referral", temperature: "Warm", stage: "Contacted",
+      inquiryType: "Call", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null,
+      externalId: null, createdAt: day(-5), lastActivityAt: day(-2), note: "EDGE (Today): overdue 1 day, Priya" }
+  );
+
   // CreatedBy never changes; Owner is changeable (history kept); Sales rep is per sale line (decision #36).
   people.forEach(function (p) {
     if (!("createdByUserId" in p)) p.createdByUserId = p.synced ? null : p.ownerUserId;  // Meta sync: created by the system
@@ -142,6 +177,9 @@
     { id: "f8", personId: "p2", type: "Call", dueDate: dd(-5), dueTime: "10:00", ownerUserId: "u6", status: "Cancelled", outcome: null, note: null, cancelledAt: day(-6, 9), cancelReason: "Duplicate entry" },
     { id: "f10", personId: "p4", type: "Call", dueDate: dd(-35), dueTime: "12:00", ownerUserId: "u6", status: "Done", outcome: "Call later", note: "Busy with exams", doneAt: day(-35, 12, 5) },
     { id: "f11", personId: "p6", type: "Free trial planned", dueDate: dd(-4), dueTime: "10:00", ownerUserId: "u7", status: "Done", outcome: "Interested", note: "Liked the trainers", doneAt: day(-4, 10, 30) },
+    { id: "f13", personId: "p15", type: "Call", dueDate: dd(-1), dueTime: "12:00", ownerUserId: "u7", status: "Open", outcome: null, note: "Wants weekend batch" },
+    { id: "f14", personId: "p16", type: "Visit planned", dueDate: dd(-4), dueTime: "18:00", ownerUserId: "u10", status: "Open", outcome: null, note: null },
+    { id: "f15", personId: "p17", type: "WhatsApp", dueDate: dd(-1), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "Send couple PT details" },
     { id: "f12", personId: "p7", type: "Call", dueDate: dd(7), dueTime: "11:00", ownerUserId: "u6", status: "Open", outcome: null, note: "Check how training is going" }
   ];
 
@@ -150,6 +188,8 @@
     { id: "t2", title: "Prepare Diwali offer flyer", assignedUserId: "u5", dueAt: day(0, 17), priority: "Medium", personId: null, status: "Open", note: null },
     { id: "t3", title: "Assign trainer for trial", assignedUserId: "u8", dueAt: day(1, 9), priority: "Critical", personId: "p5", status: "Open", note: "Morning slot" },
     { id: "t4", title: "Call back about locker", assignedUserId: "u7", dueAt: day(-3, 12), priority: "Low", personId: "p6", status: "Done", note: null },
+    { id: "t6", title: "Print welcome kit for Rohit", assignedUserId: "u6", dueAt: day(0, 15), priority: "Medium", personId: "p12", status: "Open", note: null },
+    { id: "t7", title: "Check fob stock count", assignedUserId: "u4", dueAt: day(0, 12), priority: "High", personId: null, status: "Open", note: null },
     { id: "t5", title: "Update brochure stock", assignedUserId: "u9", dueAt: day(2, 12), priority: "Low", personId: null, status: "Cancelled", note: null }
   ];
 
@@ -256,6 +296,8 @@
     { no: "KF-S65-0102", branchId: "b2", status: "Returned", personId: null, deposit: { amount: 1200, refunded: 600, refundReason: "Strap damaged" },  // EDGE: partial refund
       history: [{ at: day(-150), text: "Assigned · deposit ₹1,200 collected", by: "u7" }, { at: day(-12), text: "Returned", by: "u7" },
         { at: day(-12), text: "Deposit refunded ₹600 of ₹1,200 · Strap damaged", by: "u3" }] },
+    { no: "KF-S65-0103", branchId: "b2", status: "Assigned", personId: "p13", deposit: { amount: 1200, refunded: 0 },
+      history: [{ at: day(-6), text: "Assigned to Harsh Vardhan · deposit ₹1,200 collected", by: "u7" }] },
     { no: "KF-GC-0201",  branchId: "b3", status: "In stock", personId: null },
     { no: "KF-GC-0202",  branchId: "b3", status: "In stock", personId: null }
   ];

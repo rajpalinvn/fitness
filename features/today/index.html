@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Today · Fitness Labs</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <script src="../../shared/data.js"></script>
+  <script src="../../shared/app.js"></script>
+  <script src="../../shared/shell.js"></script>
+  <script src="../../shared/followup.js"></script>
+  <script src="../../shared/profile.js"></script>
+  <script src="../../shared/convert.js"></script>
+</head>
+<body>
+<div class="app" data-shell="today" data-root="../../">
+  <main class="main">
+
+    <div class="debug-bar" id="debugBar" hidden>
+      <strong>Test states:</strong>
+      <button class="btn btn-sm" data-state="normal">Normal</button>
+      <button class="btn btn-sm" data-state="loading">Loading</button>
+      <button class="btn btn-sm" data-state="empty">All caught up</button>
+      <button class="btn btn-sm" data-state="error">Error</button>
+    </div>
+
+    <div class="today-head">
+      <h1 class="today-greet" id="greet"></h1>
+      <p class="muted" id="summary"></p>
+    </div>
+    <div class="today-strip" id="strip"></div>
+    <div id="sections"></div>
+
+  </main>
+</div>
+<script src="today.js"></script>
+</body>
+</html>

@@ -10,6 +10,13 @@
 
   var S = { stage: "", attention: false, search: "", owner: "", source: "", branch: App.state.branchId,
     temp: "", follow: "", from: "", to: "", synced: false, mode: "loading" };
+  // Links from Today "View all": ?view=attention, ?follow=Due%20today, ?owner=none (unassigned)
+  (function () {
+    var q = location.search;
+    if (/[?&]view=attention\b/.test(q)) S.attention = true;
+    var f = /[?&]follow=([^&#]+)/.exec(q); if (f) S.follow = decodeURIComponent(f[1]);
+    var o = /[?&]owner=([^&#]+)/.exec(q); if (o) S.owner = decodeURIComponent(o[1]);
+  })();
   var current = { personId: null };
 
   // ---------- data helpers ----------

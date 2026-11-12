@@ -148,7 +148,7 @@
     dueToday: { cls: "amber", say: "follow-ups due today" },
     openTasks: { cls: "neutral", say: "open tasks" }
   };
-  App.built = ["leads", "settings"]; // screens that exist; others show a toast instead of a broken link
+  App.built = ["today", "leads", "settings"]; // screens that exist; others show a toast instead of a broken link
 
   var app, root, active, isTablet = window.matchMedia("(max-width: 1024px)");
 

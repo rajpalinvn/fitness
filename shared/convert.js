@@ -1,4 +1,5 @@
-/* Convert to Client stepper (decisions #3, #4, #13, #14, #20, #36–#41).
+/* Convert to Client stepper (decisions #3, #4, #13, #14, #20, #36–#41, #64).
+   Opens IN the profile drawer as "Sell mode" (App.DrawerMode), not as a modal.
      App.Convert.open(personId)
    Steps: 1 Details · 2 Package · 3 Sale & start · 4 Key fob (Paid membership only) · 5 Summary.
    MOCKUP: the person is converted when "Proceed to Payment" is clicked.
@@ -47,11 +48,13 @@
     var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
       pkgId: null, mode: "%", disc: "", reason: "", repId: p.ownerUserId || App.me().id, start: isoDay(new Date()), fob: "", errors: {} };
-    m = App.makeModal("convertModal", "lg");
-    m.el.onCloseHook = function () { if (C && !C.done) App.toast("Conversion not saved", ""); C = C && C.done ? null : C; };
+    m = App.DrawerMode.open(pid, { key: "convert", title: "Convert to client", onExit: function () {
+      if (C && !C.done) App.toast("Conversion not saved", "");
+      var done = C && C.done && C.clientId; C = null;
+      if (done) App.openProfile(done, { state: "normal", tab: "membership" });
+    } });
     m.body.onclick = onClick; m.body.oninput = onInput; m.body.onchange = onInput;
     render();
-    App.openModal("convertModal");
   }
 
   // ---------- render ----------
@@ -66,14 +69,19 @@
   }
   function render() {
     var p = person();
-    m.title.textContent = C.done ? "Done" : "Convert " + p.name + " to Client";
-    if (C.done) { m.body.innerHTML = C.doneHtml; m.foot.innerHTML = '<button class="btn btn-primary" data-close>Done</button>'; return; }
+    m.title.textContent = C.done ? "Converted" : "Convert to client";
+    if (C.done) {
+      m.body.innerHTML = C.doneHtml; m.foot.innerHTML = '<button class="btn btn-primary" data-cv="done">Done · back to profile</button>';
+      m.foot.querySelector("[data-cv=done]").onclick = function () { m.exit(); };
+      return;
+    }
     m.body.innerHTML = header() + '<div class="cv-body">' + [null, s1, s2, s3, s4, s5][C.step](p) + "</div>";
-    var back = C.step > 1 ? '<button class="btn" data-cv="back">Back</button>' : '<button class="btn" data-close>Cancel</button>';
+    var back = C.step > 1 ? '<button class="btn" data-cv="back">Previous</button>' : '<button class="btn" data-dm-back>Cancel</button>';
     var k = pkg(), last = C.step === 5;
     var nextLabel = !last ? "Next" : k && k.saleType === "Trial" ? "Book free trial" : "Proceed to Payment";
     m.foot.innerHTML = back + '<button class="btn btn-primary" data-cv="' + (last ? "finish" : "next") + '">' + nextLabel + "</button>";
     m.foot.querySelector("[data-cv=back]") && (m.foot.querySelector("[data-cv=back]").onclick = function () { go(-1); });
+    m.foot.querySelector("[data-dm-back]") && (m.foot.querySelector("[data-dm-back]").onclick = function () { m.exit(); });
     m.foot.querySelector("[data-cv=next], [data-cv=finish]").onclick = last ? finish : function () { go(1); };
     App.$all("select", m.body).forEach(App.enhanceSelect);
   }
@@ -130,8 +138,8 @@
       html += '<div class="form-grid mt-3">' +
         '<div class="field"><label>Price</label><div class="input input-static">' + App.fmtMoney(k.price) + ' <span class="muted">· locked</span></div></div>' +
         '<div class="field"><label for="cvDisc">Discount</label><div class="row">' +
-          '<div class="chips"><button type="button" class="chip' + (C.mode === "%" ? " selected" : "") + '" data-mode="%">%</button>' +
-          '<button type="button" class="chip' + (C.mode === "₹" ? " selected" : "") + '" data-mode="₹">₹</button></div>' +
+          '<div class="chips"><button type="button" class="chip' + (C.mode === "%" ? " selected" : "") + '" data-disc="%">%</button>' +
+          '<button type="button" class="chip' + (C.mode === "₹" ? " selected" : "") + '" data-disc="₹">₹</button></div>' +
           '<input class="input input-num' + inv("disc") + '" id="cvDisc" data-k="disc" type="number" min="0" value="' + esc(C.disc) + '" placeholder="0"></div>' + err("disc") +
           '<span class="hint">Your limit: ' + (lim == null ? "no limit" : lim + "%") + ' <span class="badge badge-demo">Placeholder</span> · admin settings later</span></div>' +
         (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><input class="input' + inv("reason") + '" id="cvReason" data-k="reason" value="' + esc(C.reason) + '" placeholder="e.g. Diwali offer">' + err("reason") + "</div>" : "") +
@@ -220,9 +228,9 @@
     render();
   }
   function onClick(e) {
-    var t = e.target.closest("[data-pkg],[data-mode],[data-fob]"); if (!t) return;
+    var t = e.target.closest("[data-pkg],[data-disc],[data-fob]"); if (!t) return;
     if (t.dataset.pkg) { C.pkgId = t.dataset.pkg; delete C.errors.pkg; if (pkg().price === 0) { C.disc = ""; C.reason = ""; } }
-    if (t.dataset.mode) { C.mode = t.dataset.mode; }
+    if (t.dataset.disc) { C.mode = t.dataset.disc; }
     if (t.hasAttribute("data-fob")) C.fob = t.dataset.fob;
     render();
   }
@@ -250,9 +258,8 @@
       p.stage = "Trial"; p.freeTrial = { from: startIso, to: endIso };
       App.addTimeline(p.id, "milestone", "Free trial booked · " + k.days + (k.days === 1 ? " day" : " days") + " from " + App.fmtShortWhen(startIso) +
         (p.freeTrialCount > 1 ? " · " + ordinal(p.freeTrialCount) + " free trial" : ""));
-      C.done = true; App.close(m.el); C = null;
+      C.done = true; m.exit(true); C = null;
       App.toast("Free trial booked for " + p.name, "success"); App.dataChanged();
-      App.openProfile(p.id, { state: "normal" });
       if (!App.Followup.openFollowUps(p.id).length)
         App.Followup.openAdd(p.id, { title: "Set next follow-up", type: "Visit planned", intro: "Free trial booked. When will you follow up?", cancelText: "Later" });
       return;
@@ -288,8 +295,9 @@
       (pend.length ? '<div class="stack">' + pend.map(function (x) { return '<span class="badge badge-warning">' + esc(x.t) + "</span>"; }).join("") + "</div>" : "") + "</div>";
     render();
     App.toast(p.name + " is now a client (" + clientNo + ")", "success");
+    C.clientId = p.id;
     App.dataChanged();
-    App.openProfile(p.id, { state: "normal", tab: "membership" });
+    App.openProfile(p.id, { state: "normal", tab: "membership" });   // updates the link to #client-…; shows when the mode exits
   }
 
   App.Convert = { open: open };

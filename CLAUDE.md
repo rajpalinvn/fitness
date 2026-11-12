@@ -23,6 +23,11 @@
   and App.Lead.* — never build a second drawer or follow-up form.
 - Dropdowns: use App.enhanceSelect(select) for styled dropdowns, not raw
   browser selects.
+- Bigger flows on a person (Convert, Renewal, Upgrade, Transfer) open in the
+  profile drawer with App.DrawerMode (wide work mode), never as a modal over
+  the drawer.
+- Open questions go to docs/open-questions.md; when decided, move them to
+  docs/decisions.md. Plan screens against docs/roadmap.md.
 - Every page opens by double-click in a browser (relative paths only).
 
 ## Screen sizes
