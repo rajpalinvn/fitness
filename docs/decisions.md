@@ -331,4 +331,7 @@
     discount, sales rep) -> Payment / receipt (+ rows, allocation to lines);
     one sale can have many payments. The mockup keeps its simple storage.
     See docs/data-model.md.
-
+89. Membership and PT are NOT sold together in one Sell mode (was Q23).
+    At conversion PT stays disabled (#20, #57). PT is sold later, in its
+    own Sell mode, only to a client who already has an active paid
+    membership (PT longer than the membership: #42). May be revisited later.
