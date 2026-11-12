@@ -35,6 +35,7 @@
 
   /* Typography */
   --font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-family-mono: Consolas, "Cascadia Mono", ui-monospace, monospace;
   --font-size-xs: 12px;
   --font-size-sm: 13px;
   --font-size-md: 14px;
@@ -69,6 +70,7 @@
   --drawer-width: 880px;
   --modal-width: 520px;
   --modal-width-lg: 820px;
+  --drawer-form-width: 620px;
   --palette-width: 600px;
   --icon-size: 20px;
 

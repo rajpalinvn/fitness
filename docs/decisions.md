@@ -160,3 +160,44 @@
     settings exist: Sales Executive max 10%, Sales Manager max 20%, other
     roles no limit. Converting an unassigned lead makes the converting user
     the owner.
+49. Tax categories are an admin master (Settings → Items & stock → Tax
+    categories): name, GST rate, active. Prices are stored INCLUDING GST; GST
+    is worked out backwards: GST = price × rate ÷ (100 + rate). No rate is
+    hardcoded in logic. Dummy: Gym services 5%, Goods 18%, Goods 12%,
+    Exempt 0%.
+50. Packages (Settings → Packages): category Membership / PT / Add-on;
+    sub-type optional from an admin list (Membership, PT); Add-on kinds are
+    fixed in code (first: Transfer). Fields: name (unique), trial Yes/No,
+    people Single/Couple (PT only for new packages), days, sessions (PT),
+    price incl. GST, GST category, price effective from, requires active
+    membership (always on for PT), branches, audience, free items, active.
+    The result is derived, never typed: Free trial (trial + price 0, stays a
+    Lead) / Paid trial / Paid. Price 0 without trial is an error, except an
+    Add-on (a free Transfer is allowed, #45).
+51. Price history: a price applies from its "effective from" date. A new
+    price can't start in the past; the current price is the latest one on or
+    before today; upcoming prices show on the list.
+52. After the first sale a package's category, trial, people, days and
+    sessions are locked ("Locked: sold"); "Copy as new" creates a new
+    package with those fields open. Name, price (with a date), GST category,
+    branches, audience, free items and active stay editable.
+53. ONE item list for accessories, free items and the key fob: name (unique),
+    cost price (required), selling price incl. GST (required, admin only),
+    GST category, active. Return / refund policy fields are reserved, not
+    used yet.
+54. Accessory stock per branch: Stock in (quantity + note), current quantity,
+    movement history. Free items given at a sale reduce stock; out of stock
+    makes the line "Pending issue" (#46).
+55. Key fob deposit: one amount = the Key fob item's selling price (dummy
+    ₹1,200), not per branch or per fob, collected as its own line in the same
+    sale. Refund full or partial with a reason (only once the fob is
+    Returned). Replace moves the client's deposit to the new fob. Fobs are
+    added one number or a range (same prefix, up to 500 at a time); existing
+    numbers are listed and skipped. Each fob keeps an assignment history.
+56. Access, PLACEHOLDER until the permission matrix: packages and item
+    masters (incl. tax categories) create/edit = SuperAdmin, CEO; view =
+    managers (Regional, Club, Sales Manager). Selling prices are shown to
+    SuperAdmin/CEO only. Accessory stock and key fobs = Club Manager and
+    above, for their own branches. Others see "You don't have access".
+57. Packages offered when converting a lead: active, sold at the lead's
+    branch, audience New or Both, not Add-ons; PT stays disabled (#20).

@@ -421,6 +421,10 @@
         kv("Sales rep", m.salesRepUserId ? App.userName(m.salesRepUserId) : "Not set yet") + kv("Client no", p.clientNo) +
         "<dt>FF ID</dt><dd>" + (p.ffId ? esc(p.ffId) : paid ? '<span class="badge badge-warning">FF ID pending</span> <button class="link-btn" data-pd="addFf">Add</button>' : "Not set yet") + "</dd>" +
         "<dt>Key fob</dt><dd>" + fobHtml + "</dd>" +
+        ((m.freeItems || []).length ? "<dt>Free items</dt><dd>" + m.freeItems.map(function (f) {
+          var b = f.status === "Issued" ? "badge-success" : f.status === "Pending issue" ? "badge-warning" : "";
+          return '<div>' + esc(f.name) + " × " + f.qty + ' <span class="badge ' + b + '">' + esc(f.status) + "</span></div>";
+        }).join("") + "</dd>" : "") +
         (paid ? kv("Fob stock", App.branchName(p.homeBranchId) + ": " + stock.length + " in stock") : "") + "</dl>" +
       '<p class="hint">Renewals and payments come with the Payment module.</p>';
   }
@@ -445,11 +449,17 @@
       var text;
       if (kind === "ret" || kind === "lost") {
         cur.status = kind === "ret" ? "Returned" : "Lost"; cur.personId = null; p.keyFob = null;
+        cur.history.push({ at: new Date().toISOString(), text: (kind === "ret" ? "Returned by " : "Marked as Lost · ") + p.name + (cur.deposit ? " · deposit held, refund from Items → Key fobs" : ""), by: App.me().id });
         text = "Key fob " + cur.no + (kind === "ret" ? " returned" : " marked as lost");
       } else {
         var no = m.body.querySelector("#fobPick").value, nf = D.keyFobs.filter(function (k) { return k.no === no; })[0];
-        if (cur) { cur.status = m.body.querySelector("[data-why].selected").dataset.why; cur.personId = null; }
+        var now = new Date().toISOString();
+        if (cur) { cur.status = m.body.querySelector("[data-why].selected").dataset.why; cur.personId = null;
+          cur.history.push({ at: now, text: (cur.status === "Lost" ? "Marked as Lost" : "Returned") + " · replaced by " + nf.no, by: App.me().id }); }
         nf.status = "Assigned"; nf.personId = p.id; p.keyFob = nf.no;
+        // Replace: the client's deposit moves to the new fob. Assign: a new deposit line is collected.
+        nf.deposit = cur && cur.deposit ? cur.deposit : { amount: App.fobDeposit(), refunded: 0 }; if (cur) cur.deposit = null;
+        nf.history.push({ at: now, text: "Assigned to " + p.name + (cur ? " (replacement)" : " · deposit " + App.fmtMoney(App.fobDeposit()) + " collected"), by: App.me().id });
         text = cur ? "Key fob replaced · " + cur.no + " → " + nf.no : "Key fob " + nf.no + " assigned";
       }
       App.addTimeline(p.id, "milestone", text);

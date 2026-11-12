@@ -49,7 +49,7 @@ Step 4 only appears for a Paid **Membership** package (decision #13, #20).
 ### Step 2 · Package
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Package | cards grouped Free trial / Paid trial / Membership / Personal training | Yes | No | none | PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). |
+| Package | cards grouped Free trial / Paid trial / Membership / Personal training | Yes | No | none | Only active packages sold at the lead's branch with audience New or Both; no Add-ons (#57). Price = current price from the price history. PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). |
 | Price | read-only | — | — | package price | Locked (#14). |
 | Discount | % or ₹ chips + number | No | No | 0, % | Not shown for free packages. Can't be negative or more than the price. **Limit by role — PLACEHOLDER:** Sales Executive 10%, Sales Manager 20%, others no limit (admin settings later). Over the limit: "Your limit is 10%." |
 | Discount reason | text | When discount > 0 | No | — | "A reason is needed for a discount." |
@@ -70,7 +70,7 @@ Step 4 only appears for a Paid **Membership** package (decision #13, #20).
 
 ### Step 5 · Summary
 Read-only list: person, package, sale type, start – end, price, discount, final price,
-sales rep, FF ID / key fob (or "Pending"), owner (if it was unassigned), and how many open
+sales rep, FF ID / key fob (or "Pending"), **Key fob deposit** (₹1,200 from the Key fob item, refundable, its own sale line) and **Total to pay**, **free items** (Issued / Pending issue · out of stock / Skipped · already received free once; issued items reduce branch stock), owner (if it was unassigned), and how many open
 follow-ups will be closed by system. Button: **Proceed to Payment** or **Book free trial**.
 
 ## 4. States

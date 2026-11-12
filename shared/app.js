@@ -159,6 +159,47 @@
 
   // ---------- Shared business helpers (single source for list + shell badges) ----------
   App.demoUser = function () { return App.byId(DUMMY.users, DUMMY.roleDemoUser[App.state.role]); };
+
+  // ---------- Masters: packages, tax, items (decisions #49–#56) ----------
+  App.todayIso = function () { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); };
+  // Current price = latest priceHistory entry on or before today. Next = first future entry (if any).
+  App.priceInfo = function (pk) {
+    var t = App.todayIso(), h = (pk.priceHistory || []).slice().sort(function (a, b) { return a.from < b.from ? -1 : 1; });
+    var cur = null, next = null;
+    h.forEach(function (x) { if (x.from <= t) cur = x; else if (!next) next = x; });
+    return { price: cur ? cur.price : (h[0] ? h[0].price : 0), next: next };
+  };
+  // Result of a package: Free trial (stays lead) / Paid trial / Paid. Derived, never typed.
+  App.saleResult = function (pk) {
+    var price = pk.priceHistory ? App.priceInfo(pk).price : pk.price;
+    if (pk.category === "Add-on") return { saleType: "Paid", type: "Add-on", text: price ? "Add-on" : "Add-on · free" };
+    if (pk.isTrial) return price ? { saleType: "Trial Paid", type: "Trial Paid", text: "Paid trial · becomes a Client" } : { saleType: "Trial", type: "Trial", text: "Free trial · stays a Lead" };
+    if (!price) return { error: "A price of 0 is only allowed for a trial." };
+    return { saleType: "Paid", type: pk.category, text: "Paid · becomes a Client" };
+  };
+  App.derivePackage = function (pk) {
+    var r = App.saleResult(pk);
+    pk.price = App.priceInfo(pk).price; pk.saleType = r.saleType || "Paid"; pk.type = r.type || pk.category;
+    return pk;
+  };
+  (DUMMY.packages || []).forEach(App.derivePackage);
+  App.tax = function (id) { return App.byId(DUMMY.taxCategories, id); };
+  // Price is incl. GST: GST = price × rate / (100 + rate).
+  App.gstSplit = function (price, taxId) {
+    var t = App.tax(taxId), rate = t ? t.rate : 0, gst = Math.round(price * rate / (100 + rate) * 100) / 100;
+    return { rate: rate, gst: gst, base: Math.round((price - gst) * 100) / 100 };
+  };
+  App.fobDeposit = function () { var k = DUMMY.items.filter(function (i) { return i.kind === "Key fob"; })[0]; return k ? k.sellingPrice : 0; };
+  // PLACEHOLDER access until the permission matrix (decision #56).
+  App.access = {
+    editMasters: function () { return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1; },
+    viewMasters: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; },
+    stock: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager"].indexOf(App.state.role) > -1; },
+    stockBranches: function () {
+      var u = App.demoUser(); if (!App.access.stock() || !u) return [];
+      return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1 ? DUMMY.branches.map(function (b) { return b.id; }) : u.branches.slice();
+    }
+  };
   App.nextFollowUp = function (personId) {
     var open = DUMMY.followUps.filter(function (f) { return f.personId === personId && f.status === "Open"; });
     open.sort(function (a, b) { return new Date(App.dueIso(a)) - new Date(App.dueIso(b)); });

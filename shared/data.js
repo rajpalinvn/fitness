@@ -171,32 +171,96 @@
     { personId: "p10", at: day(-1), kind: "whatsapp", text: "Arjun sent WhatsApp · price list", by: "u7" }
   ];
 
-  // type = package type; saleType = Trial | Trial Paid | Paid (decision #14).
-  // Membership and PT packages are sale type "Paid" (decision #20). PT needs an active membership.
-  var packages = [
-    { id: "pk1",  name: "Free Trial",                type: "Trial",      saleType: "Trial",      days: 1,   price: 0 },
-    { id: "pk2",  name: "Trial Paid 7 Days",         type: "Trial Paid", saleType: "Trial Paid", days: 7,   price: 800 },
-    { id: "pk3",  name: "Trial Paid 15 Days",        type: "Trial Paid", saleType: "Trial Paid", days: 15,  price: 1500 },
-    { id: "pk4",  name: "Monthly Membership",        type: "Membership", saleType: "Paid",       days: 30,  price: 3000 },
-    { id: "pk5",  name: "Quarterly Membership",      type: "Membership", saleType: "Paid",       days: 90,  price: 8000 },
-    { id: "pk6",  name: "Half-Yearly Membership",    type: "Membership", saleType: "Paid",       days: 180, price: 14000 },
-    { id: "pk7",  name: "Annual Membership",         type: "Membership", saleType: "Paid",       days: 365, price: 24000 },
-    { id: "pk8",  name: "Couple Annual Membership",  type: "Membership", saleType: "Paid",       days: 365, price: 45000, people: 2 },
-    { id: "pk9",  name: "PT 12 Sessions",            type: "PT",         saleType: "Paid",       days: 90,  price: 12000, sessions: 12 },
-    { id: "pk10", name: "PT 24 Sessions",            type: "PT",         saleType: "Paid",       days: 180, price: 22000, sessions: 24 },
-    { id: "pk11", name: "Annual + PT Premium Combo", type: "Membership", saleType: "Paid",       days: 365, price: 100000 }
+  // ---------- Masters (decisions #49–#56) ----------
+  // Tax categories: admin master. Prices are stored INCL. GST; GST is worked out backwards. No rates in logic.
+  var taxCategories = [
+    { id: "tx1", name: "Gym services", rate: 5,  active: true },
+    { id: "tx2", name: "Goods 18%",    rate: 18, active: true },
+    { id: "tx3", name: "Goods 12%",    rate: 12, active: true },
+    { id: "tx4", name: "Exempt",       rate: 0,  active: true }
+  ];
+  var membershipSubTypes = ["Regular", "Student", "Corporate", "Premium"];   // admin list
+  var ptSubTypes = ["One-on-one", "Group"];                                     // admin list
+  var addOnKinds = ["Transfer"];                                                // fixed in code
+
+  // ONE item list: accessories, free items and the key fob (decision #53).
+  // sellingPrice is incl. GST and admin-only. Key fob sellingPrice = refundable deposit.
+  var items = [
+    { id: "it1", name: "Key fob",        kind: "Key fob",   costPrice: 150, sellingPrice: 1200, taxCategoryId: "tx4", active: true },
+    { id: "it2", name: "T-shirt",        kind: "Accessory", costPrice: 220, sellingPrice: 599,  taxCategoryId: "tx3", active: true },
+    { id: "it3", name: "Shaker bottle",  kind: "Accessory", costPrice: 120, sellingPrice: 349,  taxCategoryId: "tx2", active: true },
+    { id: "it4", name: "Gym towel",      kind: "Accessory", costPrice: 90,  sellingPrice: 249,  taxCategoryId: "tx3", active: true },
+    { id: "it5", name: "Gym bag",        kind: "Accessory", costPrice: 450, sellingPrice: 1199, taxCategoryId: "tx2", active: false }
+  ];
+  // Accessory stock per branch (key fobs are tracked one by one in keyFobs).
+  var itemStock = [
+    { itemId: "it2", branchId: "b1", qty: 0 },   // EDGE: T-shirt out of stock at Sec 31 (free item -> "Pending issue")
+    { itemId: "it2", branchId: "b2", qty: 14 },
+    { itemId: "it2", branchId: "b3", qty: 6 },
+    { itemId: "it3", branchId: "b1", qty: 25 },
+    { itemId: "it3", branchId: "b2", qty: 0 },   // EDGE: accessory with 0 stock
+    { itemId: "it4", branchId: "b1", qty: 40 },
+    { itemId: "it4", branchId: "b3", qty: 12 }
+  ];
+  var stockMoves = [
+    { itemId: "it2", branchId: "b1", qty: 20, at: day(-30), by: "u4", note: "Opening stock" },
+    { itemId: "it2", branchId: "b1", qty: -20, at: day(-3), by: "u4", note: "Given free with memberships" },
+    { itemId: "it3", branchId: "b1", qty: 25, at: day(-10), by: "u4", note: "Supplier delivery" },
+    { itemId: "it3", branchId: "b2", qty: 10, at: day(-25), by: "u3", note: "Opening stock" },
+    { itemId: "it3", branchId: "b2", qty: -10, at: day(-2), by: "u3", note: "Sold" },
+    { itemId: "it4", branchId: "b1", qty: 40, at: day(-15), by: "u4", note: "Opening stock" },
+    { itemId: "it2", branchId: "b2", qty: 14, at: day(-20), by: "u3", note: "Opening stock" },
+    { itemId: "it2", branchId: "b3", qty: 6, at: day(-20), by: "u1", note: "Opening stock" },
+    { itemId: "it4", branchId: "b3", qty: 12, at: day(-20), by: "u1", note: "Opening stock" }
   ];
 
+  // Packages (decisions #20, #50). category Membership | PT | Add-on; isTrial; price incl. GST.
+  // priceHistory: a price applies from its date; the latest one on or before today is the current price.
+  // type / saleType / price are DERIVED in app.js (App.derivePackage), never typed by hand.
+  // soldCount > 0 locks category, trial, people, days, sessions.
+  function pk(id, name, category, o) {
+    return Object.assign({ id: id, name: name, category: category, subType: null, isTrial: false, people: 1, days: null, sessions: null,
+      taxCategoryId: "tx1", requiresMembership: category === "PT", branchIds: ["b1", "b2", "b3"], audience: "Both",
+      freeItems: [], active: true, soldCount: 0 }, o);
+  }
+  var packages = [
+    pk("pk1",  "Free Trial",                "Membership", { isTrial: true, days: 1, priceHistory: [{ price: 0, from: dd(-365) }], soldCount: 9 }),
+    pk("pk2",  "Trial Paid 7 Days",         "Membership", { isTrial: true, days: 7, priceHistory: [{ price: 800, from: dd(-365) }], soldCount: 3 }),
+    pk("pk3",  "Trial Paid 15 Days",        "Membership", { isTrial: true, days: 15, priceHistory: [{ price: 1500, from: dd(-365) }] }),
+    pk("pk4",  "Monthly Membership",        "Membership", { subType: "Regular", days: 30, soldCount: 12,
+      priceHistory: [{ price: 2800, from: dd(-400) }, { price: 3000, from: dd(-120) }, { price: 3300, from: dd(20) }] }),   // EDGE: future price change
+    pk("pk5",  "Quarterly Membership",      "Membership", { subType: "Regular", days: 90, priceHistory: [{ price: 8000, from: dd(-365) }], soldCount: 5 }),
+    pk("pk6",  "Half-Yearly Membership",    "Membership", { subType: "Regular", days: 180, priceHistory: [{ price: 14000, from: dd(-365) }], soldCount: 2 }),
+    pk("pk7",  "Annual Membership",         "Membership", { subType: "Regular", days: 365, priceHistory: [{ price: 24000, from: dd(-365) }], soldCount: 8,
+      freeItems: [{ itemId: "it2", qty: 1, rule: "Once per client" }, { itemId: "it4", qty: 1, rule: "Every sale" }] }),  // EDGE: sold (locked) + free items; T-shirt out of stock at Sec 31
+    pk("pk8",  "Couple Annual Membership",  "Membership", { subType: "Regular", people: 2, days: 365, priceHistory: [{ price: 45000, from: dd(-365) }], soldCount: 1 }),
+    pk("pk9",  "PT 12 Sessions",            "PT", { subType: "One-on-one", days: 90, sessions: 12, priceHistory: [{ price: 12000, from: dd(-365) }], soldCount: 4 }),
+    pk("pk10", "PT 24 Sessions",            "PT", { subType: "One-on-one", days: 180, sessions: 24, priceHistory: [{ price: 22000, from: dd(-365) }], soldCount: 1 }),
+    pk("pk11", "Annual + PT Premium Combo", "Membership", { subType: "Premium", days: 365, priceHistory: [{ price: 100000, from: dd(-200) }] }),
+    pk("pk12", "Couple PT 12 Sessions",     "PT", { subType: "One-on-one", people: 2, days: 90, sessions: 12, priceHistory: [{ price: 20000, from: dd(-60) }] }),  // EDGE: couple PT
+    pk("pk13", "Branch transfer",           "Add-on", { subType: "Transfer", priceHistory: [{ price: 0, from: dd(-90) }], requiresMembership: true }),          // EDGE: free Add-on (allowed, decision #45)
+    pk("pk14", "Student Monthly",           "Membership", { subType: "Student", days: 30, audience: "New", branchIds: ["b1", "b2"],
+      priceHistory: [{ price: 2200, from: dd(-5) }] }),                                                                                            // EDGE: never sold, fully editable
+    pk("pk15", "Summer Monthly 2025",       "Membership", { subType: "Regular", days: 30, active: false, priceHistory: [{ price: 2500, from: dd(-500) }], soldCount: 6 }), // EDGE: inactive
+    pk("pk16", "Renewal Annual Offer",      "Membership", { subType: "Regular", days: 365, audience: "Renewal", priceHistory: [{ price: 21000, from: dd(-30) }] })     // renewal only: hidden for leads
+  ];
+
+  // Key fobs per branch (decisions #13, #30, #55). Deposit = Key fob item selling price, collected as a sale line.
   var keyFobs = [
-    { no: "KF-S31-0012", branchId: "b1", status: "Assigned", personId: "p7" },
+    { no: "KF-S31-0012", branchId: "b1", status: "Assigned", personId: "p7", deposit: { amount: 1200, refunded: 0 },
+      history: [{ at: day(-100), text: "Assigned to Vivaan Joshi · deposit ₹1,200 collected", by: "u6" }] },
     { no: "KF-S31-0013", branchId: "b1", status: "In stock", personId: null },
     { no: "KF-S31-0014", branchId: "b1", status: "In stock", personId: null },
-    { no: "KF-S31-0009", branchId: "b1", status: "Lost",     personId: null },
+    { no: "KF-S31-0009", branchId: "b1", status: "Lost", personId: null, deposit: { amount: 1200, refunded: 0 },             // EDGE: lost fob, deposit kept
+      history: [{ at: day(-200), text: "Assigned to a former client · deposit ₹1,200 collected", by: "u6" }, { at: day(-40), text: "Marked as Lost", by: "u4" }] },
     { no: "KF-S65-0101", branchId: "b2", status: "In stock", personId: null },
-    { no: "KF-S65-0102", branchId: "b2", status: "Returned", personId: null },
+    { no: "KF-S65-0102", branchId: "b2", status: "Returned", personId: null, deposit: { amount: 1200, refunded: 600, refundReason: "Strap damaged" },  // EDGE: partial refund
+      history: [{ at: day(-150), text: "Assigned · deposit ₹1,200 collected", by: "u7" }, { at: day(-12), text: "Returned", by: "u7" },
+        { at: day(-12), text: "Deposit refunded ₹600 of ₹1,200 · Strap damaged", by: "u3" }] },
     { no: "KF-GC-0201",  branchId: "b3", status: "In stock", personId: null },
     { no: "KF-GC-0202",  branchId: "b3", status: "In stock", personId: null }
   ];
+  keyFobs.forEach(function (k) { if (!k.history) k.history = [{ at: day(-90), text: "Added to stock", by: "u1" }]; if (!k.deposit) k.deposit = null; });
 
   // Demo person shown for each "View as" role (placeholder until the permission matrix).
   var roleDemoUser = { "SuperAdmin": "u1", "CEO": "u2", "Regional Manager": "u3", "Club Manager": "u4",
@@ -212,7 +276,8 @@
     roleDemoUser: roleDemoUser, notifications: notifications,
     branches: branches, roles: roles, users: users, lists: lists, people: people,
     followUps: followUps, workTasks: workTasks, timeline: timeline, packages: packages,
-    keyFobs: keyFobs,
+    keyFobs: keyFobs, taxCategories: taxCategories, items: items, itemStock: itemStock, stockMoves: stockMoves,
+    membershipSubTypes: membershipSubTypes, ptSubTypes: ptSubTypes, addOnKinds: addOnKinds,
     // PLACEHOLDER (not final): max discount % by role; roles not listed have no limit. Admin settings later.
     discountLimits: { "Sales Executive": 10, "Sales Manager": 20 },
     nextClientNo: 1003, duplicateMobileAttempts: duplicateMobileAttempts,

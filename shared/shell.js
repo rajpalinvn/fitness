@@ -69,6 +69,9 @@
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
     swap: '<path d="M7 7h13l-4-4M17 17H4l4 4"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+    box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+    percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
     alert: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'
   };
   App.icon = function (name, cls) {

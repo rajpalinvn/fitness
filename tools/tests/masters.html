@@ -1,0 +1,234 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../", PK = ROOT + "features/settings/packages.html", IT = ROOT + "features/settings/items.html", SET = ROOT + "features/settings/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { setTimeout(cb, 800); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function vis(el) { return !!el && el.getClientRects().length > 0 && W().getComputedStyle(el).visibility !== "hidden"; }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function badText(el) { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec((el || Dc().body).innerText); }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function seg(name, val) { click(q('[data-seg="' + name + '"][data-val="' + val + '"]')); }
+function D() { return W().DUMMY; } function pk(id) { return W().App.byId(D().packages, id); }
+function rows() { return qa("#rows tr[data-id]").length; }
+function role(r) { W().App.setRole(r); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+var bad = [];
+function scan(tag) { var b = badText(); if (b) bad.push(tag + ":" + b[0]); }
+
+load(PK, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(PK, function () {
+    step("packages list", function () {
+      ok("all 16 packages listed", rows() === 16, rows());
+      ok("title + breadcrumb", /Packages/.test(text(".tb-title")) && /Settings/.test(text(".crumbs")));
+      click(q('[data-cat="Add-on"]')); ok("Add-on tab shows Transfer only", rows() === 1 && /Branch transfer/.test(text("#rows")));
+      click(q('[data-cat="all"]'));
+      ok("future price shown on Monthly", /₹3,300 from/.test(text('#rows tr[data-id="pk4"]')));
+      ok("Monthly current price ₹3,000 + Gym services GST", /₹3,000/.test(text('#rows tr[data-id="pk4"]')) && /Gym services · GST ₹142\.86/.test(text('#rows tr[data-id="pk4"]')), text('#rows tr[data-id="pk4"]'));
+      ok("inactive package shows Inactive", /Inactive/.test(text('#rows tr[data-id="pk15"]')));
+      ok("couple PT tags", /Couple/.test(text('#rows tr[data-id="pk12"]')) && /Needs membership/.test(text('#rows tr[data-id="pk12"]')));
+      ok("max 3 row actions", Math.max.apply(null, Array.prototype.map.call(qa(".row-actions"), function (r) { return r.children.length; })) <= 3);
+      type("#fSearch", "zzz"); ok("no results state", /No packages match/.test(text("#rows")));
+      click(q('[data-act="clear"]')); ok("clear filters", rows() === 16, rows());
+      scan("pk-list");
+    });
+    step("sold package locked + copy as new", function () {
+      click(q('#rows tr[data-id="pk7"] [data-act="open"]'));
+      ok("drawer opens", q("#pkgDrawer").classList.contains("open"));
+      ok("locked message", /Sold 8 times/.test(text("#pkgDrawer")) && /locked/.test(text("#pkgDrawer")));
+      ok("days locked, price editable", q("#pkDays").disabled && !q("#pkPrice").disabled);
+      ok("category locked", q('[data-seg="category"]').disabled);
+      ok("free items listed with rule", q('[data-fi-k="rule"]').value === "Once per client");
+      ok("price history shown", /Price history/.test(text("#pkgDrawer")) && /Current/.test(text("#pkgDrawer")));
+      scan("pk-edit");
+      click(q('#pkgDrawer [data-act="copy"]'));
+      ok("copy: name (copy), unlocked", q("#pkName").value === "Annual Membership (copy)" && !q("#pkDays").disabled);
+      type("#pkDays", "400"); click(q("#pkgDrawer [data-save]"));
+      var c = D().packages.filter(function (p) { return p.name === "Annual Membership (copy)"; })[0];
+      ok("copy saved as a new package", !!c && c.days === 400 && c.soldCount === 0 && D().packages.length === 17);
+      ok("original unchanged", pk("pk7").days === 365);
+    });
+    step("new package validation + result box", function () {
+      click(q("#btnNew"));
+      click(q("#pkgDrawer [data-save]"));
+      ok("required errors", /Enter a name/.test(text("#pkgDrawer")) && /Enter the number of days/.test(text("#pkgDrawer")) && /Enter a price/.test(text("#pkgDrawer")));
+      type("#pkName", "monthly membership"); type("#pkDays", "30"); type("#pkPrice", "0");
+      ok("price 0 without trial = error box", /Not allowed/.test(text("[data-result]")));
+      click(q("#pkgDrawer [data-save]"));
+      ok("duplicate name blocked", /already exists/.test(text("#pkgDrawer")));
+      ok("price 0 blocked on save", /only allowed for a trial/.test(text("#pkgDrawer")));
+      seg("isTrial", "true");
+      ok("trial + 0 = Free trial stays a Lead", /Free trial/.test(text("[data-result]")) && /stays a Lead/.test(text("[data-result]")));
+      type("#pkPrice", "1050");
+      ok("trial + price = Paid trial", /Paid trial/.test(text("[data-result]")));
+      ok("GST worked out backwards (5%)", /Includes GST ₹50 \(5%\) · base ₹1,000/.test(text("[data-gst]")), text("[data-gst]"));
+      type("#pkName", "Trial Paid 10 Days");
+      click(q("#pkgDrawer [data-fi-add]"));
+      ok("free item row added", qa("#pkgDrawer .free-row").length === 1);
+      click(q('#pkgDrawer [data-pkbranch="b3"]'));
+      click(q("#pkgDrawer [data-save]"));
+      var n = D().packages.filter(function (p) { return p.name === "Trial Paid 10 Days"; })[0];
+      ok("saved: derived Trial Paid, 2 branches, 1 free item", !!n && n.saleType === "Trial Paid" && n.branchIds.length === 2 && n.freeItems.length === 1 && n.price === 1050);
+    });
+    step("PT form + future price", function () {
+      click(q("#btnNew")); seg("category", "PT");
+      ok("PT shows sessions + people, requires membership checked", !!q("#pkSess") && !!q('[data-seg="people"]') && q('[data-f="requiresMembership"]').checked);
+      seg("category", "Add-on");
+      ok("Add-on hides days/trial, kind = Transfer", !q("#pkDays") && !q('[data-seg="isTrial"]') && q("#pkSub").value === "Transfer");
+      key("Escape"); ok("Esc closes drawer", !q("#pkgDrawer").classList.contains("open"));
+      click(q('#rows tr[data-id="pk5"] [data-act="open"]'));
+      var d = new Date(); d.setDate(d.getDate() + 10); var iso = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+      type("#pkPrice", "8500"); type("#pkFrom", iso); click(q("#pkgDrawer [data-save]"));
+      ok("future price stored, current stays", pk("pk5").price === 8000 && pk("pk5").priceHistory.length === 2 && /₹8,500 from/.test(text('#rows tr[data-id="pk5"]')));
+      click(q('#rows tr[data-id="pk5"] [data-act="open"]'));
+      type("#pkPrice", "9000"); type("#pkFrom", "2020-01-01"); click(q("#pkgDrawer [data-save]"));
+      ok("past start date blocked", /can't start in the past/.test(text("#pkgDrawer")));
+      key("Escape");
+    });
+    step("packages access (placeholder)", function () {
+      role("Sales Manager");
+      ok("manager: view only banner, no New", /View only/.test(text("#banner")) && q("#btnNew").hidden);
+      ok("manager: View action, no Copy", /View/.test(text("#rows")) && !q('#rows [data-act="copy"]'));
+      click(q('#rows tr[data-id="pk4"] [data-act="open"]'));
+      ok("manager: form read-only", q("#pkName").disabled && !q("#pkgDrawer [data-save]"));
+      key("Escape");
+      role("Sales Executive");
+      ok("sales executive: no access state", /don't have access/.test(text("#content")));
+    });
+    W().sessionStorage.setItem("mock.role", "CEO");
+    load(PK + "?debug", function () {
+      step("packages debug states", function () {
+        ok("debug bar visible with ?debug", vis(q("#debugBar")));
+        click(q('#debugBar [data-state="error"]')); ok("error state + retry", /Couldn't load/.test(text("#rows")) && !!q("[data-state-retry]"));
+        click(q('#debugBar [data-state="empty"]')); ok("empty state", /No packages yet/.test(text("#rows")));
+        click(q('#debugBar [data-state="loading"]')); ok("loading skeleton", !!q("#rows .skeleton"));
+      });
+      load(PK, function () {
+        ok("debug bar hidden without ?debug", !vis(q("#debugBar")));
+        load(IT + "?tab=items", function () {
+          step("items tab", function () {
+            role("CEO");
+            ok("5 items incl. key fob", qa("[data-item]").length === 5 && /Key fob/.test(text("#panel")));
+            ok("selling price visible to CEO", /₹1,200/.test(text("#panel")));
+            click(q('[data-act="item"][data-id="it1"]'));
+            ok("key fob: deposit label", /Refundable deposit/.test(text("#itemDrawer")) && /separate|own line/.test(text("#itemDrawer")));
+            ok("reserved refund policy section", /Reserved · not used yet/.test(text("#itemDrawer")) && q("#itemDrawer fieldset").disabled);
+            key("Escape");
+            click(q('[data-act="newItem"]')); click(q("#itemDrawer [data-save]"));
+            ok("item required fields", /Enter a name/.test(text("#itemDrawer")) && /Enter the cost price/.test(text("#itemDrawer")) && /Enter the selling price/.test(text("#itemDrawer")));
+            type("#itName", "Resistance band"); type("#itCost", "300"); type("#itSell", "250");
+            ok("selling below cost warning", /Selling below cost/.test(text("#itemDrawer")));
+            click(q("#itemDrawer [data-save]"));
+            ok("item added", D().items.length === 6 && qa("[data-item]").length === 6);
+            scan("items");
+            role("Sales Manager");
+            ok("manager: selling price Admin only", /Admin only/.test(text("#panel")) && !/₹1,200/.test(text("#panel")));
+            role("CEO");
+          });
+          step("accessory stock", function () {
+            click(q('[data-itab="stock"]'));
+            var r = Array.prototype.find.call(qa("#panel tbody tr"), function (t) { return /T-shirt/.test(t.textContent) && /Sec 31/.test(t.textContent); });
+            ok("T-shirt Sec 31 out of stock", !!r && /Out of stock/.test(r.textContent));
+            click(r.querySelector('[data-act="stockIn"]'));
+            click(q("#stockInModal [data-save]")); ok("quantity required", vis(q("[data-sierr]")));
+            type("#siQty", "10"); click(q("#stockInModal [data-save]"));
+            ok("stock now 10 + movement", D().itemStock.filter(function (x) { return x.itemId === "it2" && x.branchId === "b1"; })[0].qty === 10);
+            r = Array.prototype.find.call(qa("#panel tbody tr"), function (t) { return /T-shirt/.test(t.textContent) && /Sec 31/.test(t.textContent); });
+            click(r.querySelector('[data-act="stockHist"]'));
+            ok("history shows +10", /\+10/.test(text("#histModal")) && /Opening stock/.test(text("#histModal")));
+            key("Escape");
+            ok("new accessory gets stock rows (0)", /Resistance band/.test(text("#panel")));
+            scan("stock");
+          });
+          step("key fobs", function () {
+            click(q('[data-itab="fobs"]'));
+            ok("all fob statuses with counts", /In stock · \d/.test(text("#panel")) && /Lost · 1/.test(text("#panel")) && /Returned · 1/.test(text("#panel")));
+            ok("deposit from item master", /Deposit per fob: ₹1,200/.test(text("#panel")));
+            ok("assigned fob links client", /Vivaan Joshi/.test(text("#panel")));
+            ok("partial refund shown", /₹600 refunded/.test(text("#panel")));
+            seg("fobStatus", "Lost"); ok("status filter", qa("#panel tbody tr").length === 1 && /KF-S31-0009/.test(text("#panel tbody")));
+            seg("fobStatus", "");
+            click(q('[data-act="addFobs"]'));
+            q("#afBranch").value = "b3"; q("#afBranch").dispatchEvent(new (W().Event)("change", { bubbles: true }));
+            type("#afFrom", "KF-GC-0195"); type("#afTo", "KF-GC-0205");
+            ok("range preview: 9 added, 2 skipped", /9 fobs will be added/.test(text("[data-afprev]")) && /2 already exist/.test(text("[data-afprev]")) && /KF-GC-0201/.test(text("[data-afprev]")), text("[data-afprev]"));
+            type("#afTo", "KF-0300"); ok("different prefix rejected", /same start/.test(text("[data-afprev]")));
+            type("#afFrom", "KF-GC-0001"); type("#afTo", "KF-GC-0900"); ok("max 500 per add", /Up to 500/.test(text("[data-afprev]")));
+            type("#afFrom", "KF-GC-0195"); type("#afTo", "KF-GC-0205");
+            var before = D().keyFobs.length; click(q("#addFobModal [data-save]"));
+            ok("9 fobs added in Golf Course", D().keyFobs.length === before + 9 && D().keyFobs.filter(function (k) { return k.no === "KF-GC-0195"; })[0].branchId === "b3");
+            click(q('[data-act="addFobs"]')); seg("afMode", "single"); type("#afFrom", "KF-GC-0201"); click(q("#addFobModal [data-save]"));
+            ok("single duplicate: nothing to add", /already exist/.test(text("[data-afprev]")));
+            key("Escape");
+            click(q('[data-act="refund"][data-id="KF-S65-0102"]'));
+            ok("refund shows can refund ₹600", /Can refund\s*₹600/.test(text("#refundModal")));
+            seg("rfKind", "partial"); type("#rfAmt", "700"); type("#rfReason", "test"); click(q("#refundModal [data-save]"));
+            ok("partial over limit blocked", /at most ₹600/.test(text("#refundModal")));
+            seg("rfKind", "full"); click(q("#refundModal [data-save]"));
+            ok("reason required", /A reason is needed/.test(text("#refundModal")));
+            type("#rfReason", "Fob returned"); click(q("#refundModal [data-save]"));
+            var k = D().keyFobs.filter(function (x) { return x.no === "KF-S65-0102"; })[0];
+            ok("full refund recorded + history", k.deposit.refunded === 1200 && /Deposit refunded ₹600/.test(k.history[k.history.length - 1].text));
+            ok("refund button gone when nothing left", !q('[data-act="refund"][data-id="KF-S65-0102"]'));
+            scan("fobs");
+          });
+          step("tax categories", function () {
+            click(q('[data-itab="tax"]'));
+            ok("4 tax categories, Gym services 5%", qa("#panel tbody tr").length === 4 && /Gym services\s*5%/.test(text("#panel")));
+            click(q('#headActions [data-act="tax"]')); type("#txName", "Exempt"); type("#txRate", "0"); click(q("#taxModal [data-save]"));
+            ok("duplicate tax name blocked", /already exists/.test(text("#taxModal")));
+            type("#txName", "Goods 5%"); type("#txRate", "5"); click(q("#taxModal [data-save]"));
+            ok("tax added", D().taxCategories.length === 5);
+            click(q('[data-act="tax"][data-id="tx1"]')); type("#txRate", "18"); click(q("#taxModal [data-save]"));
+            ok("rate change flows to GST split (no hardcoded rate)", W().App.gstSplit(1180, "tx1").gst === 180);
+            scan("tax");
+          });
+          step("stock access (placeholder)", function () {
+            role("Club Manager");
+            click(q('[data-itab="fobs"]'));
+            ok("club manager: only own branch (Sec 31) fobs", /KF-S31/.test(text("#panel")) && !/KF-GC/.test(text("#panel")) && !/KF-S65/.test(text("#panel")));
+            role("Sales Executive");
+            ok("sales executive: no access to fobs", /don't have access/.test(text("#panel")));
+            click(q('[data-itab="items"]')); ok("sales executive: no access to item master", /don't have access/.test(text("#panel")));
+          });
+          load(SET, function () {
+            step("settings home", function () {
+              ok("live cards link to packages + items", !!q('a[href="packages.html"]') && !!q('a[href="items.html?tab=fobs"]') && !!q('a[href="items.html?tab=tax"]'));
+              ok("key fob card no longer 'coming soon'", !/Key fob stock/.test(text("#soon")));
+            });
+            load(SET.replace("index.html", "") + "../leads/index.html", function () {
+              step("convert uses package masters", function () {
+                role("CEO");
+                W().App.openProfile("p1", { state: "normal" }); click(q('[data-pd="convert"]')); click(q('#convertModal [data-cv="next"]'));
+                ok("inactive package hidden", !q('[data-pkg="pk15"]'));
+                ok("renewal-only package hidden for leads", !q('[data-pkg="pk16"]'));
+                ok("Add-on not sellable to a lead", !q('[data-pkg="pk13"]'));
+                ok("Student Monthly (new only, Sec 31) offered", !!q('[data-pkg="pk14"]'));
+                click(q('[data-pkg="pk7"]')); click(q('#convertModal [data-cv="next"]')); click(q('#convertModal [data-cv="next"]'));
+                click(q('[data-fob="KF-S31-0013"]')); click(q('#convertModal [data-cv="next"]'));
+                ok("summary: deposit line + total", /Key fob deposit\s*₹1,200/.test(text("#convertModal")) && /Total to pay\s*₹25,200/.test(text("#convertModal")));
+                ok("summary: T-shirt pending issue (out of stock), towel issued", /T-shirt × 1 · Pending issue/.test(text("#convertModal")) && /Gym towel × 1 · Issued/.test(text("#convertModal")));
+                click(q('#convertModal [data-cv="finish"]'));
+                var f = D().keyFobs.filter(function (k) { return k.no === "KF-S31-0013"; })[0];
+                ok("fob deposit recorded", f.deposit && f.deposit.amount === 1200 && /deposit ₹1,200 collected/.test(f.history[f.history.length - 1].text));
+                ok("towel stock down by one", D().itemStock.filter(function (x) { return x.itemId === "it4" && x.branchId === "b1"; })[0].qty === 39);
+                click(q('#convertModal [data-close]'));
+                ok("membership tab shows free items", /Pending issue/.test(text(".pd-scroll")) && /Issued/.test(text(".pd-scroll")));
+              });
+              ok("no null/undefined/NaN on admin pages", !bad.length, bad.join(" "));
+              document.getElementById("out").textContent = out.join("\n");
+            });
+          });
+        });
+      });
+    });
+  });
+});
+</script></body></html>

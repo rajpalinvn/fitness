@@ -1,5 +1,11 @@
 <!doctype html><html><body style="margin:0"><iframe id="f" style="border:0"></iframe><script>
 var a = location.hash.slice(1).split(","), id = a[0], w = +a[1], tab = a[2];
+// "#page,<path from root>,<width>,<role>" = plain page screenshot as a role (sessionStorage is shared with the iframe).
+if (id === "page") {
+  try { sessionStorage.setItem("mock.role", decodeURIComponent(a[3] || "CEO")); sessionStorage.setItem("mock.branch", "all"); } catch (e) {}
+  var pf = document.getElementById("f"); pf.style.width = a[2] + "px"; pf.style.height = "800px"; pf.src = "../../" + decodeURIComponent(a[1]);
+  throw "page mode";
+}
 var f = document.getElementById("f"); f.style.width = w + "px"; f.style.height = "800px";
 f.onload = function () { setTimeout(function () {
   var W = f.contentWindow; W.App.openProfile(id, { state: "normal" });

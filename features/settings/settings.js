@@ -13,8 +13,14 @@
     { k: "sidebar", t: "Sidebar default", d: "How the sidebar starts on desktop. Tablet always starts collapsed.",
       o: [["expanded", "Expanded"], ["collapsed", "Collapsed"]] }
   ];
+  // Live admin pages (decision #56: placeholder access shown on each page).
+  var LIVE = [
+    ["tag", "Packages", "Membership, PT and Add-ons. Price incl. GST, price history, free items.", "packages.html"],
+    ["box", "Items & stock", "Accessories, free items and the key fob. Branch stock and history.", "items.html?tab=items"],
+    ["key", "Key fobs", "Fob numbers per branch, deposits and refunds.", "items.html?tab=fobs"],
+    ["percent", "Tax categories", "GST rates used by packages and items.", "items.html?tab=tax"]
+  ];
   var SOON = [
-    ["key", "Key fob stock", "Fob numbers per branch: In stock, Assigned, Lost, Returned."],
     ["leads", "Lead sources", "Walk-in, Referral, Facebook, Instagram and more."],
     ["clock", "Follow-up types", "Call, WhatsApp, Visit planned, Free trial planned, Payment expected."],
     ["flag", "Lost reasons", "Reasons staff pick when a lead is marked as Lost."],
@@ -31,7 +37,10 @@
             esc(o[1]) + (o[0] === def ? ' <span class="muted">(default)</span>' : "") + "</button>";
         }).join("") + "</div></div>";
     }).join("");
-    document.getElementById("soon").innerHTML = SOON.map(function (s) {
+    document.getElementById("soon").innerHTML = LIVE.map(function (s) {
+      return '<a class="card soon-card" href="' + s[3] + '"><span class="tl-ico">' + App.icon(s[0]) + '</span><strong>' + s[1] +
+        '</strong><span class="cell-sub">' + s[2] + '</span><span class="badge badge-success">Open</span></a>';
+    }).join("") + SOON.map(function (s) {
       return '<div class="card soon-card"><span class="tl-ico">' + App.icon(s[0]) + '</span><strong>' + s[1] +
         '</strong><span class="cell-sub">' + s[2] + '</span><span class="badge">Coming soon</span></div>';
     }).join("");

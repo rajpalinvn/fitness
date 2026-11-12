@@ -20,6 +20,20 @@
   function stock(p) { return D.keyFobs.filter(function (k) { return k.branchId === p.branchId && k.status === "In stock"; }); }
   function reps(p) { return D.users.filter(function (u) { return u.branches.indexOf(p.branchId) > -1 && REP_ROLES.indexOf(u.role) > -1; }); }
 
+  // Packages a lead can buy: active, sold at the lead's branch, audience New or Both, not an Add-on (decisions #47, #50).
+  function sellable(p) {
+    return D.packages.filter(function (x) { return x.active && x.category !== "Add-on" && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal"; });
+  }
+  // Free items: "Once per client" is skipped if the person ever got it free; out of stock -> "Pending issue" (decision #46).
+  function freeLines(p, k) {
+    return (k.freeItems || []).map(function (f) {
+      var it = App.byId(D.items, f.itemId), got = (p.freeItemsReceived || []).indexOf(f.itemId) > -1;
+      if (f.rule === "Once per client" && got) return { itemId: f.itemId, name: it.name, qty: f.qty, status: "Skipped", why: "already received free once" };
+      var st = D.itemStock.filter(function (x) { return x.itemId === f.itemId && x.branchId === p.branchId; })[0];
+      return { itemId: f.itemId, name: it.name, qty: f.qty, status: st && st.qty >= f.qty ? "Issued" : "Pending issue", why: st && st.qty >= f.qty ? "" : "out of stock" };
+    });
+  }
+  function depositDue() { return needsFob() && C.fob ? App.fobDeposit() : 0; }
   // Discount money + percent from what was typed.
   function money() {
     var k = pkg(); if (!k) return { price: 0, disc: 0, pct: 0, final: 0 };
@@ -101,7 +115,7 @@
   function s2(p) {
     var k = pkg(), mo = money(), lim = limitPct();
     var html = GROUPS.map(function (g) {
-      return '<div class="tl-group-label">' + g[1] + '</div><div class="pkg-grid">' + D.packages.filter(function (x) { return x.type === g[0]; }).map(function (x) {
+      return '<div class="tl-group-label">' + g[1] + '</div><div class="pkg-grid">' + sellable(p).filter(function (x) { return x.type === g[0]; }).map(function (x) {
         var pt = x.type === "PT", sel = x.id === C.pkgId;
         return '<button type="button" class="pkg-card' + (sel ? " selected" : "") + '" data-pkg="' + x.id + '"' + (pt ? ' disabled title="PT needs an active membership"' : "") +
           ' aria-pressed="' + sel + '"><strong>' + esc(x.name) + '</strong><span class="cell-sub">' + x.days + (x.days === 1 ? " day" : " days") + (x.sessions ? " · " + x.sessions + " sessions" : "") +
@@ -185,6 +199,8 @@
       if (mo.disc) rows.push(["Discount", App.fmtMoney(mo.disc) + " · " + C.reason.trim()]);
       rows.push(["Final price", App.fmtMoney(mo.final)], ["Sales rep", App.userName(C.repId)]);
       if (k.saleType === "Paid") rows.push(["FF ID", C.ffId.trim() || "Pending"], ["Key fob", C.fob || "Pending"]);
+      if (depositDue()) rows.push(["Key fob deposit", App.fmtMoney(depositDue()) + " (refundable, separate line)"], ["Total to pay", App.fmtMoney(mo.final + depositDue())]);
+      freeLines(p, k).forEach(function (f) { rows.push(["Free item", f.name + " × " + f.qty + " · " + f.status + (f.why ? " (" + f.why + ")" : "")]); });
     }
     if (!p.ownerUserId) rows.push(["Owner", App.me().name + " (you, lead was unassigned)"]);
     var open = App.Followup.openFollowUps(p.id).length;
@@ -245,11 +261,20 @@
     var clientNo = "CL-" + D.nextClientNo++;
     p.kind = "Client"; p.stage = "Converted"; p.clientNo = clientNo; p.homeBranchId = p.branchId; p.joinedAt = now; p.photo = null;
     p.membership = { packageId: k.id, package: k.name, saleType: k.saleType, start: startIso, end: endIso, price: k.price,
-      discount: mo.disc, discountReason: mo.disc ? C.reason.trim() : null, finalPrice: mo.final, salesRepUserId: C.repId };
+      discount: mo.disc, discountReason: mo.disc ? C.reason.trim() : null, finalPrice: mo.final, salesRepUserId: C.repId,
+      freeItems: freeLines(p, k) };
+    p.membership.freeItems.forEach(function (f) {
+      if (f.status !== "Issued") return;
+      var st = D.itemStock.filter(function (x) { return x.itemId === f.itemId && x.branchId === p.branchId; })[0];
+      st.qty -= f.qty; D.stockMoves.push({ itemId: f.itemId, branchId: p.branchId, qty: -f.qty, at: now, by: me.id, note: "Free with " + k.name + " · " + p.name });
+      p.freeItemsReceived = (p.freeItemsReceived || []).concat(f.itemId);
+    });
     p.keyFob = null;
     if (needsFob() && C.fob) {
       var fob = D.keyFobs.filter(function (f) { return f.no === C.fob; })[0];
       fob.status = "Assigned"; fob.personId = p.id; p.keyFob = fob.no;
+      fob.deposit = { amount: App.fobDeposit(), refunded: 0 };   // deposit = a line in the same sale (decision #55)
+      fob.history.push({ at: now, text: "Assigned to " + p.name + " · deposit " + App.fmtMoney(App.fobDeposit()) + " collected", by: me.id });
     }
     var closed = App.Followup.closeBySystem(p.id, "Client converted");
     App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + " · " + App.fmtMoney(mo.final) +
