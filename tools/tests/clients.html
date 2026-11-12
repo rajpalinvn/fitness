@@ -1,0 +1,122 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../", CL = ROOT + "features/clients/index.html", TODAY = ROOT + "features/today/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb, w) { fr.style.width = (w || 1280) + "px"; fr.onload = function () { setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); }
+function chk(sel, v) { var e = q(sel); e.checked = v; e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function cnt(k) { var c = q('[data-card="' + k + '"] .count'); return c ? +c.textContent : -1; }
+function ids() { return Array.prototype.map.call(qa("#rows tr[data-id]"), function (r) { return r.dataset.id; }); }
+function rowOf(id) { return q('#rows tr[data-id="' + id + '"]'); }
+function D() { return W().DUMMY; }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+var todayPending = {};
+
+load(TODAY, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(TODAY, function () {
+    todayPending.ceo = +text('[data-jump="pending"] .count');
+    var all = q("#sec-pending .today-all");
+    ok("Today View all -> clients ?view=attention", !!all && /clients\/index\.html\?view=attention/.test(all.getAttribute("href")), all && all.outerHTML);
+    W().App.setRole("Sales Executive"); W().App.setBranch("b1");
+    todayPending.se = +text('[data-jump="pending"] .count');
+    W().App.setRole("CEO"); W().App.setBranch("all");
+    load(CL, function () {
+      step("cards + default view (CEO, all branches)", function () {
+        ok("sidebar Clients is active", /Clients/.test(text(".nav-item.active")));
+        ok("5 cards, Needs attention first", qa("#pipeline .pipe-card").length === 5 && qa("#pipeline .pipe-card")[0].dataset.card === "attention");
+        ok("Needs attention = Today pending count (CEO)", cnt("attention") === todayPending.ceo, cnt("attention") + " vs " + todayPending.ceo);
+        ok("Renewal due 2+ (3 and 12 days left)", cnt("renewal") >= 2 && !!rowOf("p19") && !!rowOf("p20"));
+        ok("Expired card counts 3 (5d, 60d, trial ended)", cnt("expired") === 3, cnt("expired"));
+        ok("default view hides Expired", !rowOf("p21") && !rowOf("p22") && !rowOf("p23"));
+        ok("ends-on column: '12 Nov 2026' + days left", /\d{1,2} [A-Z][a-z]{2} \d{4}/.test(text('#rows tr[data-id="p19"] .col-next')) && /3 days left/.test(text('#rows tr[data-id="p19"] .col-next')));
+        ok("PT column: 5 of 12 unlocked", /PT 12 Sessions/.test(text('#rows tr[data-id="p18"]')) && /5 of 12 unlocked/.test(text('#rows tr[data-id="p18"]')));
+        ok("balance column with date", /₹6,600\s*by \d{1,2} [A-Z][a-z]{2} \d{4}/.test(text('#rows tr[data-id="p7"]')));
+        ok("branch column shown for All branches", !q("#clientTable").classList.contains("hide-branch"));
+        var order = ids(), firstCalm = order.findIndex(function (id) { return !W().App.clientNeedsAttention(W().App.byId(D().people, id)); });
+        ok("sort: needs attention first", order.slice(0, firstCalm).every(function (id) { return W().App.clientNeedsAttention(W().App.byId(D().people, id)); }) &&
+          order.slice(firstCalm).every(function (id) { return !W().App.clientNeedsAttention(W().App.byId(D().people, id)); }));
+        ok("no bad text", !badText(), badText());
+      });
+      step("cards filter", function () {
+        click(q('[data-card="expired"]'));
+        ok("Expired card shows expired + trial ended", ids().length === 3 && /Trial ended/.test(text('#rows tr[data-id="p23"]')) && /Expired 60 days ago/.test(text('#rows tr[data-id="p22"]')));
+        click(q('[data-card="expired"]')); ok("click again clears", !q('[data-card].selected') && !rowOf("p22"));
+        click(q('[data-card="trial"]')); ok("Paid trial card: running paid trials only", ids().length === 1 && !!rowOf("p6"));
+        click(q('[data-card="trial"]'));
+      });
+      step("row actions (max 3, switch)", function () {
+        ok("max 3 actions per row", Array.prototype.every.call(qa("#rows tr"), function (r) { return r.querySelectorAll(".row-actions button").length <= 3; }));
+        ok("balance -> Collect payment", /Collect payment/.test(text('#rows tr[data-id="p7"] .row-actions')) && !/Follow-up/.test(text('#rows tr[data-id="p7"] .row-actions')));
+        ok("no balance -> + Follow-up", /Follow-up/.test(text('#rows tr[data-id="p19"] .row-actions')) && !/Collect payment/.test(text('#rows tr[data-id="p19"] .row-actions')));
+        click(q('#rows tr[data-id="p24"] [data-act="pay"]'));
+        ok("Collect payment opens the shared modal (PT balance), no drawer", q("#payModal").classList.contains("open") && /PT 24 Sessions/.test(text("#payModal")) && !q("#profileDrawer.open"));
+        click(q("#payModal [data-save]"));
+        ok("paid -> action switches to + Follow-up, attention count -1", /Follow-up/.test(text('#rows tr[data-id="p24"] .row-actions')) && cnt("attention") === todayPending.ceo - 1);
+        click(q('#rows tr[data-id="p19"] [data-act="follow"]'));
+        ok("+ Follow-up opens the shared modal", q("#fuAddModal").classList.contains("open")); key("Escape");
+      });
+      step("row click opens the profile on Membership with ‹ ›", function () {
+        click(q('#rows tr[data-id="p19"] td'));
+        ok("drawer opens on the client (link #client-divya)", q("#profileDrawer").classList.contains("open") && W().location.hash === "#client-divya", W().location.hash);
+        ok("‹ › through the list", / of /.test(text(".pd-pos")));
+        key("Escape");
+      });
+      step("search + filters", function () {
+        type("#fSearch", "KF-S65-0110"); ok("search by key fob", ids().join() === "p20");
+        type("#fSearch", "FF-20705"); ok("search by FF ID", ids().join() === "p24");
+        type("#fSearch", "CL-1000"); ok("search by client no", ids().join() === "p18");
+        type("#fSearch", "9000001252"); ok("search by mobile digits", ids().join() === "p19");
+        type("#fSearch", "zzz"); ok("no results state", /No clients match/.test(text("#stateBox")));
+        click(q("#btnClear2"));
+        chk("#fPt", true); ok("has PT filter", ids().length === 2 && !!rowOf("p18") && !!rowOf("p24"));
+        chk("#fPt", false); chk("#fBal", true); ok("balance due filter", ids().every(function (id) { return /₹/.test(text('#rows tr[data-id="' + id + '"] td:nth-child(5)')); }) && ids().length >= 2);
+        click(q("#btnClear"));
+      });
+      step("branch + roles", function () {
+        W().App.setBranch("b2");
+        ok("branch column hidden for one branch", q("#clientTable").classList.contains("hide-branch") && ids().every(function (id) { return W().App.byId(D().people, id).branchId === "b2"; }));
+        W().App.setRole("Sales Executive"); W().App.setBranch("b1");
+        ok("SE: Needs attention = Today pending (Sec 31)", cnt("attention") === todayPending.se, cnt("attention") + " vs " + todayPending.se);
+        ok("SE sees own branch only", ids().every(function (id) { return W().App.byId(D().people, id).branchId === "b1"; }));
+        W().App.setRole("Trainer");
+        ok("Trainer: Clients aren't part of your role", /Clients aren't part of your role/.test(text("#stateBox")) && !ids().length);
+        W().App.setRole("CEO"); W().App.setBranch("all");
+      });
+      load(CL + "?view=attention", function () {
+        step("?view=attention", function () {
+          ok("preselects Needs attention", q('[data-card="attention"]').classList.contains("selected") && ids().length === cnt("attention"));
+          click(q('#rows tr[data-id="p7"] td'));
+        });
+        setTimeout(function () {
+        ok("row click opens the Membership tab (after the loading skeleton)", q(".pd-tabs .tab.active") && q(".pd-tabs .tab.active").dataset.tabK === "membership" && /Vivaan Joshi/.test(text(".pd-left")));
+        load(CL + "?debug", function () {
+          step("debug states", function () {
+            ok("debug bar visible", !q("#debugBar").hidden);
+            click(q('#debugBar [data-state="empty"]')); ok("empty: No clients yet", /No clients yet/.test(text("#stateBox")));
+            click(q('#debugBar [data-state="error"]')); ok("error + retry", !q("#errorBanner").hidden && !!q("#btnRetry"));
+            click(q('#debugBar [data-state="loading"]')); ok("loading skeleton", !!q("#rows .skeleton"));
+          });
+          load(CL, function () {
+            ok("debug bar hidden without ?debug", q("#debugBar").hidden);
+            load(CL, function () {
+              ok("900px: table scrolls in its own box, page has no horizontal scroll", Dc().documentElement.scrollWidth <= W().innerWidth + 1);
+              document.getElementById("out").textContent = out.join("\n");
+            }, 900);
+          });
+        });
+        }, 600);
+      });
+    });
+  });
+});
+</script></body></html>

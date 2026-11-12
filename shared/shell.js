@@ -142,7 +142,7 @@
       { key: "tasks", label: "Tasks", path: "features/tasks/index.html", badge: "openTasks" }] },
     { label: "CRM", items: [
       { key: "leads", label: "Leads", path: "features/leads/index.html" },
-      { key: "clients", label: "Clients", path: null }] }
+      { key: "clients", label: "Clients", path: "features/clients/index.html" }] }
   ];
   var SETTINGS = { key: "settings", label: "Settings", path: "features/settings/index.html" };
   var BADGE = {
@@ -150,7 +150,7 @@
     dueToday: { cls: "amber", say: "follow-ups due today" },
     openTasks: { cls: "neutral", say: "open tasks" }
   };
-  App.built = ["today", "leads", "settings"]; // screens that exist; others show a toast instead of a broken link
+  App.built = ["today", "leads", "clients", "settings"]; // screens that exist; others show a toast instead of a broken link
 
   var app, root, active, isTablet = window.matchMedia("(max-width: 1024px)");
 

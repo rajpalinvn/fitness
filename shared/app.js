@@ -231,6 +231,15 @@
       return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1 ? DUMMY.branches.map(function (b) { return b.id; }) : u.branches.slice();
     }
   };
+  // Clients (decision #91, placeholder Q8): same rule as Today's "Clients with pending items" (#61, #62) so numbers match.
+  // SuperAdmin / CEO: all (top-bar branch). Managers: their branches. Sales Executive: their branch (or their own sale).
+  // Trainer / MXM: none.
+  App.visibleClients = function (branchId) {
+    return DUMMY.people.filter(function (p) {
+      return p.kind === "Client" && App.access.pendingActions(p) && (!branchId || branchId === "all" || p.branchId === branchId);
+    });
+  };
+  App.clientNeedsAttention = function (p) { return !!(App.profilePending && App.profilePending(p).length); };
   App.nextFollowUp = function (personId) {
     var open = DUMMY.followUps.filter(function (f) { return f.personId === personId && f.status === "Open"; });
     open.sort(function (a, b) { return new Date(App.dueIso(a)) - new Date(App.dueIso(b)); });

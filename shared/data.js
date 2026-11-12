@@ -154,7 +154,49 @@
       createdAt: day(-14), lastActivityAt: day(-10), clientNo: "CL-1000", homeBranchId: "b1", joinedAt: day(-10), keyFob: null, photo: null,
       membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-10), end: day(19), price: 3000,
         discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
-      note: "EDGE (payment): partial PT — 12 sessions ₹12,000, paid ₹5,500 -> 5 of 12 sessions unlocked, balance due" }
+      note: "EDGE (payment): partial PT — 12 sessions ₹12,000, paid ₹5,500 -> 5 of 12 sessions unlocked, balance due" },
+    { id: "p19", kind: "Client", name: "Divya Nair", cc: "+91", mobile: "90000 01252", email: "divya.nair@example.com",
+      gender: null, birthDate: null, ffId: "FF-20701", source: "Walk-in", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
+      createdAt: day(-29), lastActivityAt: day(-27), clientNo: "CL-0919", homeBranchId: "b1", joinedAt: day(-27), keyFob: "KF-S31-0021", photo: null,
+      membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-27), end: day(3), price: 3000,
+        discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
+      note: "EDGE (Clients): Renewal due · 3 days left" },
+    { id: "p20", kind: "Client", name: "Sameer Khan", cc: "+91", mobile: "90000 01253", email: "sameer.k@example.com",
+      gender: null, birthDate: null, ffId: "FF-20702", source: "Walk-in", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
+      createdAt: day(-80), lastActivityAt: day(-78), clientNo: "CL-0920", homeBranchId: "b2", joinedAt: day(-78), keyFob: "KF-S65-0110", photo: null,
+      membership: { packageId: "pk5", package: "Quarterly Membership", saleType: "Paid", start: day(-78), end: day(12), price: 8000,
+        discount: 0, discountReason: null, finalPrice: 8000, salesRepUserId: "u7", freeItems: [] },
+      note: "EDGE (Clients): Renewal due · 12 days left, Sec 65" },
+    { id: "p21", kind: "Client", name: "Pallavi Rao", cc: "+91", mobile: "90000 01254", email: "pallavi.rao@example.com",
+      gender: null, birthDate: null, ffId: "FF-20703", source: "Walk-in", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u10", branchId: "b3", remarks: null, externalId: null,
+      createdAt: day(-96), lastActivityAt: day(-94), clientNo: "CL-0921", homeBranchId: "b3", joinedAt: day(-94), keyFob: "KF-GC-0210", photo: null,
+      membership: { packageId: "pk5", package: "Quarterly Membership", saleType: "Paid", start: day(-94), end: day(-5), price: 8000,
+        discount: 0, discountReason: null, finalPrice: 8000, salesRepUserId: "u10", freeItems: [] },
+      note: "EDGE (Clients): Expired 5 days ago, Golf Course" },
+    { id: "p22", kind: "Client", name: "Tarun Mehra", cc: "+91", mobile: "90000 01255", email: "tarun.m@example.com",
+      gender: null, birthDate: null, ffId: "FF-20704", source: "Walk-in", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
+      createdAt: day(-91), lastActivityAt: day(-89), clientNo: "CL-0922", homeBranchId: "b1", joinedAt: day(-89), keyFob: "KF-S31-0022", photo: null,
+      membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-89), end: day(-60), price: 3000,
+        discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
+      note: "EDGE (Clients): Expired 60 days ago" },
+    { id: "p23", kind: "Client", name: "Ira Kapoor", cc: "+91", mobile: "90000 01256", email: "ira.kapoor@example.com",
+      gender: null, birthDate: null, ffId: null, source: "Walk-in", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
+      createdAt: day(-12), lastActivityAt: day(-10), clientNo: "CL-0923", homeBranchId: "b2", joinedAt: day(-10), keyFob: null, photo: null,
+      membership: { packageId: "pk2", package: "Trial Paid 7 Days", saleType: "Trial Paid", start: day(-10), end: day(-4), price: 800,
+        discount: 0, discountReason: null, finalPrice: 800, salesRepUserId: "u7", freeItems: [] },
+      note: "EDGE (Clients): paid trial ended without buying (Q26) -> Trial ended, Expired card" },
+    { id: "p24", kind: "Client", name: "Zoya Siddiqui", cc: "+91", mobile: "90000 01257", email: "zoya.s@example.com",
+      gender: null, birthDate: null, ffId: "FF-20705", source: "Walk-in", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u11", branchId: "b3", remarks: null, externalId: null,
+      createdAt: day(-42), lastActivityAt: day(-40), clientNo: "CL-0924", homeBranchId: "b3", joinedAt: day(-40), keyFob: "KF-GC-0211", photo: null,
+      membership: { packageId: "pk7", package: "Annual Membership", saleType: "Paid", start: day(-40), end: day(324), price: 24000,
+        discount: 0, discountReason: null, finalPrice: 24000, salesRepUserId: "u11", freeItems: [] },
+      note: "EDGE (Clients): PT 24 sessions with a balance, Golf Course" }
   );
 
   // ---------- Payments (decisions #79–#84). payment = { total, paid, dueDate, receipts: [{ no, at, by, rows: [{ method, amount, ref, slip }] }] }
@@ -175,6 +217,17 @@
   // EDGE: partial PT — per-session price (12,000 − 0) / 12 = 1,000; paid 5,500 -> 5 sessions unlocked
   P("p18").pt = { packageId: "pk9", package: "PT 12 Sessions", price: 12000, discount: 0, finalPrice: 12000, sessions: 12, start: day(-10), end: day(79),
     salesRepUserId: "u6", payment: pay(12000, dd(7), [rc("S31-000120", day(-10), "u6", [["Cash", 5500]])]) };
+
+  // Clients list dummy (decision #91): payments for the new clients.
+  P("p19").membership.payment = pay(4200, null, [rc("S31-000101", day(-27), "u6", [["UPI", 4200, "UPI-40012001"]])]);
+  P("p20").membership.payment = pay(9200, null, [rc("S65-000049", day(-78), "u7", [["Card", 9200, "CARD-5521"]])]);
+  P("p21").membership.payment = pay(9200, null, [rc("GC-000024", day(-94), "u10", [["Cash", 9200]])]);
+  P("p22").membership.payment = pay(4200, null, [rc("S31-000077", day(-89), "u6", [["Cash", 4200]])]);
+  P("p23").membership.payment = pay(800, null, [rc("S65-000051", day(-10), "u7", [["UPI", 800, "UPI-40012002"]])]);
+  P("p24").membership.payment = pay(25200, null, [rc("GC-000027", day(-40), "u11", [["Card", 25200, "CARD-6610"]])]);
+  // EDGE: PT 24 sessions ₹22,000, paid ₹11,000 -> per session 916.67 -> 12 of 24 unlocked; balance ₹11,000 due in 10 days
+  P("p24").pt = { packageId: "pk10", package: "PT 24 Sessions", price: 22000, discount: 0, finalPrice: 22000, sessions: 24, start: day(-40), end: day(140),
+    salesRepUserId: "u11", payment: pay(22000, dd(10), [rc("GC-000028", day(-40), "u11", [["UPI", 11000, "UPI-40012003"]])]) };
 
   // CreatedBy never changes; Owner is changeable (history kept); Sales rep is per sale line (decision #36).
   people.forEach(function (p) {
@@ -328,6 +381,11 @@
     { no: "KF-S65-0103", branchId: "b2", status: "Assigned", personId: "p13", deposit: { amount: 1200, refunded: 0 },
       history: [{ at: day(-6), text: "Assigned to Harsh Vardhan · deposit ₹1,200 collected", by: "u7" }] },
     { no: "KF-GC-0201",  branchId: "b3", status: "In stock", personId: null },
+    { no: "KF-S31-0021", branchId: "b1", status: "Assigned", personId: "p19", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-27), text: "Assigned to Divya Nair · deposit ₹1,200 collected", by: "u6" }] },
+    { no: "KF-S31-0022", branchId: "b1", status: "Assigned", personId: "p22", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-89), text: "Assigned to Tarun Mehra · deposit ₹1,200 collected", by: "u6" }] },
+    { no: "KF-S65-0110", branchId: "b2", status: "Assigned", personId: "p20", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-78), text: "Assigned to Sameer Khan · deposit ₹1,200 collected", by: "u7" }] },
+    { no: "KF-GC-0210",  branchId: "b3", status: "Assigned", personId: "p21", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-94), text: "Assigned to Pallavi Rao · deposit ₹1,200 collected", by: "u10" }] },
+    { no: "KF-GC-0211",  branchId: "b3", status: "Assigned", personId: "p24", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-40), text: "Assigned to Zoya Siddiqui · deposit ₹1,200 collected", by: "u11" }] },
     { no: "KF-GC-0202",  branchId: "b3", status: "In stock", personId: null }
   ];
   keyFobs.forEach(function (k) { if (!k.history) k.history = [{ at: day(-90), text: "Added to stock", by: "u1" }]; if (!k.deposit) k.deposit = null; });

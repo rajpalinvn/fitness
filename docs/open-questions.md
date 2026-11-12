@@ -25,4 +25,6 @@ Every question we have not decided yet. When one is decided, move it to
 | Q20 | **Refund / cancel a payment** | Who can reverse a saved receipt (wrong amount, bounced UPI), and does it go back to a lead if nothing is paid? | Accounts | Not built. |
 | Q21 | **GST invoice rounding** | GST is calculated per line and summed (2 decimals). Should the tax invoice round per line or on the total, and is a GSTIN on the receipt needed? | Accounts | Per line, summed. |
 | Q22 | **Discount above the limit** | Today over the limit is blocked. Should a manager be able to approve a higher discount in the moment? | Management | Blocked (no approval flow). |
+| Q25 | **Ex-client** | When does an expired client become an "Ex-client" (the brief's search groups mention Ex-clients)? After N days expired, or never as a separate state? | Product owner + Operations | Expired badge only; no Ex-client state. |
+| Q26 | **Paid trial ended without buying** | A paid trial client whose trial ended and who didn't buy a membership: stays a Client, goes back to a lead, or becomes an Ex-client? | Sales head | Stays a Client, status "Trial ended", shown under the Expired card. |
 

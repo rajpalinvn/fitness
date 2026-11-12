@@ -98,7 +98,7 @@
           status: '<span class="badge badge-warning">Unassigned</span>', action: btn("assign", "Assign", { p: p.id }) });
       } },
     { k: "pending", area: "p", t: "Clients with pending items", ic: "key", tone: "amber", get: pending, words: "FF ID, key fob, free item or payment",
-      empty: "No pending items", allToast: "The Clients list comes next (see roadmap)", show: pendingRole,
+      empty: "No pending items", all: "../clients/index.html?view=attention", show: pendingRole,
       row: function (x) {
         var first = x.items[0], act = { addFf: "ff", goFob: "fob", issue: "issue", pay: "pay" }[first.k];
         return row({ open: x.p.id, tab: "membership", title: esc(x.p.name) + ' <span class="muted">· ' + esc(x.p.clientNo) + "</span>",

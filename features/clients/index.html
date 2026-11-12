@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clients · Fitness Labs</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <script src="../../shared/data.js"></script>
+  <script src="../../shared/app.js"></script>
+  <script src="../../shared/shell.js"></script>
+  <script src="../../shared/followup.js"></script>
+  <script src="../../shared/profile.js"></script>
+  <script src="../../shared/convert.js"></script>
+</head>
+<body>
+<div class="app" data-shell="clients" data-root="../../">
+  <main class="main">
+
+    <!-- Debug bar: only with ?debug in the URL -->
+    <div class="debug-bar" id="debugBar" hidden>
+      <strong>Test states:</strong>
+      <button class="btn btn-sm" data-state="normal">Normal</button>
+      <button class="btn btn-sm" data-state="loading">Loading</button>
+      <button class="btn btn-sm" data-state="empty">Empty (no clients)</button>
+      <button class="btn btn-sm" data-state="error">Error</button>
+    </div>
+
+    <div class="page-head">
+      <span class="muted" id="clientCount"></span>
+      <span class="badge badge-demo" title="Who sees which clients is a placeholder until the permission matrix (Q8)">Placeholder visibility</span>
+    </div>
+
+    <!-- Pipeline cards: click = filter, click again = clear -->
+    <div class="pipeline" id="pipeline"></div>
+
+    <div class="filter-bar">
+      <input class="input grow" type="search" id="fSearch" placeholder="Filter: name, mobile, email, client no, FF ID, key fob" aria-label="Filter this list">
+      <select class="input" id="fStatus" aria-label="Membership status"></select>
+      <select class="input tablet-hide" id="fRep" aria-label="Sales rep"></select>
+      <select class="input tablet-hide" id="fBranch" aria-label="Branch"></select>
+      <button class="btn" id="btnMore">More filters <span data-icon="chevron-down"></span></button>
+      <button class="btn btn-ghost" id="btnClear">Clear all</button>
+    </div>
+
+    <div class="more-filters" id="moreFilters">
+      <div class="field tablet-only-filter"><label for="mRep">Sales rep</label><select class="input" id="mRep"></select></div>
+      <div class="field tablet-only-filter"><label for="mBranch">Branch</label><select class="input" id="mBranch"></select></div>
+      <div class="field"><label for="fPending">Pending item</label><select class="input" id="fPending"></select></div>
+      <div class="field"><label for="fFrom">Joined from</label><input class="input" type="date" id="fFrom"></div>
+      <div class="field"><label for="fTo">Joined to</label><input class="input" type="date" id="fTo"></div>
+      <div class="field"><label><input type="checkbox" id="fPt"> Has PT</label></div>
+      <div class="field"><label><input type="checkbox" id="fBal"> Balance due</label></div>
+    </div>
+
+    <div class="active-filters" id="activeFilters"></div>
+
+    <div id="errorBanner" class="banner banner-danger" hidden>
+      <strong>Couldn't load clients.</strong> Please check your connection.
+      <button class="btn btn-sm" id="btnRetry">Retry</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table" id="clientTable">
+        <thead>
+          <tr>
+            <th class="sticky-1">Name &amp; mobile</th>
+            <th class="sticky-2 col-next">ENDS ON</th>
+            <th>Membership</th>
+            <th>PT</th>
+            <th>Balance due</th>
+            <th>Pending</th>
+            <th>Sales rep</th>
+            <th class="col-branch">Branch</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="stateBox"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Profile drawer, Collect payment and follow-up modals come from shared/profile.js + shared/followup.js -->
+<script src="clients.js"></script>
+</body>
+</html>

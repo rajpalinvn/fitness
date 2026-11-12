@@ -339,3 +339,17 @@
     "Tue, 10 Nov, 5:00 pm") everywhere they appear: list badges, NEXT STEP,
     Today, timeline and modals. Every other full date stays "12 Nov 2026"
     (#86). (Was Q24.)
+91. Clients list (features/clients): list-first like Leads. Cards: Needs
+    attention (any pending item, same helper as Today so counts match),
+    Active (> 15 days), Renewal due (<= 15), Expired, Paid trial; counts
+    follow role + top-bar branch. Default view Active + Renewal due;
+    Expired via its card or filter. Sort: Needs attention first, then fewest
+    days left. Columns: name / mobile / client no, ENDS ON (pinned,
+    "12 Nov 2026" + days left), membership + status, PT sessions unlocked,
+    balance due, pending badges, sales rep, branch (All branches only).
+    Row actions: Call, WhatsApp, Collect payment if there is a balance else
+    + Follow-up. Today's "Clients with pending items" View all opens
+    ?view=attention. Visibility is a placeholder (Q8): SE their branch,
+    managers their branches, CEO / SuperAdmin top-bar branch, Trainer / MXM
+    hidden. Ex-client (Q25) and paid trial ended (Q26) are open.
+
