@@ -171,3 +171,33 @@ Ready for review
 
 ## 5. Status
 Ready for review
+
+---
+
+# Settings → Sales rules (`sales.html`)
+Decisions #77, #80 (Default, can change). Placeholder access (#56): SuperAdmin and CEO edit; Regional Manager,
+Club Manager, Sales Manager view only; others "You don't have access to sales rules".
+
+## 1. Screens
+| Screen | File | Purpose |
+|---|---|---|
+| Discount limits tab | `sales.html?tab=limits` + `sales.js` | Max discount % per role, used by Sell mode. |
+| Payment methods tab | `sales.html?tab=methods` | Methods offered in the Payment step. |
+
+## 2. Flow
+Settings → card "Sales rules · Discount limits" or "Payment methods" → tab. Limits save on change (toast).
+Methods: **+ Payment method** opens an inline form (name, reference required); the switch enables / disables a method.
+
+## 3. Field table
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Max discount (per role) | number % | Yes | — | SE 10, SM 20, Club Manager 30, Regional Manager 50, CEO 50, SuperAdmin 100, Trainer 0, MXM 0 | 0–100 ("Max discount must be between 0 and 100%."). "Changed" badge when it differs from the default. Package only. |
+| Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Net banking, Card | "Enter a name." / "This method already exists." |
+| Reference no. required | switch | — | — | On (Cash: off) | Payment step asks for a reference when on. |
+| Active | switch | — | — | On (Cheque: off, dummy) | At least one method stays active. Online payment (gateway) later. |
+
+## 4. States
+Normal; view only; no access; `?debug` loading / empty / error (same bar as other Settings pages).
+
+## 5. Status
+Ready for review

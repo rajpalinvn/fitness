@@ -215,7 +215,7 @@ load(PK, function () {
                 click(q('[data-fob="KF-S31-0013"]')); click(q('#sellMode [data-cv="next"]'));
                 ok("bill: deposit line + total", /Key fob deposit · KF-S31-0013/.test(text(".cv-bill")) && /₹1,200/.test(text(".cv-bill")) && /₹25,200/.test(text("[data-total]")));
                 ok("bill: T-shirt pending issue (out of stock), towel issued", /T-shirt × 1\s*Pending issue/.test(text(".cv-bill")) && /Gym towel × 1\s*Issued/.test(text(".cv-bill")));
-                click(q('#sellMode [data-cv="finish"]'));
+                click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="finish"]'));
                 var f = D().keyFobs.filter(function (k) { return k.no === "KF-S31-0013"; })[0];
                 ok("fob deposit recorded", f.deposit && f.deposit.amount === 1200 && /deposit ₹1,200 collected/.test(f.history[f.history.length - 1].text));
                 ok("towel stock down by one", D().itemStock.filter(function (x) { return x.itemId === "it4" && x.branchId === "b1"; })[0].qty === 39);

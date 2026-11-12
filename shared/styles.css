@@ -727,3 +727,48 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .disc-row .input-num { flex: 1; min-width: 0; }
 .disc-live { margin-top: var(--space-1); font-weight: var(--font-weight-medium); }
 .fob-pick { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+/* ---------- Sell mode visual polish (decision #84) ---------- */
+.cv-wrap { max-width: calc(var(--sell-main-max) + var(--bill-width) + var(--space-6)); }
+.cv-wrap .stepper { max-width: var(--sell-main-max); }
+.cv-wrap .cv-layout { grid-template-columns: minmax(0, var(--sell-main-max)) var(--bill-width); gap: var(--space-6); }
+.dm-body .cv-body { max-width: none; }
+.cv-body { display: flex; flex-direction: column; gap: var(--space-5); }
+.cv-card { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.cv-card-title { margin: 0 0 var(--space-3); font-size: var(--font-size-md); }
+.cv-card > :last-child { margin-bottom: 0; }
+.cv-card .field { margin-bottom: var(--space-4); }
+.cv-card .field label { margin-bottom: var(--space-1); }
+.cv-card .input:not(.input-num):not(.input-xs) { max-width: var(--field-max); }
+.cv-card .form-grid .input { max-width: none; }
+.cv-card .kv { margin-bottom: var(--space-3); }
+.cv-bill { padding: var(--space-5); }
+.bill-group { padding: var(--space-3) 0; border-top: 1px solid var(--color-border); }
+.bill-group:empty { display: none; }
+.bill-group-label { font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.bill-person { margin-bottom: 0; border-bottom: 0; }
+.bill-gst { border-top: 1px solid var(--color-border); padding: var(--space-2) 0; }
+.bill-subline { display: flex; justify-content: space-between; font-size: var(--font-size-sm); color: var(--color-text-muted); padding: 0 0 var(--space-1) var(--space-3); font-variant-numeric: tabular-nums; }
+.bill-total { margin-top: var(--space-2); padding: var(--space-4) var(--space-3); border: 0; border-radius: var(--radius-md); background: var(--color-primary-soft); }
+.bill-total strong { font-size: var(--font-size-xxl); color: var(--color-nav-active-text); font-variant-numeric: tabular-nums; }
+.bill-paid { padding-top: var(--space-2); }
+.bill-pt { margin: var(--space-2) 0 0; font-weight: var(--font-weight-medium); }
+.cv-foot { display: block; padding: var(--space-3) var(--space-5); }
+.cv-foot-inner { display: grid; grid-template-columns: minmax(0, var(--sell-main-max)) var(--bill-width); gap: var(--space-6); max-width: calc(var(--sell-main-max) + var(--bill-width) + var(--space-6)); }
+.cv-foot-btns { display: flex; justify-content: flex-end; gap: var(--space-2); }
+/* Payment step */
+.pay-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); align-items: end; padding-bottom: var(--space-3); margin-bottom: var(--space-3); border-bottom: 1px dashed var(--color-border); }
+.pay-row .field { margin-bottom: 0; }
+.pay-row .input { max-width: none; }
+.pay-row-actions { grid-column: 1 / -1; display: flex; gap: var(--space-1); }
+.pay-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-3) 0; padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-alt); }
+.pay-sum .cell-sub { grid-column: 1 / -1; }
+.pay-sum-row { display: flex; flex-direction: column; gap: var(--space-1); }
+.pay-sum-row span { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.pay-sum-row strong { font-size: var(--font-size-lg); font-variant-numeric: tabular-nums; }
+.pay-sum-row.is-due strong { color: var(--color-warning); }
+@media (max-width: 1024px) {
+  .cv-wrap .cv-layout, .cv-foot-inner { grid-template-columns: minmax(0, 1fr); }
+  .cv-wrap .stepper { max-width: none; }
+  .pay-row { grid-template-columns: 1fr 1fr; }
+}

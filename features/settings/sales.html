@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sales rules · Settings · Fitness Labs</title>
+  <link rel="stylesheet" href="../../shared/tokens.css">
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <script src="../../shared/data.js"></script>
+  <script src="../../shared/app.js"></script>
+  <script src="../../shared/shell.js"></script>
+  <script src="../../shared/followup.js"></script>
+  <script src="../../shared/profile.js"></script>
+  <script src="../../shared/convert.js"></script>
+</head>
+<body>
+<div class="app" data-shell="settings" data-root="../../" data-title="Sales rules">
+  <main class="main">
+
+    <div class="debug-bar" id="debugBar" hidden>
+      <strong>Test states:</strong>
+      <button class="btn btn-sm" data-state="normal">Normal</button>
+      <button class="btn btn-sm" data-state="loading">Loading</button>
+      <button class="btn btn-sm" data-state="empty">Empty</button>
+      <button class="btn btn-sm" data-state="error">Error</button>
+    </div>
+
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Settings</a><span aria-hidden="true">/</span><span>Sales rules</span></nav>
+      <div class="stack" id="headActions"></div>
+    </div>
+    <div class="tabs" role="tablist" id="srTabs"></div>
+    <div id="banner" hidden></div>
+    <div id="panel"></div>
+
+  </main>
+</div>
+<script src="admin.js"></script>
+<script src="sales.js"></script>
+</body>
+</html>

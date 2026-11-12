@@ -17,7 +17,7 @@ The first screen staff see every day (decisions #22, #24, #61–#63).
 | **Due today** | By time, "Any time" last | Name · type · note · owner (managers) · amber time | **Log outcome** | Leads `?follow=Due today` |
 | **My open tasks** | Overdue first, then priority, then due | Title · person · due · Overdue + priority badges | **Mark done** | Toast: Tasks screen comes next |
 | **Unassigned new leads** (managers only) | Newest first | Name (+ Meta) · source · branch · received | **Assign** | Leads `?owner=none` |
-| **Clients with pending items** | Oldest sale first | Name · client no · package · branch · joined · "Corporate entry: FF ID & key fob" + its badges, then free-item badges (decision #67) | First item: **Add FF ID** / **Assign fob** / **Issue item** | Toast: Clients list comes next |
+| **Clients with pending items** | Oldest sale first | Name · client no · package · branch · joined · "Corporate entry: FF ID & key fob" + its badges, then free-item badges (decision #67), then "Payment due · ₹X by <date>" (#82) | First item: **Add FF ID** / **Assign fob** / **Issue item** / **Collect payment** | Toast: Clients list comes next |
 
 - Row click (not the button) opens the profile drawer (tasks → Tasks tab, pending → Membership tab), with ‹ › through that section.
 - After any action the row leaves its section; counts, sidebar badges and the Leads list update together.

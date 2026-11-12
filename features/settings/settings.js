@@ -18,7 +18,9 @@
     ["tag", "Packages", "Membership, PT and Add-ons. Price incl. GST, price history, free items.", "packages.html"],
     ["box", "Items & stock", "Accessories, free items and the key fob. Branch stock and history.", "items.html?tab=items"],
     ["key", "Key fobs", "Fob numbers per branch, deposits and refunds.", "items.html?tab=fobs"],
-    ["percent", "Tax categories", "GST rates used by packages and items.", "items.html?tab=tax"]
+    ["percent", "Tax categories", "GST rates used by packages and items.", "items.html?tab=tax"],
+    ["flag", "Sales rules · Discount limits", "Highest discount % each role can give on a package.", "sales.html?tab=limits"],
+    ["card", "Payment methods", "Cash, UPI, Net banking, Card. Add or disable methods.", "sales.html?tab=methods"]
   ];
   var SOON = [
     ["leads", "Lead sources", "Walk-in, Referral, Facebook, Instagram and more."],

@@ -235,6 +235,11 @@
     (p.membership.freeItems || []).forEach(function (f) {
       if (f.status === "Pending issue") out.push({ k: "issue", t: "Pending issue · " + f.name, a: "Issue item", itemId: f.itemId });
     });
+    // Balance due (decision #82): "Payment due" until collected.
+    [["membership", p.membership, ""], ["pt", p.pt, "PT "]].forEach(function (x) {
+      var b = x[1] && App.payBalance(x[1].payment);
+      if (b) out.push({ k: "pay", t: "Payment due · " + x[2] + App.fmtMoney(b) + (x[1].payment.dueDate ? " by " + App.fmtDay(x[1].payment.dueDate + "T00:00") : ""), a: "Collect payment", itemId: x[0] });
+    });
     return out;
   }
   function pendingItems(p) {
@@ -243,7 +248,7 @@
       return '<div class="ns-pending"><span class="badge badge-warning">' + esc(x.t) + "</span> " +
         (can ? '<button class="link-btn" data-pd="' + x.k + '"' + (x.itemId ? ' data-item="' + x.itemId + '"' : "") + ">" + esc(x.a) + "</button>" : "") + "</div>";
     }
-    var corp = list.filter(function (x) { return x.k !== "issue"; }), rest = list.filter(function (x) { return x.k === "issue"; });
+    var corp = list.filter(function (x) { return x.k === "addFf" || x.k === "goFob"; }), rest = list.filter(function (x) { return x.k !== "addFf" && x.k !== "goFob"; });
     return (corp.length ? '<div class="corp-label">' + esc(App.CORP_LABEL) + "</div>" + corp.map(one).join("") : "") + rest.map(one).join("");
   }
   App.CORP_LABEL = "Corporate entry: FF ID & key fob";
@@ -537,8 +542,58 @@
         "<dt>FF ID</dt><dd>" + (p.ffId ? esc(p.ffId) : paid ? '<span class="badge badge-warning">FF ID pending</span> <button class="link-btn" data-pd="addFf">Add FF ID</button>' : "Not set yet") + "</dd>" +
         "<dt>Key fob</dt><dd>" + fobHtml + "</dd>" +
         (paid ? kv("Fob stock", App.branchName(p.homeBranchId) + ": " + stock.length + " in stock") : "") + "</dl></section>" +
-      '<p class="hint">Renewals and payments come with the Payment module.</p>';
+      paySection("Payments", m, p) +
+      (p.pt ? ptSection(p) : "") +
+      '<p class="hint">Renewals come later.</p>';
   }
+  // Payments block (decisions #79–#83): Total · Paid · Balance due + receipts.
+  function paySection(title, line, p, extra) {
+    var pay = line && line.payment;
+    if (!pay) return '<section class="corp-sec"><h4 class="sec-title">' + esc(title) + '</h4><p class="muted">No payment recorded yet.</p></section>';
+    var bal = App.payBalance(pay), can = App.access.pendingActions(p);
+    return '<section class="corp-sec" data-pay-sec><h4 class="sec-title">' + esc(title) + '</h4><dl class="kv kv-wide">' + (extra || "") +
+        kv("Total", App.fmtMoney(pay.total)) + kv("Paid", App.fmtMoney(pay.paid)) +
+        "<dt>Balance due</dt><dd>" + (bal ? '<span class="badge badge-warning">' + App.fmtMoney(bal) + (pay.dueDate ? " by " + esc(App.fmtDay(pay.dueDate + "T00:00")) : "") + "</span>" +
+          (can ? ' <button class="link-btn" data-pd="pay" data-item="' + (line === p.pt ? "pt" : "membership") + '">Collect payment</button>' : "") : '<span class="badge badge-success">Paid in full</span>') + "</dd>" +
+        "<dt>Receipts</dt><dd>" + pay.receipts.map(function (r) {
+          return '<div><span class="mono">' + esc(r.no) + "</span> · " + esc(App.fmtDate(r.at)) + " · " + r.rows.map(function (x) {
+            return esc(x.method) + " " + App.fmtMoney(x.amount) + (x.ref ? " (" + esc(x.ref) + ")" : ""); }).join(" + ") + "</div>";
+        }).join("") + "</dd></dl></section>";
+  }
+  function ptSection(p) {
+    var t = p.pt, un = App.ptUnlocked(t.price, t.discount, t.sessions, t.payment ? t.payment.paid : 0);
+    return paySection("Personal training · " + t.package, t, p,
+      kv("Valid", App.fmtDate(t.start) + " – " + App.fmtDate(t.end)) + kv("Per session", App.fmtMoney((t.price - (t.discount || 0)) / t.sessions)) +
+      '<dt>Sessions</dt><dd data-pt-unlocked>Sessions unlocked ' + un + " of " + t.sessions + (un < t.sessions ? ' <span class="cell-sub">· more unlock as the balance is paid</span>' : "") + "</dd>");
+  }
+
+  // Collect a balance (decision #82). Same rules as the Payment step: method, amount (≤ balance), reference except Cash.
+  App.collectPayment = function (pid, what) {
+    var p = App.byId(D.people, pid), line = what === "pt" ? p.pt : p.membership, pay = line && line.payment; if (!pay) return;
+    var bal = App.payBalance(pay), m = App.makeModal("payModal"), methods = App.activePayMethods();
+    m.title.textContent = "Collect payment · " + p.name;
+    m.body.innerHTML = '<dl class="kv kv-wide"><dt>For</dt><dd>' + esc(line.package) + "</dd><dt>Balance due</dt><dd>" + App.fmtMoney(bal) + "</dd>" +
+        "<dt>Receipt no.</dt><dd class=\"mono\">" + esc(App.nextReceiptNo(p.branchId)) + ' <span class="cell-sub">auto</span></dd></dl>' +
+      '<div class="form-grid mt-3"><div class="field"><label for="cpMethod">Method <span class="req">*</span></label><select class="input" id="cpMethod">' +
+        methods.map(function (x) { return "<option>" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
+      '<div class="field"><label for="cpAmt">Amount <span class="req">*</span></label><input class="input" id="cpAmt" type="number" min="1" max="' + bal + '" value="' + bal + '"></div>' +
+      '<div class="field"><label for="cpRef">Reference / transaction no.</label><input class="input" id="cpRef" placeholder="Required except Cash"></div></div>' +
+      '<span class="error" data-cperr hidden></span>';
+    App.enhanceSelect(m.body.querySelector("#cpMethod"));
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save payment</button>';
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var meth = m.body.querySelector("#cpMethod").value, amt = Number(m.body.querySelector("#cpAmt").value), ref = m.body.querySelector("#cpRef").value.trim(), er = m.body.querySelector("[data-cperr]");
+      var bad = !(amt > 0) ? "Enter an amount." : amt > bal ? "More than the balance (" + App.fmtMoney(bal) + ")." : App.payMethod(meth).needsRef && !ref ? "Reference no. is needed for " + meth + "." : "";
+      if (bad) { er.textContent = bad; er.hidden = false; return; }
+      var no = App.nextReceiptNo(p.branchId, true), now = new Date().toISOString();
+      pay.receipts.push({ no: no, at: now, by: App.me().id, rows: [{ method: meth, amount: amt, ref: ref || null, slip: null }] });
+      pay.paid += amt; if (!App.payBalance(pay)) pay.dueDate = null;
+      if (!App.payBalance(pay)) D.followUps.forEach(function (f) { if (f.personId === p.id && f.status === "Open" && f.type === "Payment expected") { f.status = "Closed by system"; f.closedAt = now; f.closeReason = "Payment received"; } });
+      App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(amt) + " received · " + meth + " · receipt " + no + (App.payBalance(pay) ? " · balance " + App.fmtMoney(App.payBalance(pay)) : " · paid in full"));
+      App.close(m.el); App.toast("Payment saved · receipt " + no, "success"); App.dataChanged();
+    };
+    App.openModal("payModal");
+  };
 
   // Key fob actions (decision #13, #29)
   function fobAction(kind) {
@@ -609,6 +664,7 @@
       case "addFf": App.addFfId(p.id); break;
       case "goFob": S.tab = "membership"; render(); fobAction("assign"); break;
       case "issue": App.issueItem(p.id, t.dataset.item); break;
+      case "pay": App.collectPayment(p.id, t.dataset.item); break;
       case "task": App.toast("Task form comes with the Tasks screen", ""); break;
       case "edit": S.editing = true; render(); break;
       case "cancelEdit": S.editing = false; render(); break;

@@ -11,6 +11,7 @@ f.onload = function () { setTimeout(function () {
   var W = f.contentWindow; W.App.openProfile(id, { state: "normal" });
   var d = W.document;
   if (tab === "convert") setTimeout(function () { d.querySelector('[data-pd="convert"]').click(); d.querySelector('[data-cv="next"]').click(); d.querySelector('[data-pkg="pk7"]').click(); }, 100);
+  else if (tab === "pay") setTimeout(function () { var c = function (s) { d.querySelector(s).click(); }; c('[data-pd="convert"]'); c('[data-cv="next"]'); c('[data-pkg="pk7"]'); c('[data-cv="next"]'); c('[data-cv="next"]'); c('[data-fob="KF-S31-0013"]'); c('[data-cv="next"]'); c('[data-cv="next"]'); var a = d.querySelector('#payA0'); a.value = '15000'; a.dispatchEvent(new Event('input', { bubbles: true })); }, 100);
   else if (tab === "quicklead") setTimeout(function () { W.App.closeProfile(); W.App.QuickLead.open({ mobile: "90000 01234" }); d.querySelector('[data-ql="more"]').click(); }, 100);
   else if (tab) setTimeout(function () { d.querySelector('[data-tab-k="' + tab + '"]').click(); }, 100);
 }, 600); };

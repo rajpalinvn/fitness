@@ -33,12 +33,16 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 - **Free trial** → "Book free trial" → stays a **Lead**, stage Trial, timeline
   "Free trial booked · 1 day from today · 3rd free trial". If the lead has no open
   follow-up, the shared "Set next follow-up" modal opens (type Visit planned).
-- **Paid trial / Paid** → "Proceed to Payment" →
+- **Paid trial / Paid** → Summary **Next** → **Step 6 Payment** → **Save payment** (decision #79: "money taken = client";
+  the person becomes a client when the first payment is saved) →
   - person `kind` = Client, stage Converted, next client no (CL-1003, CL-1004 …),
     home branch = lead branch, joined today;
   - membership line saved with package, sale type, start, end, price, discount + reason,
     final price, sales rep;
   - key fob (if picked) → status Assigned, branch stock −1;
+  - payment saved on the membership: one receipt (auto no. per branch, e.g. S31-000124) with one row per method
+    (split payment); total, paid, balance + due date. Balance → "Payment due" pending item (profile + Today) and a
+    "Payment expected" follow-up on the due date. Timeline "Payment ₹16,200 received · Cash ₹10,000 + UPI ₹6,200 · receipt S31-000124 · balance ₹6,600 due Mon 17 Nov";
   - open follow-ups → **Closed by system · Client converted**, owners notified (decision #37);
   - timeline: "Converted to Client · Annual Membership · ₹21,600 (₹2,400 off: Diwali offer) · key fob KF-S31-0013 · sales rep Priya";
   - unassigned lead → converting user becomes owner (owner history kept);
@@ -46,6 +50,10 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
     link becomes `#client-<name>`, the row leaves the Leads list, counts and badges update.
 - After a Paid membership: NEXT STEP shows **FF ID pending** and **Key fob pending**
   separately until filled (decision #40). Paid trial shows neither.
+- **Layout** (decision #84): stepper and steps column max ~760px; every step's content sits in cards with a
+  heading (24px between cards, 16px inside); inputs max ~480px; bill fixed ~380px with grouped lines
+  (package / free items / accessories / key fob / totals) and a highlighted **Total to pay**; footer buttons
+  aligned to the right edge of the steps column. Tablet: one column, bill below, stepper wraps.
 
 ## 3. Field table
 
@@ -63,7 +71,7 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 | Search packages | search text | No | — | empty | Filters by name across all groups; groups with matches open; none → "No packages match "<text>"" (decision #66). |
 | Package | cards in accordions (+ / −) Free trial / Paid trial / Membership / Personal training, count per group; Membership open, others collapsed (#74) | Yes | No | none | Only active packages sold at the lead's branch with audience New or Both; no Add-ons (#57). Price = current price from the price history. PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
 | Price | read-only | — | — | package price | Locked (#14). |
-| Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Not shown for free packages. Can't be negative or more than the price. **Limit by role — PLACEHOLDER:** Sales Executive 10%, Sales Manager 20%, others no limit (admin settings later). Over the limit: inline "Your limit is 10%." while typing; Next blocked (#73). |
+| Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Not shown for free packages. Can't be negative or more than the price. **Limit = the role's max % from Settings → Sales rules** (decision #77, default, can change): SE 10%, SM 20%, Club Manager 30%, Regional Manager / CEO 50%, SuperAdmin 100%. Never "no limit". Applies to the **package only** (note under the row), never accessories or the fob deposit. Over the limit: inline "Your limit is 10%." while typing; Next blocked (#73). |
 | Discount reason | select: Festive offer, Referral, Corporate, Staff family, Other | When discount > 0 | No | — | Shown as soon as the amount is above 0. "A reason is needed for a discount." |
 | Other reason | text | When reason = Other | No | — | "Write the reason." |
 | Sales rep (`salesRepUserId`) | select | Yes (paid packages) | No | lead owner (or you if unassigned) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. |
@@ -86,7 +94,28 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 Read-only list: person, package, sale type, start – end, sales rep, discount reason,
 Corporate entry (FF ID / key fob or "Pending"), owner (if it was unassigned), and how many open
 follow-ups will be closed by system. All money (price, discount, free items, ₹1,200 key fob deposit as its own
-refundable line, GST included, Total to pay) is in the bill summary. Button: **Proceed to Payment** or **Book free trial**.
+refundable line, GST included, Total to pay) is in the bill summary. Button: **Next** (to Payment) or **Book free trial** (free trial has no Payment step).
+
+### Step 6 · Payment (decisions #79–#83; all Default, can change)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Receipt no. | read-only | — | Yes, per branch | next number | `<branch prefix>-<6 digits>`, e.g. S31-000124 (Sec 31), S65-…, GC-…. Taken on save. |
+| Method (per row) | select of **active** payment methods | Yes | No | first active (Cash) | Settings → Payment methods. Disabled methods are hidden. |
+| Amount (per row) | number, 2 decimals | Yes (> 0) | No | row 1 = total to pay | "Enter an amount." |
+| Reference / transaction no. (per row) | text | Yes, except Cash | No | — | "Reference no. is needed for UPI." |
+| Slip (per row) | upload | No | No | — | Mockup: toggles "Slip attached" (placeholder file). |
+| + Add payment row | link | — | — | 1 row | Split payment (e.g. Cash + UPI). Rows can be removed (×). |
+| Total · Paid now · Balance due | derived, live | — | — | — | Also in the bill (Paid now, Balance due). |
+| Balance due date | date | Yes when balance > 0 | No | — | After today. Only for Paid **Membership / PT** packages (partial allowed). "Pick a due date for the balance." |
+
+Rules: Paid now can't be more than the total. **Accessories and the key fob deposit are settled first and in full**
+("Accessories and the key fob deposit (₹1,200) must be paid in full first."). Partial payment only on main packages
+(Paid Membership, PT); a paid trial must be paid in full ("Pay the full amount for this package.").
+**PT sessions** (#83): per-session price = (PT price − discount) / sessions; unlocked = floor(paid towards PT / per-session
+price). Bill and profile show "Sessions unlocked 5 of 12" (12 sessions, ₹12,000, paid ₹5,500 → 5). Leads can't buy PT
+(needs an active membership), so the dummy case is on an existing client (Kabir Malhotra).
+**GST** (#78): each line at its own tax category; bill shows "GST included ₹1,196.10" and a line per rate
+("GST 5% ₹1,142.86", "GST 18% ₹53.24"), always 2 decimals.
 
 ### Bill · added items (decision #71)
 | Field | Type | Required | Unique | Default | Notes |

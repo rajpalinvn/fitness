@@ -1,15 +1,15 @@
 /* Convert to Client stepper (decisions #3, #4, #13, #14, #20, #36–#41, #64–#67, #70–#74).
    Opens IN the profile drawer as "Sell mode" (App.DrawerMode), not as a modal.
      App.Convert.open(personId)
-   Steps: 1 Details · 2 Package · 3 Sale & start · 4 Corporate entry (Paid membership / Paid trial) · 5 Summary.
+   Steps: 1 Details · 2 Package · 3 Sale & start · 4 Corporate entry (Paid membership / Paid trial) · 5 Summary · 6 Payment.
+   The person becomes a client when the first payment is saved ("money taken = client", decision #79).
    Right column: live Bill summary (free items Issue now / Later, + Add item, deposit, GST, total).
-   MOCKUP: the person is converted when "Proceed to Payment" is clicked.
-   REAL APP: convert only after payment succeeds ("money taken = client").
+   Free trial: no payment step; "Book free trial" on Summary.
    Load after profile.js. */
 (function () {
   var D = window.DUMMY, esc = App.esc, icon = App.icon;
   var REP_ROLES = ["Sales Executive", "Sales Manager", "Club Manager"];
-  var STEPS = [{ k: 1, t: "Details" }, { k: 2, t: "Package" }, { k: 3, t: "Sale & start" }, { k: 4, t: "Corporate entry" }, { k: 5, t: "Summary" }];
+  var STEPS = [{ k: 1, t: "Details" }, { k: 2, t: "Package" }, { k: 3, t: "Sale & start" }, { k: 4, t: "Corporate entry" }, { k: 5, t: "Summary" }, { k: 6, t: "Payment" }];
   var CORP = "Corporate entry: FF ID & key fob";
   var GROUPS = [["Trial", "Free trial"], ["Trial Paid", "Paid trial"], ["Membership", "Membership"], ["PT", "Personal training"]];
   var C = null, m = null;
@@ -22,7 +22,8 @@
   function isoDay(d) { var x = new Date(d); return x.getFullYear() + "-" + ("0" + (x.getMonth() + 1)).slice(-2) + "-" + ("0" + x.getDate()).slice(-2); }
   function plus(iso, n) { var d = new Date(iso + "T00:00"); d.setDate(d.getDate() + n); return d; }
   function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-  function limitPct() { var l = D.discountLimits[App.state.role]; return l == null ? null : l; }
+  function limitPct() { return App.discountLimit(); }   // every role has a number (decision #77); never "no limit"
+  function sec(title, body, attrs) { return '<section class="cv-card"' + (attrs || "") + '><h3 class="cv-card-title">' + title + "</h3>" + body + "</section>"; }
   function stock(p) { return D.keyFobs.filter(function (k) { return k.branchId === p.branchId && k.status === "In stock"; }); }
   function reps(p) { return D.users.filter(function (u) { return u.branches.indexOf(p.branchId) > -1 && REP_ROLES.indexOf(u.role) > -1; }); }
   function itemQty(itemId, branchId) { var s = D.itemStock.filter(function (x) { return x.itemId === itemId && x.branchId === branchId; })[0]; return s ? s.qty : 0; }
@@ -62,7 +63,8 @@
     var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
       pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: p.ownerUserId || App.me().id, start: isoDay(new Date()),
-      fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {} };
+      fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
+      pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "" };
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
     var groups = GROUPS.filter(function (g) { return sellable(p).some(function (x) { return x.type === g[0]; }); });
     var def = groups.filter(function (g) { return g[0] === "Membership"; })[0] || groups[0];
@@ -77,7 +79,8 @@
   }
 
   // ---------- render ----------
-  function visibleSteps() { return STEPS.filter(function (s) { return s.k !== 4 || !pkg() || showCorp(); }); }
+  function isFreeTrial() { var k = pkg(); return !!k && k.saleType === "Trial"; }
+  function visibleSteps() { return STEPS.filter(function (s) { return (s.k !== 4 || !pkg() || showCorp()) && (s.k !== 6 || !isFreeTrial()); }); }
   function header() {
     var vs = visibleSteps();
     return '<ol class="stepper" aria-label="Steps">' + vs.map(function (s, i) {
@@ -95,12 +98,14 @@
       return;
     }
     // Stepper across the full width (one line on desktop), then steps left + sticky bill right (bill below on tablet).
-    m.body.innerHTML = header() + '<div class="cv-layout"><div class="cv-main"><div class="cv-body">' + [null, s1, s2, s3, s4, s5][C.step](p) + "</div></div>" +
-      '<aside class="cv-bill" aria-label="Bill summary" data-bill>' + bill(p) + "</aside></div>";
+    m.body.innerHTML = '<div class="cv-wrap">' + header() + '<div class="cv-layout"><div class="cv-main"><div class="cv-body">' + [null, s1, s2, s3, s4, s5, s6][C.step](p) + "</div></div>" +
+      '<aside class="cv-bill" aria-label="Bill summary" data-bill>' + bill(p) + "</aside></div></div>";
     var back = C.step > 1 ? '<button class="btn" data-cv="back">Previous</button>' : '<button class="btn" data-dm-back>Cancel</button>';
-    var k = pkg(), last = C.step === 5;
-    var nextLabel = !last ? "Next" : k && k.saleType === "Trial" ? "Book free trial" : "Proceed to Payment";
-    m.foot.innerHTML = back + '<button class="btn btn-primary" data-cv="' + (last ? "finish" : "next") + '">' + nextLabel + "</button>";
+    var vs = visibleSteps(), last = C.step === vs[vs.length - 1].k;
+    var nextLabel = !last ? "Next" : isFreeTrial() ? "Book free trial" : "Save payment";
+    // Footer aligned with the steps column, not the far edge.
+    m.foot.classList.add("cv-foot");
+    m.foot.innerHTML = '<div class="cv-foot-inner"><div class="cv-foot-btns">' + back + '<button class="btn btn-primary" data-cv="' + (last ? "finish" : "next") + '">' + nextLabel + "</button></div></div>";
     m.foot.querySelector("[data-cv=back]") && (m.foot.querySelector("[data-cv=back]").onclick = function () { go(-1); });
     m.foot.querySelector("[data-dm-back]") && (m.foot.querySelector("[data-dm-back]").onclick = function () { m.exit(); });
     m.foot.querySelector("[data-cv=next], [data-cv=finish]").onclick = last ? finish : function () { go(1); };
@@ -143,35 +148,62 @@
         App.fmtMoney(i.sellingPrice) + " · " + (n ? esc(App.branchName(p.branchId)) + " stock " + n : "Out of stock") + "</span></button>";
     }).join("");
   }
-  function totalsHtml() {
-    var k = pkg(), p = person(), mo = money(), dep = depositDue(), acc = extrasPaid();
+  // GST per line at its own tax category (decision #78); shown by rate with 2 decimals.
+  function gstByRate() {
+    var k = pkg(), mo = money(), dep = depositDue(), by = {};
     var fobItem = D.items.filter(function (i) { return i.kind === "Key fob"; })[0];
-    var gst = App.gstSplit(mo.final, k.taxCategoryId).gst + (dep ? App.gstSplit(dep, fobItem && fobItem.taxCategoryId).gst : 0);
-    C.extras.forEach(function (x) { var l = extraLine(x); if (l.amount) gst += App.gstSplit(l.amount, l.it.taxCategoryId).gst; });
-    var h = bline("Package after discount", App.fmtMoney(mo.final));
-    if (acc) h += bline("Accessories", App.fmtMoney(acc));
-    if (dep) h += bline("Key fob deposit", App.fmtMoney(dep), "Refundable");
-    h += '<div class="bill-gst">' + bline("GST included", App.fmtMoney(Math.round(gst * 100) / 100), "Prices include GST") + "</div>";
-    return h + '<div class="bill-total"><span>Total to pay</span><strong data-total>' + App.fmtMoney(mo.final + acc + dep) + "</strong></div>";
+    function add(amount, taxId) { if (!amount) return; var g = App.gstSplit(amount, taxId); if (g.gst) by[g.rate] = Math.round(((by[g.rate] || 0) + g.gst) * 100) / 100; }
+    add(mo.final, k.taxCategoryId);
+    C.extras.forEach(function (x) { var l = extraLine(x); add(l.amount, l.it.taxCategoryId); });
+    add(dep, fobItem && fobItem.taxCategoryId);
+    return Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).map(function (r) { return { rate: r, gst: by[r] }; });
+  }
+  function payTotals() {
+    var mo = money(), acc = extrasPaid(), dep = depositDue(), total = mo.final + acc + dep;
+    var paid = Math.round(C.pay.rows.reduce(function (s, r) { return s + (Number(r.amount) || 0); }, 0) * 100) / 100;
+    return { total: total, must: acc + dep, paid: paid, balance: Math.max(0, Math.round((total - paid) * 100) / 100), towardsPkg: Math.max(0, paid - acc - dep) };
+  }
+  function ptLine(t) {
+    var k = pkg(); if (!k || k.type !== "PT" || !k.sessions) return "";
+    var un = App.ptUnlocked(k.price, money().disc, k.sessions, C.step === 6 ? t.towardsPkg : t.total);
+    return "Sessions unlocked " + un + " of " + k.sessions;
+  }
+  function totalsHtml() {
+    var mo = money(), dep = depositDue(), acc = extrasPaid(), rates = gstByRate(), t = payTotals();
+    var gst = Math.round(rates.reduce(function (s, r) { return s + r.gst; }, 0) * 100) / 100;
+    var h = '<div class="bill-group">' + bline("Package after discount", App.fmtMoney(mo.final));
+    if (acc) h += bline("Accessories", App.fmtMoney(acc), "Paid in full");
+    if (dep) h += bline("Key fob deposit", App.fmtMoney(dep), "Refundable · paid in full");
+    h += "</div>";
+    h += '<div class="bill-gst" data-gst><div class="bill-line"><div class="bill-what">GST included</div><div class="bill-amt">' + App.fmtMoney2(gst) + "</div></div>" +
+      rates.map(function (r) { return '<div class="bill-subline"><span>GST ' + r.rate + "%</span><span>" + App.fmtMoney2(r.gst) + "</span></div>"; }).join("") + "</div>";
+    h += '<div class="bill-total"><span>Total to pay</span><strong data-total>' + App.fmtMoney(t.total) + "</strong></div>";
+    if (C.step === 6) h += '<div class="bill-paid" data-bill-paid>' + bline("Paid now", App.fmtMoney(t.paid)) + bline("Balance due", App.fmtMoney(t.balance),
+      t.balance && C.payDue ? "by " + esc(App.fmtDay(C.payDue + "T00:00")) : "") + "</div>";
+    var pl = ptLine(t); if (pl) h += '<p class="bill-pt" data-bill-pt>' + pl + "</p>";
+    return h;
   }
   function bill(p) {
     var k = pkg(), mo = money();
     var html = '<h3 class="bill-title">Bill summary</h3><div class="bill-person"><strong>' + esc(p.name) + '</strong><div class="cell-sub">' +
       esc(p.cc + " " + p.mobile) + " · " + esc(App.branchName(p.branchId)) + "</div></div>";
     if (!k) return html + '<p class="muted bill-empty">Choose a package to see the bill.</p>';
-    html += bline(esc(k.name), k.price ? App.fmtMoney(k.price) : "Free", k.days + (k.days === 1 ? " day" : " days") + (k.sessions ? " · " + k.sessions + " sessions" : ""));
+    html += '<div class="bill-group">' + bline(esc(k.name), k.price ? App.fmtMoney(k.price) : "Free", k.days + (k.days === 1 ? " day" : " days") + (k.sessions ? " · " + k.sessions + " sessions" : ""));
     if (mo.disc) html += bline("Discount", "− " + App.fmtMoney(mo.disc), reasonText() ? esc(reasonText()) : '<span class="warn-text">Reason needed</span>');
-    html += freeLines(p, k).map(freeLineHtml).join("");
-    html += C.extras.map(function (x, i) { return extraHtml(x, i, p); }).join("");
+    html += "</div>";
+    var fl = freeLines(p, k);
+    if (fl.length) html += '<div class="bill-group"><div class="bill-group-label">Free with the package</div>' + fl.map(freeLineHtml).join("") + "</div>";
+    html += '<div class="bill-group"><div class="bill-group-label">Accessories</div>' + C.extras.map(function (x, i) { return extraHtml(x, i, p); }).join("");
     if (k.saleType !== "Trial") {
       html += C.picker
         ? '<div class="bill-pick"><label class="sr-only" for="xPickQ">Search items</label><input class="input input-sm" id="xPickQ" type="search" data-x-q value="' + esc(C.pickQ) + '" placeholder="Search accessories…" autocomplete="off">' +
           '<div class="pick-list" data-x-list>' + pickList(p) + '</div><button type="button" class="link-btn" data-x-cancel>Cancel</button></div>'
         : '<button type="button" class="link-btn bill-add" data-x-add>' + icon("plus", "ico-sm") + "Add item</button>";
     }
-    if (needsFob()) html += !C.fob ? bline("Key fob", "—", "Deposit " + App.fmtMoney(App.fobDeposit()) + " when assigned", ' <span class="badge badge-warning">Pending</span>')
+    html += "</div>";
+    if (needsFob()) html += '<div class="bill-group">' + (!C.fob ? bline("Key fob", "—", "Deposit " + App.fmtMoney(App.fobDeposit()) + " when assigned", ' <span class="badge badge-warning">Pending</span>')
       : C.fobFree ? bline("Key fob · " + esc(C.fob), "₹0", "Complimentary · " + (C.fobFreeWhy.trim() ? esc(C.fobFreeWhy.trim()) : '<span class="warn-text">Reason needed</span>'), ' <span class="badge badge-info">Complimentary</span>')
-      : bline("Key fob deposit · " + esc(C.fob), App.fmtMoney(App.fobDeposit()), "Refundable · its own sale line");
+      : bline("Key fob deposit · " + esc(C.fob), App.fmtMoney(App.fobDeposit()), "Refundable · its own sale line")) + "</div>";
     html += '<div data-bill-totals>' + totalsHtml() + "</div>";
     if (k.saleType === "Trial") html += '<p class="hint">Free trial · no payment.</p>';
     return html;
@@ -192,7 +224,7 @@
 
   // Step 1 — confirm details
   function s1(p) {
-    return '<p class="muted">Check the details. Name and mobile can be changed in the Details tab.</p>' +
+    return sec("Contact details", '<p class="muted">Check the details. Name and mobile can be changed in the Details tab.</p>' +
       '<dl class="kv"><dt>Name</dt><dd>' + esc(p.name) + "</dd><dt>Mobile</dt><dd>" + esc(p.cc + " " + p.mobile) + "</dd>" +
       "<dt>Branch</dt><dd>" + esc(App.branchName(p.branchId)) + "</dd></dl>" +
       '<div class="form-grid">' +
@@ -202,7 +234,7 @@
           '<option value="">Choose…</option>' + D.lists.genders.map(function (g) { return "<option" + (g === C.gender ? " selected" : "") + ">" + g + "</option>"; }).join("") +
           "</select>" + err("gender") + "</div>" +
         '<div class="field"><label for="cvBirth">Birth date</label><input class="input" id="cvBirth" data-k="birthDate" type="date" value="' + esc(C.birthDate) + '" max="' + isoDay(new Date()) + '"></div>' +
-      "</div>";
+      "</div>");
   }
   function dupMsg(o) {
     return o.branchId === person().branchId ? "Already used by <strong>" + esc(o.name) + "</strong>."
@@ -232,14 +264,15 @@
   }
   function s2(p) {
     var k = pkg(), mo = money(), lim = limitPct(), de = C.errors.disc || discError();
-    var html = '<div class="field pkg-search"><label for="cvPkgQ" class="sr-only">Search packages</label>' +
+    var html = '<section class="cv-card"><h3 class="cv-card-title">Package</h3><div class="field pkg-search"><label for="cvPkgQ" class="sr-only">Search packages</label>' +
       '<input class="input" id="cvPkgQ" type="search" data-k="pkgQ" autocomplete="off" placeholder="Search packages by name…" value="' + esc(C.pkgQ) + '"></div>' +
       '<div data-pkglist>' + pkgList(p) + "</div>" + err("pkg");
     if (k && k.type === "Trial" && p.freeTrialCount > 0)
       html += '<div class="callout callout-warn">' + icon("alert") + "<span>This is their " + ordinal(p.freeTrialCount + 1) + " free trial.</span></div>";
     if (k && k.people === 2) html += '<p class="hint">Converts this person only. Adding the partner comes later.</p>';
+    html += "</section>";
     if (k && k.price > 0) {
-      html += '<div class="form-grid mt-3">' +
+      html += '<section class="cv-card"><h3 class="cv-card-title">Price &amp; discount</h3><div class="form-grid">' +
         '<div class="field"><label>Price</label><div class="input input-static">' + App.fmtMoney(k.price) + ' <span class="muted">· locked</span></div></div>' +
         // Discount (decision #73): [% | ₹] + amount in one row, live line under it, limit note small.
         '<div class="field"><label for="cvDisc">Discount</label><div class="disc-row"><div class="seg seg-join" role="radiogroup" aria-label="Discount type">' +
@@ -247,14 +280,15 @@
           '</div><input class="input input-num' + (de ? " invalid" : "") + '" id="cvDisc" data-k="disc" type="number" min="0" value="' + esc(C.disc) + '" placeholder="0"></div>' +
           '<div class="disc-live" data-disc-line>' + discLine() + "</div>" +
           '<span class="error" data-disc-err' + (de ? "" : " hidden") + ">" + de + "</span>" +
-          '<span class="hint">Your limit: ' + (lim == null ? "no limit" : lim + "%") + ' <span class="badge badge-demo">Placeholder</span></span></div>' +
+          '<span class="hint">Discount applies to the package only, not accessories or the key fob deposit.</span>' +
+          '<span class="hint">Your limit (' + esc(App.state.role) + "): " + lim + '% <span class="badge badge-demo">Default, can change</span></span></div>' +
         (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><select class="input' + inv("reason") + '" id="cvReason" data-k="reason">' +
             '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
             (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
         '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") +
           '</select><span class="hint">Gets the credit for this sale line. Defaults to the lead owner.</span></div>' +
-        "</div>";
+        "</div></section>";
     }
     return html;
   }
@@ -300,11 +334,11 @@
   }
   function s3(p) {
     var k = pkg(), today = isoDay(new Date()), max = isoDay(plus(today, 30)), e = endDate();
-    return saleBox(k) +
-      '<div class="form-grid mt-3"><div class="field"><label for="cvStart">Start date <span class="req">*</span></label>' +
+    return sec("Sale type", saleBox(k)) + sec("Dates",
+      '<div class="form-grid"><div class="field"><label for="cvStart">Start date <span class="req">*</span></label>' +
         '<input class="input' + inv("start") + '" id="cvStart" data-k="start" type="date" min="' + today + '" max="' + max + '" value="' + esc(C.start) + '">' +
         (C.errors.start ? err("start") : '<span class="hint">Today up to 30 days ahead. No back dates.</span>') + "</div>" +
-      '<div class="field"><label>Ends</label><div class="input input-static" data-end>' + (e ? esc(App.fmtDate(e.toISOString())) + ' <span class="muted">· ' + k.days + (k.days === 1 ? " day" : " days") + ", start day included</span>" : "—") + "</div></div></div>";
+      '<div class="field"><label>Ends</label><div class="input input-static" data-end>' + (e ? esc(App.fmtDate(e.toISOString())) + ' <span class="muted">· ' + k.days + (k.days === 1 ? " day" : " days") + ", start day included</span>" : "—") + "</div></div></div>");
   }
   function check3() {
     var e = {}, today = isoDay(new Date()), max = isoDay(plus(today, 30));
@@ -317,21 +351,21 @@
   // Step 4 — Corporate entry: FF ID & key fob (decisions #67, #72, #75)
   function s4(p) {
     var st = stock(p), fobOk = needsFob();
-    var head = '<h3 class="cv-sec-title">' + esc(CORP) + '</h3><p class="muted">' + (fobOk ? "Both are optional now. Each shows as pending on the profile until filled."
+    var head = '<section class="cv-card"><h3 class="cv-card-title">' + esc(CORP) + '</h3><p class="muted">' + (fobOk ? "Both are optional now. Each shows as pending on the profile until filled."
         : "Optional for a paid trial. If left empty nothing shows as pending.") + "</p>" +
       '<div class="field"><label for="cvFf">FF ID</label><input class="input' + inv("ffId") + '" id="cvFf" data-k="ffId" value="' + esc(C.ffId) + '" placeholder="e.g. FF-20500">' +
         (C.errors.ffId ? err("ffId") : '<span class="hint">From the corporate software. Usually added after the client is entered there.</span>') + "</div>";
-    if (!fobOk) return head + '<div class="field"><label>Key fob</label><p class="muted">No key fob for trial memberships.</p></div>';
+    if (!fobOk) return head + '<div class="field"><label>Key fob</label><p class="muted">No key fob for trial memberships.</p></div></section>';
     head += '<div class="field"><label>Key fob</label>';
     if (!st.length) return head + '<div class="callout callout-warn">' + icon("alert") + "<span>No key fobs in stock at " + esc(App.branchName(p.branchId)) +
-      ". You can finish now; <strong>Key fob pending</strong> shows on the profile until one is assigned.</span></div></div>";
+      ". You can finish now; <strong>Key fob pending</strong> shows on the profile until one is assigned.</span></div></div></section>";
     return head + '<p class="muted">' + esc(App.branchName(p.branchId)) + " stock: " + st.length + " in stock</p>" +
       '<div class="fob-pick"><div class="chips" role="radiogroup" aria-label="Key fob">' + st.map(function (f) {
         return '<button type="button" class="chip' + (C.fob === f.no ? " selected" : "") + '" role="radio" aria-checked="' + (C.fob === f.no) + '" data-fob="' + f.no + '">' + icon("key", "ico-sm") + esc(f.no) + "</button>";
       }).join("") + '<button type="button" class="chip' + (C.fob === "" ? " selected" : "") + '" role="radio" aria-checked="' + (C.fob === "") + '" data-fob="">Add later</button></div>' +
       (C.fob ? '<label class="switch"><input type="checkbox" id="cvFobFree" data-fobfree' + (C.fobFree ? " checked" : "") + "><span>Free (no deposit)</span></label>" : "") + "</div>" +
       (C.fob && C.fobFree ? '<div class="field mt-1"><label for="cvFobWhy">Reason for a free fob <span class="req">*</span></label><input class="input' + inv("fobFreeWhy") + '" id="cvFobWhy" data-k="fobFreeWhy" value="' + esc(C.fobFreeWhy) + '" placeholder="e.g. Corporate tie-up">' + err("fobFreeWhy") + "</div>" : "") +
-      '<p class="hint">Usually given after the client is entered in the corporate software. "Add later" shows <strong>Key fob pending</strong>. The deposit is added to the bill.</p></div>';
+      '<p class="hint">Usually given after the client is entered in the corporate software. "Add later" shows <strong>Key fob pending</strong>. The deposit is added to the bill.</p></div></section>';
   }
   function check4() {
     var e = {}, p = person(), ff = C.ffId.trim().toLowerCase();
@@ -354,23 +388,69 @@
     }
     if (!p.ownerUserId) rows.push(["Owner", App.me().name + " (you, lead was unassigned)"]);
     var open = App.Followup.openFollowUps(p.id).length;
-    return '<dl class="kv kv-wide">' + rows.map(function (r) { return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>"; }).join("") + "</dl>" +
+    return sec("Summary", '<dl class="kv kv-wide">' + rows.map(function (r) { return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>"; }).join("") + "</dl>" +
       (!trial && open ? '<p class="hint">' + open + " open follow-up" + (open > 1 ? "s" : "") + " will be closed by system · client converted.</p>" : "") +
-      (trial ? "" : '<div class="callout">' + icon("info") + "<span>Payment comes with the Payment module. In the real app the person becomes a client only after payment succeeds.</span></div>");
+      (trial ? "" : '<div class="callout">' + icon("info") + "<span>Next: Payment. " + esc(p.name.split(" ")[0]) + " becomes a client when the first payment is saved.</span></div>"));
+  }
+
+  // Step 6 — Payment (decisions #79–#83). Money taken = client.
+  function partialOk() { var k = pkg(); return !!k && k.saleType === "Paid" && (k.type === "Membership" || k.type === "PT"); }
+  function paySum() {
+    var t = payTotals(), pl = ptLine(t);
+    return '<div class="pay-sum-row"><span>Total</span><strong>' + App.fmtMoney(t.total) + '</strong></div><div class="pay-sum-row"><span>Paid now</span><strong>' + App.fmtMoney(t.paid) +
+      '</strong></div><div class="pay-sum-row' + (t.balance ? " is-due" : "") + '"><span>Balance due</span><strong>' + App.fmtMoney(t.balance) + "</strong></div>" + (pl ? '<div class="cell-sub">' + pl + "</div>" : "");
+  }
+  function s6(p) {
+    var t = payTotals(), methods = App.activePayMethods(), tomorrow = isoDay(plus(isoDay(new Date()), 1));
+    var rows = C.pay.rows.map(function (r, i) {
+      var pm = App.payMethod(r.method), needs = !pm || pm.needsRef;
+      return '<div class="pay-row" data-pay-row="' + i + '">' +
+        '<div class="field"><label for="payM' + i + '">Method <span class="req">*</span></label><select class="input" id="payM' + i + '" data-pay="method" data-i="' + i + '">' +
+          methods.map(function (x) { return "<option" + (x.name === r.method ? " selected" : "") + ">" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
+        '<div class="field"><label for="payA' + i + '">Amount <span class="req">*</span></label><input class="input' + inv("pa" + i) + '" id="payA' + i + '" type="number" min="1" step="0.01" data-pay="amount" data-i="' + i + '" value="' + esc(r.amount) + '">' + err("pa" + i) + "</div>" +
+        '<div class="field"><label for="payR' + i + '">Reference / transaction no.' + (needs ? ' <span class="req">*</span>' : "") + '</label><input class="input' + inv("pr" + i) + '" id="payR' + i + '" data-pay="ref" data-i="' + i + '" value="' + esc(r.ref) + '" placeholder="' + (needs ? "e.g. UPI-55821934" : "Not needed for cash") + '">' + err("pr" + i) + "</div>" +
+        '<div class="pay-row-actions"><button type="button" class="btn btn-sm" data-pay-slip="' + i + '">' + icon("upload", "ico-sm") + (r.slip ? "Slip attached" : "Slip (optional)") + "</button>" +
+          (C.pay.rows.length > 1 ? '<button type="button" class="btn btn-ghost icon-btn btn-sm" data-pay-del="' + i + '" aria-label="Remove payment row ' + (i + 1) + '">' + icon("x", "ico-sm") + "</button>" : "") + "</div></div>";
+    }).join("");
+    return sec("Payment",
+      '<dl class="kv"><dt>Receipt no.</dt><dd><span class="mono" data-receipt>' + esc(App.nextReceiptNo(p.branchId)) + '</span> <span class="cell-sub">auto, per branch · read-only</span></dd></dl>' +
+      rows + '<button type="button" class="link-btn bill-add" data-pay-add>' + icon("plus", "ico-sm") + "Add payment row (split payment)</button>" +
+      '<div class="pay-sum" data-pay-sum>' + paySum() + "</div>" + (C.errors.pay ? '<p class="error" data-pay-err>' + C.errors.pay + "</p>" : "") +
+      (t.must ? '<p class="hint">Accessories and the key fob deposit (' + App.fmtMoney(t.must) + ") are settled first and must be paid in full.</p>" : "") +
+      (partialOk()
+        ? '<div class="field"><label for="payDue">Balance due date</label><input class="input' + inv("payDue") + '" id="payDue" type="date" data-k="payDue" min="' + tomorrow + '" value="' + esc(C.payDue) + '">' +
+          (C.errors.payDue ? err("payDue") : '<span class="hint">Needed only when there is a balance. Creates "Payment due" on the profile and in Today, and a Payment expected follow-up on that date.</span>') + "</div>"
+        : '<p class="hint">Pay in full: partial payment is only allowed on Membership and PT packages.</p>'),
+      ' data-pay-card');
+  }
+  function check6() {
+    var e = {}, t = payTotals(), today = isoDay(new Date());
+    C.pay.rows.forEach(function (r, i) {
+      if (!(Number(r.amount) > 0)) e["pa" + i] = "Enter an amount.";
+      var pm = App.payMethod(r.method); if (pm && pm.needsRef && !r.ref.trim()) e["pr" + i] = "Reference no. is needed for " + esc(r.method) + ".";
+    });
+    if (t.paid > t.total + 1e-9) e.pay = "Paid now is more than the total (" + App.fmtMoney(t.total) + ").";
+    else if (t.paid + 1e-9 < t.must) e.pay = "Accessories and the key fob deposit (" + App.fmtMoney(t.must) + ") must be paid in full first.";
+    else if (t.balance && !partialOk()) e.pay = "Pay the full amount for this package.";
+    else if (t.balance && !C.payDue) e.payDue = "Pick a due date for the balance.";
+    else if (t.balance && C.payDue <= today) e.payDue = "The due date must be after today.";
+    return e;
   }
 
   // ---------- navigation ----------
   function go(dir) {
     if (dir > 0) {
-      var e = Object.assign([null, check1, check2, check3, check4][C.step](), C.step >= 2 ? checkExtras() : {});
+      var e = Object.assign([null, check1, check2, check3, check4, function () { return {}; }][C.step](), C.step >= 2 ? checkExtras() : {});
       C.errors = e; if (Object.keys(e).length) { render(); var f = m.body.querySelector(".invalid, .error"); if (f && f.focus) f.focus(); return; }
     } else C.errors = {};
     var vs = visibleSteps().map(function (s) { return s.k; }), i = vs.indexOf(C.step) + dir;
     C.step = vs[Math.max(0, Math.min(vs.length - 1, i))];
+    // Payment step: prefill the first row with the total (staff lower it for a partial payment).
+    if (C.step === 6 && C.pay.rows.length === 1 && C.pay.rows[0].amount === "") C.pay.rows[0].amount = String(payTotals().total);
     render();
   }
   function onClick(e) {
-    var t = e.target.closest("[data-pkg],[data-disc],[data-fob],[data-acc],[data-issue],[data-x-add],[data-x-cancel],[data-x-pick],[data-x-del]"); if (!t || t.disabled) return;
+    var t = e.target.closest("[data-pkg],[data-disc],[data-fob],[data-acc],[data-issue],[data-x-add],[data-x-cancel],[data-x-pick],[data-x-del],[data-pay-add],[data-pay-del],[data-pay-slip]"); if (!t || t.disabled) return;
     var p = person();
     if (t.dataset.acc) {
       C.open[t.dataset.acc] = !C.open[t.dataset.acc];
@@ -386,6 +466,9 @@
       if (ex) ex.qty = Math.min(ex.qty + 1, itemQty(ex.itemId, p.branchId)); else C.extras.push({ itemId: t.dataset.xPick, qty: 1, free: false, why: "" });
       C.picker = false; updateBill(); return;
     }
+    if (t.hasAttribute("data-pay-add")) { C.pay.rows.push({ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }); render(); var na = m.body.querySelector("#payA" + (C.pay.rows.length - 1)); if (na) na.focus(); return; }
+    if (t.dataset.payDel) { C.pay.rows.splice(+t.dataset.payDel, 1); C.errors = {}; render(); return; }
+    if (t.dataset.paySlip) { var r = C.pay.rows[+t.dataset.paySlip]; r.slip = r.slip ? "" : "payment-slip-" + (+t.dataset.paySlip + 1) + ".jpg (placeholder)"; render(); return; }
     if (t.dataset.xDel) { C.extras.splice(+t.dataset.xDel, 1); C.errors = {}; updateBill(); return; }
     if (t.dataset.pkg) { C.pkgId = t.dataset.pkg; delete C.errors.pkg; if (pkg().price === 0) { C.disc = ""; C.reason = ""; C.reasonOther = ""; } }
     if (t.dataset.disc) { C.mode = t.dataset.disc; }
@@ -402,6 +485,12 @@
     }
     if (d.xWhy != null) { C.extras[+d.xWhy].why = e.target.value; return; }
     if (d.xFree != null) { var y = C.extras[+d.xFree]; y.free = e.target.checked; if (!y.free) y.why = ""; updateBill(); var w = m.body.querySelector('[data-x-why="' + d.xFree + '"]'); if (w) w.focus(); return; }
+    if (d.pay) {   // payment rows: update totals live without re-rendering the input
+      C.pay.rows[+d.i][d.pay] = e.target.value;
+      if (d.pay === "method" && e.type === "change") { render(); return; }
+      var ps = m.body.querySelector("[data-pay-sum]"); if (ps) ps.innerHTML = paySum();
+      updateTotals(); return;
+    }
     if (e.target.hasAttribute("data-fobfree")) { C.fobFree = e.target.checked; if (!C.fobFree) C.fobFreeWhy = ""; render(); var fw = m.body.querySelector("#cvFobWhy"); if (fw) fw.focus(); return; }
     var k = d.k; if (!k) return;
     C[k] = e.target.value;
@@ -416,6 +505,7 @@
       }
     }
     if (k === "reason" && e.type === "change") { render(); var o = m.body.querySelector("#cvReasonOther"); if (o) o.focus(); return; }
+    if (k === "payDue") { updateTotals(); return; }
     if (k === "fobFreeWhy" || k === "reasonOther") { var b = m.body.querySelector("[data-bill]"); if (b) b.innerHTML = bill(person()); return; }
     updateBill();
     if (k === "start") { var en = m.body.querySelector("[data-end]"), ed = endDate(); if (en && ed) en.innerHTML = esc(App.fmtDate(ed.toISOString())) + ' <span class="muted">· ' + pkg().days + " days, start day included</span>"; }
@@ -424,7 +514,9 @@
 
   // ---------- finish ----------
   function finish() {
-    var xe = checkExtras(); if (Object.keys(xe).length) { C.errors = xe; render(); return; }
+    var xe = Object.assign(checkExtras(), isFreeTrial() ? {} : check6());
+    if (Object.keys(xe).length) { C.errors = xe; render(); var f0 = m.body.querySelector(".invalid, .error"); if (f0 && f0.focus) f0.focus(); return; }
+    var T = isFreeTrial() ? null : payTotals();
     var p = person(), k = pkg(), mo = money(), now = new Date().toISOString(), me = App.me();
     p.email = C.email.trim() || null; p.gender = C.gender; p.birthDate = C.birthDate || null; p.ffId = C.ffId.trim() || null;
     if (!p.ownerUserId) { p.ownerHistory.push({ from: null, to: me.id, at: now, by: me.id }); p.ownerUserId = me.id; App.Followup.openFollowUps(p.id).forEach(function (f) { f.ownerUserId = me.id; }); }
@@ -466,7 +558,15 @@
       fob.deposit = C.fobFree ? { amount: 0, refunded: 0, complimentary: true, reason: C.fobFreeWhy.trim() } : { amount: App.fobDeposit(), refunded: 0 };
       fob.history.push({ at: now, text: "Assigned to " + p.name + (C.fobFree ? " · free, no deposit (" + C.fobFreeWhy.trim() + ")" : " · deposit " + App.fmtMoney(App.fobDeposit()) + " collected"), by: me.id });
     }
+    // Payment (decisions #79–#83): one receipt for this payment, split rows allowed. Balance -> due date + Payment expected follow-up.
+    var receiptNo = App.nextReceiptNo(p.branchId, true);
+    var rows = C.pay.rows.map(function (r) { return { method: r.method, amount: Math.round(Number(r.amount) * 100) / 100, ref: r.ref.trim() || null, slip: r.slip || null }; });
+    p.membership.payment = { total: T.total, paid: T.paid, dueDate: T.balance ? C.payDue : null, receipts: [{ no: receiptNo, at: now, by: me.id, rows: rows }] };
+    if (k.type === "PT") p.membership.sessions = k.sessions;
     var closed = App.Followup.closeBySystem(p.id, "Client converted");
+    App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(T.paid) + " received · " + rows.map(function (r) { return r.method + " " + App.fmtMoney(r.amount); }).join(" + ") +
+      " · receipt " + receiptNo + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + App.fmtDay(C.payDue + "T00:00") : " · paid in full"));
+    if (T.balance) App.Followup.create(p.id, { type: "Payment expected", dueDate: C.payDue, dueTime: null, note: "Balance " + App.fmtMoney(T.balance) + " · receipt " + receiptNo });
     App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + " · " + App.fmtMoney(mo.final) +
       (mo.disc ? " (" + App.fmtMoney(mo.disc) + " off: " + why + ")" : "") + (p.keyFob ? " · key fob " + p.keyFob + (C.fobFree ? " (free)" : "") : "") +
       (p.membership.items.length ? " · " + p.membership.items.map(function (x) { return x.name + " × " + x.qty + (x.free ? " (free)" : ""); }).join(", ") : "") +
@@ -474,7 +574,7 @@
     var pend = App.profilePending ? App.profilePending(p) : [];
     C.done = true;
     C.doneHtml = '<div class="state">' + icon("check") + "<h3>" + esc(p.name) + " is now a client (" + esc(clientNo) + ")</h3>" +
-      '<p class="muted">Payment comes with the Payment module. In the real app this happens only after payment succeeds.</p>' +
+      '<p class="muted">Receipt <span class="mono">' + esc(receiptNo) + "</span> · paid " + App.fmtMoney(T.paid) + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + esc(App.fmtDay(C.payDue + "T00:00")) : " · paid in full") + "</p>" +
       (closed ? '<p class="hint">' + closed + " open follow-up" + (closed > 1 ? "s" : "") + " closed by system · client converted.</p>" : "") +
       (pend.length ? '<div class="stack">' + pend.map(function (x) { return '<span class="badge badge-warning">' + esc(x.t) + "</span>"; }).join("") + "</div>" : "") + "</div>";
     render();

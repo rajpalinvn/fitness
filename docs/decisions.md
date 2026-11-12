@@ -283,3 +283,34 @@
 76. Lead owner: at creation the creator can pick any owner (sales staff of
     the branch). Reassigning an existing lead is managers only (#63).
     (Was Q15.)
+77. Discount limits: every role has a max discount % set by admin in
+    Settings → Sales rules (SuperAdmin / CEO edit). Default, can change:
+    Sales Executive 10%, Sales Manager 20%, Club Manager 30%, Regional
+    Manager 50%, CEO 50%, SuperAdmin 100% (Trainer / MXM 0%). Sell mode uses
+    the current role's limit; "no limit" never shows. The discount applies
+    to the PACKAGE only, never accessories or the key fob deposit.
+78. GST: calculated per line with its own tax category (prices incl. GST),
+    always shown with 2 decimals, and broken down by rate in the bill
+    ("GST 5% ₹1,142.86 · GST 18% ₹53.24").
+79. Payment is step 6 of Sell mode, after Summary. "Money taken = client":
+    the person becomes a client when the first payment is saved. Free trial
+    has no payment step.
+80. Payment methods are an admin list (Settings → Payment methods). Default,
+    can change: Cash, UPI, Net banking, Card; admin can add or disable;
+    online payment comes later.
+81. Payment rows: method, amount, reference / transaction no. (required
+    except Cash), optional slip. Several rows = split payment. Receipt no. is
+    automatic per branch, e.g. S31-000124 (read-only). Default, can change.
+82. Partial payment only on main packages (Paid Membership, PT). Accessories
+    and the key fob deposit are settled first and in full. The bill shows
+    Total, Paid now, Balance due. A balance needs a due date; it creates a
+    "Payment due" pending item (profile + Today, action Collect payment) and
+    a "Payment expected" follow-up on that date. Paying the balance in full
+    closes those follow-ups by system ("Payment received").
+83. PT sessions unlock with payment: per-session price = (PT price −
+    discount) / sessions; unlocked = floor(paid towards PT / per-session
+    price). Shown as "Sessions unlocked 5 of 12" in the bill and profile.
+84. Sell mode layout: steps column max ~760px aligned with the stepper,
+    content in headed cards (24px between, 16px inside), inputs max ~480px,
+    bill fixed ~380px with grouped lines and a highlighted Total to pay,
+    footer buttons aligned with the steps column.

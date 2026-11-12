@@ -70,7 +70,9 @@
   --drawer-width: 880px;
   --modal-width: 520px;
   --modal-width-lg: 820px;
-  --bill-width: 340px;
+  --bill-width: 380px;
+  --sell-main-max: 760px;
+  --field-max: 480px;
   --drawer-mode-min: 80vw;
   --mode-content-max: 1040px;
   --palette-width: 600px;

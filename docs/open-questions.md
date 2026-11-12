@@ -17,5 +17,12 @@ Every question we have not decided yet. When one is decided, move it to
 | Q10 | **Auto-assign new leads** | Only managers assign today (#63). With Meta sync, should new leads be round-robined to Sales Executives of the branch (and skip people on leave)? | Sales head | Manual assign by managers. |
 | Q11 | **Discount limits by role** | Sales Executive 10%, Sales Manager 20%, others no limit are placeholders (#48). Real limits and an approval flow above the limit? | Management | Placeholder limits, over-limit is blocked. |
 | Q12 | **Free trial cap** | Free trials are unlimited with a warning ("3rd free trial", #39). Cap per person / per period? | Admin | Warning only. |
-| Q13 | **Payment failure** | The real app converts only on payment success (#3, #48). What does staff see if payment fails or is partial? | Payment module owner | Not built (Payment later). |
+| Q13 | **Online payment failure** | Offline payments convert on save (#79). When online payment (gateway) comes, what does staff see if it fails mid-way? | Payment module owner | Offline methods only. |
 | Q14 | **Couple PT partner** | Couple PT needs both people as active clients (#43). How is the partner picked at sale, and who is the "main" client for the sale line? | Operations + PT head | Not built (PT sale later). |
+| Q17 | **FF ID format** | Is there a fixed FF ID format to check (e.g. "FF-" + 5 digits), or any text? | Operations | Any text, unique company-wide. |
+| Q18 | **Receipt numbering reset** | Does the per-branch receipt number restart each financial year (e.g. S31/26-27/000001)? | Accounts | Continuous per branch (S31-000124). |
+| Q19 | **Overdue balance** | What happens when a balance passes its due date: block entry, notify a manager, or only show red "Payment overdue"? | Operations + Accounts | Shown as "Payment due" with the date; follow-up turns overdue. |
+| Q20 | **Refund / cancel a payment** | Who can reverse a saved receipt (wrong amount, bounced UPI), and does it go back to a lead if nothing is paid? | Accounts | Not built. |
+| Q21 | **GST invoice rounding** | GST is calculated per line and summed (2 decimals). Should the tax invoice round per line or on the total, and is a GSTIN on the receipt needed? | Accounts | Per line, summed. |
+| Q22 | **Discount above the limit** | Today over the limit is blocked. Should a manager be able to approve a higher discount in the moment? | Management | Blocked (no approval flow). |
+| Q23 | **PT with membership in one sale** | Leads can't buy PT now (needs an active membership). Should "Membership + PT" be sellable together in one Sell mode (PT partial payment)? | Operations + PT head | Not allowed at conversion; PT sold later. |

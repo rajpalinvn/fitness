@@ -136,6 +136,8 @@
     return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   };
   App.fmtMoney = function (n) { return n == null ? "—" : "₹" + Number(n).toLocaleString("en-IN"); };
+  // Money with exactly 2 decimals, used for GST (decision #78): ₹1,196.10
+  App.fmtMoney2 = function (n) { return n == null || isNaN(n) ? "—" : "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   App.firstName = function (u) { return u ? u.name.split(" ")[0] : "Someone"; };
   App.userName = function (id) { var u = App.byId(DUMMY.users, id); return u ? u.name : "Not set yet"; };
   App.me = function () { return App.demoUser() || DUMMY.users[0]; };
@@ -191,9 +193,25 @@
     var t = App.tax(taxId), rate = t ? t.rate : 0, gst = Math.round(price * rate / (100 + rate) * 100) / 100;
     return { rate: rate, gst: gst, base: Math.round((price - gst) * 100) / 100 };
   };
+  // ---------- Sales rules + payments (decisions #77–#84) ----------
+  App.discountLimit = function (role) { var l = DUMMY.discountLimits[role || App.state.role]; return typeof l === "number" ? l : 0; };
+  App.payBalance = function (pay) { return pay ? Math.max(0, Math.round((pay.total - pay.paid) * 100) / 100) : 0; };
+  App.activePayMethods = function () { return DUMMY.paymentMethods.filter(function (m) { return m.active; }); };
+  App.payMethod = function (name) { return DUMMY.paymentMethods.filter(function (m) { return m.name === name; })[0] || null; };
+  // Receipt no. per branch, e.g. S31-000124. take=true uses the number.
+  App.nextReceiptNo = function (branchId, take) {
+    var n = (DUMMY.receiptSeq[branchId] || 0) + 1; if (take) DUMMY.receiptSeq[branchId] = n;
+    return (DUMMY.receiptPrefix[branchId] || "RC") + "-" + ("00000" + n).slice(-6);
+  };
+  // PT: per-session price = (price − discount) / sessions; unlocked = floor(paid towards PT / per-session price) (decision #83).
+  App.ptUnlocked = function (price, discount, sessions, paid) {
+    var per = (price - (discount || 0)) / sessions;
+    return per > 0 ? Math.min(sessions, Math.floor(paid / per + 1e-9)) : sessions;
+  };
   App.fobDeposit = function () { var k = DUMMY.items.filter(function (i) { return i.kind === "Key fob"; })[0]; return k ? k.sellingPrice : 0; };
   // PLACEHOLDER access until the permission matrix (decision #56).
   App.access = {
+    salesRules: function () { return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1; },
     editMasters: function () { return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1; },
     viewMasters: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; },
     stock: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager"].indexOf(App.state.role) > -1; },

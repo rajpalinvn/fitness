@@ -147,8 +147,34 @@
     { id: "p17", kind: "Lead", name: "Arnav Chopra", cc: "+91", mobile: "90000 01250", email: "arnav.c@example.com",
       gender: "Male", birthDate: null, ffId: null, source: "Referral", temperature: "Warm", stage: "Contacted",
       inquiryType: "Call", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null,
-      externalId: null, createdAt: day(-5), lastActivityAt: day(-2), note: "EDGE (Today): overdue 1 day, Priya" }
+      externalId: null, createdAt: day(-5), lastActivityAt: day(-2), note: "EDGE (Today): overdue 1 day, Priya" },
+    { id: "p18", kind: "Client", name: "Kabir Malhotra", cc: "+91", mobile: "90000 01251", email: "kabir.m@example.com",
+      gender: "Male", birthDate: "1996-09-21", ffId: "FF-20610", source: "Walk-in", temperature: "Hot", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
+      createdAt: day(-14), lastActivityAt: day(-10), clientNo: "CL-1000", homeBranchId: "b1", joinedAt: day(-10), keyFob: null, photo: null,
+      membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-10), end: day(19), price: 3000,
+        discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
+      note: "EDGE (payment): partial PT — 12 sessions ₹12,000, paid ₹5,500 -> 5 of 12 sessions unlocked, balance due" }
   );
+
+  // ---------- Payments (decisions #79–#84). payment = { total, paid, dueDate, receipts: [{ no, at, by, rows: [{ method, amount, ref, slip }] }] }
+  function rc(no, at, by, rows) { return { no: no, at: at, by: by, rows: rows.map(function (r) { return { method: r[0], amount: r[1], ref: r[2] || null, slip: r[3] || null }; }) }; }
+  function pay(total, dueDate, receipts) {
+    var paid = 0; receipts.forEach(function (x) { x.rows.forEach(function (r) { paid += r.amount; }); });
+    return { total: total, paid: paid, dueDate: dueDate || null, receipts: receipts };
+  }
+  function P(id) { return people.filter(function (x) { return x.id === id; })[0]; }
+  P("p6").membership.payment = pay(800, null, [rc("S65-000041", day(-2), "u7", [["UPI", 800, "UPI-55821934"]])]);
+  // EDGE: partial membership — Annual + fob deposit ₹22,800, paid ₹16,200 by card, balance ₹6,600 due in 5 days
+  P("p7").membership.payment = pay(22800, dd(5), [rc("S31-000098", day(-100), "u6", [["Card", 16200, "CARD-4471"]])]);
+  // EDGE: full payment, cash
+  P("p12").membership.payment = pay(24000, null, [rc("S31-000121", day(-3), "u6", [["Cash", 24000]])]);
+  // EDGE: split payment cash + UPI (Quarterly ₹8,000 + fob deposit ₹1,200)
+  P("p13").membership.payment = pay(9200, null, [rc("S65-000056", day(-6), "u7", [["Cash", 3000], ["UPI", 6200, "UPI-77120345"]])]);
+  P("p18").membership.payment = pay(3000, null, [rc("S31-000119", day(-10), "u6", [["UPI", 3000, "UPI-60012877"]])]);
+  // EDGE: partial PT — per-session price (12,000 − 0) / 12 = 1,000; paid 5,500 -> 5 sessions unlocked
+  P("p18").pt = { packageId: "pk9", package: "PT 12 Sessions", price: 12000, discount: 0, finalPrice: 12000, sessions: 12, start: day(-10), end: day(79),
+    salesRepUserId: "u6", payment: pay(12000, dd(7), [rc("S31-000120", day(-10), "u6", [["Cash", 5500]])]) };
 
   // CreatedBy never changes; Owner is changeable (history kept); Sales rep is per sale line (decision #36).
   people.forEach(function (p) {
@@ -169,6 +195,8 @@
   var followUps = [
     { id: "f1", personId: "p1", type: "Call", dueDate: dd(-2), dueTime: "17:00", ownerUserId: "u6", status: "Open", outcome: null, note: "Send price for quarterly" },
     { id: "f2", personId: "p4", type: "WhatsApp", dueDate: dd(0), dueTime: "16:00", ownerUserId: "u6", status: "Open", outcome: null, note: "Share batch timings" },
+    { id: "f20", personId: "p7", type: "Payment expected", dueDate: dd(5), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "Balance ₹6,600" },
+    { id: "f21", personId: "p18", type: "Payment expected", dueDate: dd(7), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "PT balance ₹6,500" },
     { id: "f3", personId: "p5", type: "Visit planned", dueDate: dd(2), dueTime: "18:00", ownerUserId: "u6", status: "Open", outcome: null, note: "End of free trial — discuss plans" },
     { id: "f4", personId: "p9", type: "Call", dueDate: dd(0), dueTime: "12:00", ownerUserId: "u10", status: "Open", outcome: null, note: null },
     { id: "f5", personId: "p10", type: "Call", dueDate: dd(3), dueTime: null, ownerUserId: "u7", status: "Open", outcome: null, note: null },
@@ -320,8 +348,20 @@
     followUps: followUps, workTasks: workTasks, timeline: timeline, packages: packages,
     keyFobs: keyFobs, taxCategories: taxCategories, items: items, itemStock: itemStock, stockMoves: stockMoves,
     membershipSubTypes: membershipSubTypes, ptSubTypes: ptSubTypes, addOnKinds: addOnKinds,
-    // PLACEHOLDER (not final): max discount % by role; roles not listed have no limit. Admin settings later.
-    discountLimits: { "Sales Executive": 10, "Sales Manager": 20 },
+    // Max discount % by role (decision #77). Default, can change in Settings → Sales rules. Every role has a number; never "no limit".
+    discountLimits: { "SuperAdmin": 100, "CEO": 50, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0 },
+    discountLimitDefaults: { "SuperAdmin": 100, "CEO": 50, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0 },
+    // Payment methods (decision #80). Default, can change. needsRef: reference / transaction no. required.
+    paymentMethods: [
+      { id: "pm1", name: "Cash", needsRef: false, active: true, isDefault: true },
+      { id: "pm2", name: "UPI", needsRef: true, active: true, isDefault: true },
+      { id: "pm3", name: "Net banking", needsRef: true, active: true, isDefault: true },
+      { id: "pm4", name: "Card", needsRef: true, active: true, isDefault: true },
+      { id: "pm5", name: "Cheque", needsRef: true, active: false, isDefault: false }   // EDGE: disabled method (hidden in Sell mode)
+    ],
+    // Receipt no. per branch (decision #81): <prefix>-<6 digits>, next = last + 1. Default, can change.
+    receiptPrefix: { b1: "S31", b2: "S65", b3: "GC" },
+    receiptSeq: { b1: 123, b2: 57, b3: 31 },
     nextClientNo: 1003, duplicateMobileAttempts: duplicateMobileAttempts,
     docs: [{ personId: "p7", type: "ID proof", name: "Aadhaar copy (placeholder).pdf", at: day(-100), by: "u6" }],
     docTypes: ["ID proof", "Waiver/consent form", "Medical form", "Photo", "Other"],

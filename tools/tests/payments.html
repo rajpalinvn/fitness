@@ -1,0 +1,91 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../", SALES = ROOT + "features/settings/sales.html", TODAY = ROOT + "features/today/index.html", LEADS = ROOT + "features/leads/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { setTimeout(cb, 800); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function change(sel, v) { var e = q(sel); if (typeof v === "boolean") e.checked = v; else e.value = v; e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); }
+function pickSel(id, val) { click(q('[data-dd="sel-' + id + '"]')); click(q('[data-sel="' + id + '"][data-val="' + val + '"]')); }
+function D() { return W().DUMMY; } function person(id) { return W().App.byId(D().people, id); }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+
+load(SALES, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(SALES, function () {
+    step("Settings → Sales rules · Discount limits (CEO edits)", function () {
+      ok("every role has a limit, defaults shown", qa("[data-limit]").length === 8 && q('[data-limit="Sales Executive"]').value === "10" && q('[data-limit="SuperAdmin"]').value === "100" && q('[data-limit="Club Manager"]').value === "30");
+      ok("marked Default, can change", /Default, can change/.test(text("#panel")) && /package/.test(text("#panel")));
+      change('[data-limit="Sales Executive"]', "120");
+      ok("0-100 only", /between 0 and 100/.test(text("#panel")) && D().discountLimits["Sales Executive"] === 10);
+      change('[data-limit="Sales Executive"]', "15");
+      ok("saved + Changed marker", D().discountLimits["Sales Executive"] === 15 && /Changed/.test(text("#panel")));
+      ok("Sell mode uses it", W().App.discountLimit("Sales Executive") === 15);
+      change('[data-limit="Sales Executive"]', "10");
+    });
+    step("Payment methods", function () {
+      click(q('[data-stab="methods"]'));
+      ok("defaults Cash, UPI, Net banking, Card + disabled Cheque", /Cash/.test(text("#panel")) && /Net banking/.test(text("#panel")) && /Disabled/.test(text("#panel")) && qa("[data-pm]").length === 5);
+      click(q('[data-sr="add"]')); click(q('[data-sr="save"]'));
+      ok("name required", /Enter a name/.test(text("#panel")));
+      type("#pmName", "upi"); click(q('[data-sr="save"]'));
+      ok("no duplicates", /already exists/.test(text("#panel")));
+      type("#pmName", "Wallet"); click(q('[data-sr="save"]'));
+      ok("method added", D().paymentMethods.some(function (m) { return m.name === "Wallet" && m.active; }));
+      change('[data-pm="pm3"]', false);
+      ok("disable a method", !W().App.payMethod("Net banking").active && W().App.activePayMethods().every(function (m) { return m.name !== "Net banking"; }));
+      ok("no bad text", !badText(), badText());
+    });
+    step("View only / no access", function () {
+      click(q('[data-stab="limits"]')); W().App.setRole("Club Manager");
+      ok("Club Manager sees but can't edit", /View only/.test(text("#banner")) && !q("[data-limit]") && /30%/.test(text("#panel")), text("#banner") + " / " + text("#panel").slice(0, 200));
+      W().App.setRole("Sales Executive");
+      ok("Sales Executive: no access", /don't have access/.test(text("#panel")));
+      W().App.setRole("CEO");
+    });
+    load(LEADS, function () {
+      step("Profile payments: split, partial, PT sessions", function () {
+        W().App.openProfile("p13", { state: "normal", tab: "membership" });
+        ok("split cash + UPI on one receipt", /Cash ₹3,000 \+ UPI ₹6,200 \(UPI-77120345\)/.test(text("[data-pay-sec]")) && /Paid in full/.test(text("[data-pay-sec]")));
+        W().App.openProfile("p12", { state: "normal", tab: "membership" });
+        ok("full payment cash", /S31-000121/.test(text("[data-pay-sec]")) && /Paid in full/.test(text("[data-pay-sec]")));
+        W().App.openProfile("p7", { state: "normal", tab: "membership" });
+        ok("partial membership: Payment due in NEXT STEP + section", /Payment due · ₹6,600/.test(text(".next-step")) && /₹6,600/.test(text("[data-pay-sec]")));
+        W().App.openProfile("p18", { state: "normal", tab: "membership" });
+        ok("PT: Sessions unlocked 5 of 12 (₹5,500 of ₹12,000)", /Sessions unlocked 5 of 12/.test(text("[data-pt-unlocked]")) && /Per session\s*₹1,000/.test(text(".pd-scroll")));
+        ok("PT balance is a pending item", /Payment due · PT ₹6,500/.test(text(".next-step")));
+        click(Array.prototype.filter.call(qa('[data-pd="pay"][data-item="pt"]'), function (b) { return b.closest("[data-pay-sec]"); })[0]);
+        ok("Collect payment modal: receipt no. + balance", q("#payModal").classList.contains("open") && /S31-000124/.test(text("#payModal")) && q("#cpAmt").value === "6500");
+        q("#cpAmt").value = "1000"; pickSel("cpMethod", "UPI"); click(q("#payModal [data-save]"));
+        ok("UPI needs a reference", /Reference no. is needed for UPI/.test(text("#payModal")));
+        q("#cpRef").value = "UPI-1111"; click(q("#payModal [data-save]"));
+        ok("paid: 6 of 12 unlocked, balance ₹5,500", /Sessions unlocked 6 of 12/.test(text("[data-pt-unlocked]")) && /₹5,500/.test(text(".next-step")) && W().App.nextReceiptNo("b1") === "S31-000125");
+        ok("helper example: 12 sessions, ₹12,000, paid ₹5,500 -> 5", W().App.ptUnlocked(12000, 0, 12, 5500) === 5 && W().App.ptUnlocked(12000, 1200, 12, 5500) === 6);
+        ok("2-decimal money", W().App.fmtMoney2(1196.1) === "₹1,196.10");
+        key("Escape");
+        ok("no bad text", !badText(), badText());
+      });
+      load(TODAY, function () {
+        step("Today: Payment due in pending items", function () {
+          var row = Array.prototype.find.call(qa("#sec-pending .today-row"), function (r) { return /Vivaan/.test(r.textContent); });
+          ok("Vivaan: Payment due + Collect payment", !!row && /Payment due · ₹6,600/.test(row.textContent) && /Collect payment/.test(row.querySelector("button").textContent));
+          click(row.querySelector("button"));
+          ok("opens the shared Collect payment modal", q("#payModal").classList.contains("open"));
+          click(q("#payModal [data-save]"));
+          ok("cash full: balance cleared, row leaves, follow-up closed", !W().App.payBalance(person("p7").membership.payment) &&
+            !Array.prototype.some.call(qa("#sec-pending .today-row"), function (r) { return /Vivaan/.test(r.textContent); }) && W().App.byId(D().followUps, "f20").status === "Closed by system");
+        });
+        document.getElementById("out").textContent = out.join("\n");
+      });
+    });
+  });
+});
+</script></body></html>
