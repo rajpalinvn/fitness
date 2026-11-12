@@ -202,7 +202,15 @@ load(LEADS, function () {
       click(q("[data-x-add]")); click(q('[data-x-pick="it3"]'));
       next(); next(); next(); next();
       ok("on Payment step", !!q("#payA0") && q("#payA0").value === "3349");
+      click(q("[data-x-add]")); click(q('[data-x-pick="it4"]'));
+      ok("adding an item on the Payment step updates Total, prefilled amount and minimum", /Total\s*₹3,598/.test(text("[data-pay-sum]")) && q("#payA0").value === "3598" &&
+        /Minimum ₹1,498 \(accessories ₹598/.test(text("[data-min-msg]")) && /₹3,598/.test(text("[data-total]")), text("[data-pay-sum]"));
+      click(q('[data-x-del="1"]'));
+      ok("removing it goes back", /Total\s*₹3,349/.test(text("[data-pay-sum]")) && q("#payA0").value === "3349");
       type("#payA0", "340");
+      click(q("[data-x-add]")); click(q('[data-x-pick="it4"]'));
+      ok("typed amount is kept; balance + minimum update", q("#payA0").value === "340" && /Balance due\s*₹3,258/.test(text("[data-pay-sum]")) && /Minimum ₹1,498/.test(text("[data-min-msg]")) && btnSave().disabled);
+      click(q('[data-x-del="1"]'));
       ok("₹340 paid: accessories NOT 'paid in full'", /Paid ₹340 · Balance ₹9/.test(text('[data-bl="acc"]')) && !/Paid in full/.test(text('[data-bl="acc"]')), text('[data-bl="acc"]'));
       ok("minimum message with accessories", /Minimum ₹1,249 \(accessories ₹349 \+ 30% of package\)/.test(text("[data-min-msg]")) && btnSave().disabled, text("[data-min-msg]"));
       type("#payA0", "1249");

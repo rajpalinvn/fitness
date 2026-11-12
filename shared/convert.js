@@ -243,8 +243,22 @@
     if (k.saleType === "Trial") html += '<p class="hint">Free trial · no payment.</p>';
     return html;
   }
-  function updateBill() { var b = m && m.body.querySelector("[data-bill]"); if (b) b.innerHTML = bill(person()); }
-  function updateTotals() { var t = m && m.body.querySelector("[data-bill-totals]"); if (t) t.innerHTML = totalsHtml(); }
+  function updateBill() { var b = m && m.body.querySelector("[data-bill]"); if (b) b.innerHTML = bill(person()); refreshPay(); }
+  function updateTotals() { var t = m && m.body.querySelector("[data-bill-totals]"); if (t) t.innerHTML = totalsHtml(); refreshPay(); }
+  // Payment step: when the bill changes (item added / removed / made free, qty, Issue later …) the payment box,
+  // minimum and due date follow. A prefilled amount (not typed by staff) follows the new total.
+  function refreshPay() {
+    if (!C || C.step !== 6 || C.done) return;
+    var t = payTotals();
+    if (C.pay.auto && C.pay.rows.length === 1 && Number(C.pay.rows[0].amount) !== t.total) {
+      C.pay.rows[0].amount = String(t.total);
+      var a0 = m.body.querySelector("#payA0"); if (a0) a0.value = C.pay.rows[0].amount;
+      t = payTotals(); var tt = m.body.querySelector("[data-bill-totals]"); if (tt) tt.innerHTML = totalsHtml();
+    }
+    if ((partialOk() && t.balance > 0) !== !!m.body.querySelector("#payDue")) { render(); return; }
+    var ps = m.body.querySelector("[data-pay-sum]"); if (ps) ps.innerHTML = paySum();
+    syncPay();
+  }
   function checkExtras() {
     var e = {}, p = person();
     C.extras.forEach(function (x, i) {
@@ -482,7 +496,7 @@
     var vs = visibleSteps().map(function (s) { return s.k; }), i = vs.indexOf(C.step) + dir;
     C.step = vs[Math.max(0, Math.min(vs.length - 1, i))];
     // Payment step: prefill the first row with the total (staff lower it for a partial payment).
-    if (C.step === 6 && C.pay.rows.length === 1 && C.pay.rows[0].amount === "") C.pay.rows[0].amount = String(payTotals().total);
+    if (C.step === 6 && C.pay.rows.length === 1 && (C.pay.rows[0].amount === "" || C.pay.auto)) { C.pay.rows[0].amount = String(payTotals().total); C.pay.auto = true; }
     render();
   }
   function onClick(e) {
@@ -523,13 +537,13 @@
     if (d.xFree != null) { var y = C.extras[+d.xFree]; y.free = e.target.checked; if (!y.free) y.why = ""; updateBill(); var w = m.body.querySelector('[data-x-why="' + d.xFree + '"]'); if (w) w.focus(); return; }
     if (d.pay) {   // payment rows: update totals live without re-rendering the input
       C.pay.rows[+d.i][d.pay] = e.target.value;
+      if (d.pay === "amount") C.pay.auto = false;   // staff typed an amount: stop following the total
       if (d.pay === "method" && e.type === "change") { render(); return; }
       var needDue = partialOk() && payTotals().balance > 0;
       if (needDue !== !!m.body.querySelector("#payDue")) {   // due date appears / disappears with the balance
         var id = e.target.id; render(); var back = m.body.querySelector("#" + id); if (back) back.focus(); return;
       }
-      var ps = m.body.querySelector("[data-pay-sum]"); if (ps) ps.innerHTML = paySum();
-      updateTotals(); syncPay(); return;
+      updateTotals(); return;
     }
     if (e.target.hasAttribute("data-fobfree")) { C.fobFree = e.target.checked; if (!C.fobFree) C.fobFreeWhy = ""; render(); var fw = m.body.querySelector("#cvFobWhy"); if (fw) fw.focus(); return; }
     var k = d.k; if (!k) return;
