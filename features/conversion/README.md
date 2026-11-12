@@ -12,12 +12,14 @@
 | Done screen | same drawer | "<name> is now a client (CL-1003)" + payment note + pending items. |
 
 Steps: **1 Details · 2 Package · 3 Sale & start · 4 Corporate entry · 5 Summary**.
-Step 4 "**Corporate entry: FF ID & key fob**" only appears for a Paid **Membership** package (decisions #13, #20, #67).
+Step 4 "**Corporate entry: FF ID & key fob**" appears for a Paid **Membership** (FF ID + fob, pending if empty) and a **Paid trial** (FF ID only, optional, never pending) — decisions #13, #20, #67, #72.
 
 Layout (decision #65): steps on the LEFT, sticky **Bill summary** on the RIGHT:
 person (name, mobile, branch) · package line (price) · discount + reason (+ "Package after discount") ·
-free items (Free, with Issued / Pending issue / Skipped) · key fob deposit (or "Key fob · Pending") ·
-**GST included** (price is incl. GST; package tax category rate, deposit at the Key fob item's rate) · **Total to pay**.
+free items (Free; **Issue now / Later**, default Issue now when in stock, out of stock forced Later = Pending issue; Skipped (already received) as is — #70) ·
+**+ Add item** (search active accessories; qty; price locked from the item master; branch stock shown; out of stock disabled; **Free** switch = complimentary, needs a reason — #71) ·
+key fob deposit, "Key fob · Pending", or "Key fob · Complimentary ₹0" (#75) ·
+totals: Package after discount, Accessories (paid), Key fob deposit, **GST included** (each line at its tax category), **Total to pay**.
 Before a package is chosen: "Choose a package to see the bill." Tablet: the bill moves below the steps.
 
 ## 2. Flow
@@ -59,10 +61,11 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Search packages | search text | No | — | empty | Filters by name across all groups; groups with matches open; none → "No packages match "<text>"" (decision #66). |
-| Package | cards in accordions (+ / −) Free trial / Paid trial / Membership / Personal training, count per group; first group with packages open | Yes | No | none | Only active packages sold at the lead's branch with audience New or Both; no Add-ons (#57). Price = current price from the price history. PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
+| Package | cards in accordions (+ / −) Free trial / Paid trial / Membership / Personal training, count per group; Membership open, others collapsed (#74) | Yes | No | none | Only active packages sold at the lead's branch with audience New or Both; no Add-ons (#57). Price = current price from the price history. PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
 | Price | read-only | — | — | package price | Locked (#14). |
-| Discount | % or ₹ chips + number | No | No | 0, % | Not shown for free packages. Can't be negative or more than the price. **Limit by role — PLACEHOLDER:** Sales Executive 10%, Sales Manager 20%, others no limit (admin settings later). Over the limit: "Your limit is 10%." |
-| Discount reason | text | When discount > 0 | No | — | "A reason is needed for a discount." |
+| Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Not shown for free packages. Can't be negative or more than the price. **Limit by role — PLACEHOLDER:** Sales Executive 10%, Sales Manager 20%, others no limit (admin settings later). Over the limit: inline "Your limit is 10%." while typing; Next blocked (#73). |
+| Discount reason | select: Festive offer, Referral, Corporate, Staff family, Other | When discount > 0 | No | — | Shown as soon as the amount is above 0. "A reason is needed for a discount." |
+| Other reason | text | When reason = Other | No | — | "Write the reason." |
 | Sales rep (`salesRepUserId`) | select | Yes (paid packages) | No | lead owner (or you if unassigned) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. |
 
 ### Step 3 · Sale & start
@@ -76,6 +79,7 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | FF ID | text | No (here) | Yes, company-wide | lead FF ID | From the corporate software; usually added later. Empty → "FF ID pending". Duplicate: same branch "Already used by <name>"; other branch "Already exists in <branch> · Owner: <first name>" + Request access. |
+| Free (no deposit) | switch next to the fob picker | No | — | off | Shown when a fob is picked. On → bill "Key fob · Complimentary ₹0"; reason required ("A reason is needed for a free fob."). Saved as deposit ₹0, complimentary + reason (#75). |
 | Key fob | chips from the lead branch's stock + "Add later" | No (here) | Yes | Add later | Shows "<branch> stock: N in stock". No stock → message and the conversion can finish; "Key fob pending" shows. |
 
 ### Step 5 · Summary
@@ -83,6 +87,15 @@ Read-only list: person, package, sale type, start – end, sales rep, discount r
 Corporate entry (FF ID / key fob or "Pending"), owner (if it was unassigned), and how many open
 follow-ups will be closed by system. All money (price, discount, free items, ₹1,200 key fob deposit as its own
 refundable line, GST included, Total to pay) is in the bill summary. Button: **Proceed to Payment** or **Book free trial**.
+
+### Bill · added items (decision #71)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Item | search + list of active accessories | Yes (per line) | No | — | Shows price and "<branch> stock N"; out of stock disabled. Key fob is not in this list. |
+| Qty | number | Yes | No | 1 | At most the branch stock ("Only N in stock."). Picking the same item again adds 1. |
+| Price | read-only | — | — | item selling price × qty | Locked from the item master (incl. GST). |
+| Free (complimentary) | switch | No | — | off | On → line ₹0 and a reason is required ("A reason is needed for a free item."). |
+| Issue now / Later (package free items) | segmented | — | — | Issue now (in stock) | Out of stock → forced Later. Later → "Pending issue" on the profile. |
 
 ## 4. States
 - **Validation**: "Choose a gender.", "Check the email format.", duplicate messages,

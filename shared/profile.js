@@ -677,10 +677,11 @@
     var dup = qlDup();
     b.innerHTML =
       '<div class="form-grid">' +
-        '<div class="field"><label for="qlName">Name <span class="req">*</span></label><input class="input' + inv("name") + '" id="qlName" data-q="name" value="' + esc(QL.name) + '" autocomplete="off">' + er("name") + "</div>" +
         '<div class="field"><label for="qlMobile">Mobile <span class="req">*</span></label><div class="row row-tight"><select class="input cc" id="qlCc" data-q="cc" data-no-highlight aria-label="Country code">' + opt(L.countryCodes, QL.cc) + "</select>" +
           '<input class="input' + inv("mobile") + (dup ? " invalid" : "") + '" id="qlMobile" data-q="mobile" inputmode="tel" value="' + esc(QL.mobile) + '" placeholder="90000 01234"></div>' +
           '<span class="error" data-qldup' + (dup ? "" : " hidden") + ">" + qlDupHtml(dup) + "</span>" + (dup ? "" : er("mobile")) + '<span class="hint">Unique across all branches.</span></div>' +
+        // Mobile first (duplicate check before typing a name), Name second — decision #74.
+        '<div class="field"><label for="qlName">Name <span class="req">*</span></label><input class="input' + inv("name") + '" id="qlName" data-q="name" value="' + esc(QL.name) + '" autocomplete="off">' + er("name") + "</div>" +
         '<div class="field"><label for="qlSource">Source <span class="req">*</span></label><select class="input' + inv("source") + '" id="qlSource" data-q="source">' + opt(L.sources, QL.source, "Choose…") + "</select>" + er("source") + "</div>" +
         '<div class="field"><label>Temperature</label><div class="seg" role="radiogroup" aria-label="Temperature">' + L.temperatures.map(function (t) {
           return '<button type="button" class="seg-btn' + (QL.temperature === t ? " active" : "") + '" role="radio" aria-checked="' + (QL.temperature === t) + '" data-qltemp="' + t + '">' + t + "</button>"; }).join("") + "</div></div>" +
@@ -695,6 +696,7 @@
         '<div class="field"><label for="qlGender">Gender</label><select class="input" id="qlGender" data-q="gender">' + opt(L.genders, QL.gender, "Not set yet") + "</select></div>" +
         '<div class="field"><label for="qlBirth">Birth date</label><input class="input" id="qlBirth" type="date" data-q="birthDate" value="' + esc(QL.birthDate) + '" max="' + App.todayIso() + '"></div>' +
         '<div class="field"><label for="qlInq">Inquiry type</label><select class="input" id="qlInq" data-q="inquiryType">' + opt(L.inquiryTypes, QL.inquiryType, "Not set yet") + "</select></div>" +
+        '<div class="field"><label for="qlFf">FF ID</label><input class="input mono' + inv("ffId") + '" id="qlFf" data-q="ffId" value="' + esc(QL.ffId) + '" placeholder="e.g. FF-20500">' + (e.ffId ? er("ffId") : '<span class="hint">Optional. Unique company-wide.</span>') + "</div>" +
         '<div class="field"><label for="qlCamp">Campaign</label><input class="input" id="qlCamp" data-q="campaign" value="' + esc(QL.campaign) + '"></div>' +
         '<div class="field"><label for="qlRem">Remarks</label><textarea class="input" id="qlRem" rows="2" data-q="remarks">' + esc(QL.remarks) + "</textarea></div>" +
       "</div>" : "") +
@@ -728,13 +730,16 @@
     if (!QL.source) e.source = "Choose a source.";
     if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) e.email = "Check the email format.";
     else if (em && D.people.some(function (o) { return (o.email || "").toLowerCase() === em; })) e.email = "This email is already used by another person.";
-    if (e.email) QL.more = true;
+    var ff = QL.ffId.trim().toLowerCase();
+    if (ff) { var fd = D.people.filter(function (o) { return (o.ffId || "").toLowerCase() === ff; })[0];
+      if (fd) e.ffId = fd.branchId === QL.branchId ? "Already used by <strong>" + esc(fd.name) + "</strong>." : "Already exists in " + esc(App.branchName(fd.branchId)) + " · Owner: " + esc(fd.ownerUserId ? App.firstName(App.byId(D.users, fd.ownerUserId)) : "Unassigned") + "."; }
+    if (e.email || e.ffId) QL.more = true;
     QL.errors = e;
     if (Object.keys(e).length || qlDup()) { qlRender(); var f = ql.querySelector(".invalid"); if (f) f.focus(); return; }
     var now = new Date().toISOString(), me = App.me(), id = "p" + (D.people.length + 1);
     while (App.byId(D.people, id)) id += "x";
     var p = { id: id, kind: "Lead", name: QL.name.trim(), cc: QL.cc, mobile: fmtMobile(QL.mobile), email: em || null, gender: QL.gender || null,
-      birthDate: QL.birthDate || null, ffId: null, source: QL.source, temperature: QL.temperature, stage: "New", lostReason: null,
+      birthDate: QL.birthDate || null, ffId: QL.ffId.trim() || null, source: QL.source, temperature: QL.temperature, stage: "New", lostReason: null,
       inquiryType: QL.inquiryType || null, campaign: QL.campaign.trim() || null, ownerUserId: QL.ownerUserId, branchId: QL.branchId,
       remarks: QL.remarks.trim() || null, externalId: null, createdAt: now, lastActivityAt: now, createdByUserId: me.id, ownerHistory: [], freeTrialCount: 0 };
     D.people.push(p);
@@ -754,9 +759,10 @@
       var num = String(o.mobile || "").trim(), cc = "+91";
       var m1 = /^(\+\d{1,3})\s+(.*)$/.exec(num); if (m1 && L.countryCodes.indexOf(m1[1]) > -1) { cc = m1[1]; num = m1[2]; }
       QL = { name: "", cc: cc, mobile: num, source: "", temperature: "Warm", ownerUserId: me.id, branchId: br, more: false,
-        email: "", gender: "", birthDate: "", inquiryType: "", campaign: "", remarks: "", errors: {} };
+        email: "", gender: "", birthDate: "", ffId: "", inquiryType: "", campaign: "", remarks: "", errors: {} };
       qlRender();
       App.openDrawer("quickLeadDrawer");
+      setTimeout(function () { var f = ql.querySelector(num ? "#qlName" : "#qlMobile"); if (f) f.focus(); }, 60);
     }
   };
   // Pages without the quick lead send "+ Lead" here as ?new=1 (&mobile=…).

@@ -54,7 +54,8 @@
     fobStatuses: ["In stock", "Assigned", "Lost", "Returned"],
     inquiryTypes: ["Call", "Walk-in"],
     genders: ["Female", "Male", "Other"],
-    countryCodes: ["+91", "+971", "+1", "+44"]
+    countryCodes: ["+91", "+971", "+1", "+44"],
+    discountReasons: ["Festive offer", "Referral", "Corporate", "Staff family", "Other"]   // "Other" needs text (decision #73)
   };
 
   // Lead + client share ONE person record (kind: "Lead" | "Client").

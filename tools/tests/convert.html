@@ -21,6 +21,7 @@ function next() { click(q('#sellMode [data-cv="next"]')); }
 function finish() { click(q('#sellMode [data-cv="finish"]')); }
 function steps() { return Array.prototype.map.call(qa("#sellMode .step"), function (s) { return s.textContent.replace(/^\d/, "").trim(); }).join(","); }
 function pick(id, grp) { if (!q('[data-pkg="' + id + '"]')) click(q('[data-acc="' + grp + '"]')); click(q('[data-pkg="' + id + '"]')); }
+function check(sel, on) { var e = q(sel); e.checked = on; e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
 function startConvert(id) { W().App.openProfile(id, { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); }
 function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
 var bad = [];
@@ -43,8 +44,9 @@ load(LEADS, function () {
       ok("FF ID not in Details step", !q("#cvFf"));
       ok("name + mobile read-only, gender required", /Aarav Patel/.test(mtext()) && /\+91 90000 01234/.test(mtext()) && /Gender \*/.test(mtext()));
       scan("p1/1"); next();
-      ok("step 2: groups as accordions with counts, first open", qa("#sellMode .acc").length === 4 && q('[data-acc="Trial"]').getAttribute("aria-expanded") === "true" &&
-        q('[data-acc="Membership"]').getAttribute("aria-expanded") === "false" && !q('[data-pkg="pk7"]') && /Membership\s*\d+/.test(text('[data-acc="Membership"]')));
+      ok("stepper on one line at 1280px", (function () { var s = qa("#sellMode .step"); return s[0].getBoundingClientRect().top === s[s.length - 1].getBoundingClientRect().top; })());
+      ok("step 2: groups as accordions with counts, Membership open", qa("#sellMode .acc").length === 4 && q('[data-acc="Membership"]').getAttribute("aria-expanded") === "true" &&
+        q('[data-acc="Trial"]').getAttribute("aria-expanded") === "false" && !!q('[data-pkg="pk7"]') && !q('[data-pkg="pk1"]') && /Membership\s*\d+/.test(text('[data-acc="Membership"]')));
       type("#cvPkgQ", "annual");
       ok("search filters across groups + auto-expands", !!q('[data-pkg="pk7"]') && !!q('[data-pkg="pk11"]') && !q('[data-pkg="pk1"]') && /1 of|2 of/.test(text("[data-pkglist]")));
       type("#cvPkgQ", "zumba"); ok("search: No packages match", /No packages match/.test(text("[data-pkglist]")));
@@ -52,20 +54,41 @@ load(LEADS, function () {
       click(q('[data-acc="PT"]'));
       ok("PT disabled for leads with reason", q('[data-pkg="pk9"]').disabled && /PT needs an active membership/.test(q('[data-pkg="pk9"]').textContent));
       next(); ok("package required", /Choose a package/.test(mtext()));
-      click(q('[data-acc="Membership"]'));
       ok("card shows free items", /Free: T-shirt, Gym towel/.test(q('[data-pkg="pk7"]').textContent));
       click(q('[data-pkg="pk7"]'));
       ok("bill: package + free items with status", /Annual Membership/.test(text(".cv-bill")) && /T-shirt × 1/.test(text(".cv-bill")) && /Pending issue/.test(text(".cv-bill")) && /Gym towel × 1/.test(text(".cv-bill")) && /Issued/.test(text(".cv-bill")));
       ok("bill: GST included + total", /GST included/.test(text(".cv-bill")) && /Total to pay/.test(text(".cv-bill")) && /₹24,000/.test(text("[data-total]")));
+      ok("free item in stock: Issue now by default; out of stock forced Later", /Issue now/.test(text(".cv-bill")) && /Later \(forced\)/.test(text(".cv-bill")) && !q('[data-issue="it2"]'));
+      click(q('[data-issue="it4"][data-v="later"]'));
+      ok("Later -> Pending issue", /Gym towel × 1\s*Pending issue/.test(text(".cv-bill")));
+      click(q('[data-issue="it4"][data-v="now"]'));
+      click(q("[data-x-add]"));
+      ok("+ Add item: accessories with stock, out of stock disabled, inactive hidden", !!q('[data-x-pick="it3"]') && !q('[data-x-pick="it3"]').disabled && q('[data-x-pick="it2"]').disabled && !q('[data-x-pick="it5"]') && !q('[data-x-pick="it1"]'));
+      type("#xPickQ", "shak"); ok("item search filters", !!q('[data-x-pick="it3"]') && !q('[data-x-pick="it4"]'));
+      click(q('[data-x-pick="it3"]'));
+      ok("added line: price locked, total adds it", /Shaker bottle/.test(text(".cv-bill")) && /locked/.test(text(".cv-bill")) && /Accessories/.test(text(".cv-bill")) && /₹24,349/.test(text("[data-total]")), text("[data-total]"));
+      type('[data-x-qty="0"]', "2"); ok("qty updates total live", /₹24,698/.test(text("[data-total]")), text("[data-total]"));
+      type('[data-x-qty="0"]', "1");
+      check('[data-x-free="0"]', true);
+      ok("Free switch: line free, total back", /₹24,000/.test(text("[data-total]")) && !!q('[data-x-why="0"]'));
+      next(); ok("free item outside the package needs a reason", /A reason is needed for a free item/.test(text(".cv-bill")));
+      type('[data-x-why="0"]', "Manager approval");
       ok("no Final price box at the bottom", !q(".cv-total") && !q("[data-final]"));
       ok("price locked shown", /₹24,000/.test(mtext()) && /locked/.test(mtext()));
       ok("sales rep defaults to lead owner (Priya)", q("#cvRep").value === "u6");
       ok("discount limit marked placeholder", /Placeholder/.test(mtext()));
       type("#cvDisc", "15");
       ok("bill total live with discount", /₹20,400/.test(text("[data-total]")) && /− ₹3,600/.test(text(".cv-bill")) && /Reason needed/.test(text(".cv-bill")), text("[data-total]"));
+      ok("discount: [% | ₹] + amount in one row, live line", !!q(".disc-row .seg [data-disc]") && !!q(".disc-row #cvDisc") && /Discount ₹3,600 · Final ₹20,400/.test(text("[data-disc-line]")));
+      ok("reason is a dropdown with the fixed list", q("#cvReason").tagName === "SELECT" && /Festive offer/.test(q("#cvReason").textContent) && /Staff family/.test(q("#cvReason").textContent));
       next(); ok("reason required for discount", /A reason is needed/.test(mtext()));
-      W().App.state.role = "Sales Executive"; type("#cvReason", "Diwali offer"); next();
-      ok("Sales Executive capped at 10% (placeholder)", /Your limit is 10%/.test(mtext()));
+      pickSel("cvReason", "Other"); ok("Other shows a text box", !!q("#cvReasonOther"));
+      next(); ok("Other needs text", /Write the reason/.test(mtext()));
+      pickSel("cvReason", "Festive offer");
+      W().App.state.role = "Sales Executive"; type("#cvDisc", "15");
+      ok("over the limit: inline error live", !q("[data-disc-err]").hidden && /Your limit is 10%/.test(text("[data-disc-err]")));
+      next();
+      ok("Sales Executive capped at 10% (placeholder), Next blocked", /Your limit is 10%/.test(mtext()) && !!q("#cvDisc"));
       W().App.state.role = "CEO"; type("#cvDisc", "10"); next();
       ok("step 3: sale type automatic = Paid", /Sale type · automatic/i.test(mtext()) && /Paid/.test(mtext()));
       ok("end date shown, start day included", /start day included/.test(mtext()) && /365 days/.test(mtext()));
@@ -78,21 +101,26 @@ load(LEADS, function () {
       ok("step 4: fob chips from Sec 31 stock", !!q('[data-fob="KF-S31-0013"]') && !q('[data-fob="KF-S65-0101"]'));
       click(q('[data-fob="KF-S31-0013"]'));
       ok("bill adds the key fob deposit line + total", /Key fob deposit · KF-S31-0013/.test(text(".cv-bill")) && /₹22,800/.test(text("[data-total]")), text("[data-total]"));
+      check("#cvFobFree", true);
+      ok("Free (no deposit): Complimentary ₹0", /Complimentary/.test(text(".cv-bill")) && /₹21,600/.test(text("[data-total]")));
+      next(); ok("free fob needs a reason", /A reason is needed for a free fob/.test(mtext()));
+      check("#cvFobFree", false);
       next();
-      ok("summary shows final price + reason + fob", /₹21,600/.test(mtext()) && /Diwali offer/.test(mtext()) && /KF-S31-0013/.test(mtext()));
+      ok("summary shows final price + reason + fob", /₹21,600/.test(mtext()) && /Festive offer/.test(mtext()) && /KF-S31-0013/.test(mtext()));
       ok("summary warns follow-ups will be closed by system", /closed by system · client converted/.test(mtext()));
       ok("button = Proceed to Payment", /Proceed to Payment/.test(text('#sellMode [data-cv="finish"]')));
       scan("p1/5"); finish();
       var p = person("p1");
       ok("person is now a Client CL-1003", p.kind === "Client" && p.stage === "Converted" && p.clientNo === "CL-1003");
-      ok("membership saved with discount, final, rep", p.membership.discount === 2400 && p.membership.finalPrice === 21600 && p.membership.salesRepUserId === "u6" && p.membership.discountReason === "Diwali offer");
+      ok("membership saved with discount, final, rep", p.membership.discount === 2400 && p.membership.finalPrice === 21600 && p.membership.salesRepUserId === "u6" && p.membership.discountReason === "Festive offer");
+      ok("free accessory saved + stock down", p.membership.items[0].itemId === "it3" && p.membership.items[0].free && p.membership.items[0].reason === "Manager approval" && D().itemStock.filter(function (s) { return s.itemId === "it3" && s.branchId === "b1"; })[0].qty === 24);
       ok("fob assigned, stock down", p.keyFob === "KF-S31-0013" && D().keyFobs.filter(function (k) { return k.no === "KF-S31-0013"; })[0].status === "Assigned");
       var f1 = W().App.byId(D().followUps, "f1");
       ok("open follow-up Closed by system · Client converted", openBefore > 0 && f1.status === "Closed by system" && f1.closeReason === "Client converted");
       ok("owner notified", D().notifications.some(function (n) { return /Aarav Patel was closed by system/.test(n.text); }));
       ok("done screen + payment note", /now a client \(CL-1003\)/.test(mtext()) && /only after payment succeeds/.test(mtext()));
       ok("FF ID pending shown (Aarav has no FF ID)", /FF ID pending/.test(mtext()) && !/Key fob pending/.test(mtext()));
-      ok("timeline milestone human text", D().timeline.some(function (t) { return t.personId === "p1" && /Converted to Client · Annual Membership · ₹21,600 \(₹2,400 off: Diwali offer\) · key fob KF-S31-0013/.test(t.text); }));
+      ok("timeline milestone human text", D().timeline.some(function (t) { return t.personId === "p1" && /Converted to Client · Annual Membership · ₹21,600 \(₹2,400 off: Festive offer\) · key fob KF-S31-0013/.test(t.text); }));
       ok("hash becomes #client-aarav", W().location.hash === "#client-aarav", W().location.hash);
       ok("row left the leads list", !q('#rows tr[data-id="p1"]'));
       click(q('#sellMode [data-cv="done"]'));
@@ -109,8 +137,9 @@ load(LEADS, function () {
       ok("duplicate email blocked", /Already used by/.test(mtext()) && /Aarav Patel/.test(mtext()));
       type("#cvEmail", ""); next();
       pick("pk2", "Trial Paid");
-      ok("paid trial: no Corporate entry step", steps() === "Details,Package,Sale & start,Summary", steps());
+      ok("paid trial: Corporate entry step (optional)", steps() === "Details,Package,Sale & start,Corporate entry,Summary", steps());
       next(); ok("sale type Paid trial", /Paid trial/.test(mtext()) && /No key fob/.test(mtext()));
+      next(); ok("paid trial corporate entry: FF ID optional, no fob", !!q("#cvFf") && /Optional for a paid trial/.test(mtext()) && !q("[data-fob]"));
       next(); finish();
       var p = person("p2");
       ok("Sneha is a Trial Paid client, no fob", p.kind === "Client" && p.membership.saleType === "Trial Paid" && !p.keyFob);
@@ -120,10 +149,9 @@ load(LEADS, function () {
 
     step("Ishaan: free trial again stays a Lead with warning", function () {
       startConvert("p5"); next();
-      click(q('[data-acc="Membership"]'));
       ok("once per client: T-shirt already received", /T-shirt \(already received\)/.test(q('[data-pkg="pk7"]').textContent));
       click(q('[data-pkg="pk7"]')); ok("bill: T-shirt Skipped", /Skipped/.test(text(".cv-bill")));
-      click(q('[data-pkg="pk1"]'));
+      pick("pk1", "Trial");
       ok("free trial bill: total ₹0", /₹0/.test(text("[data-total]")) && /no payment/.test(text(".cv-bill")));
       ok("3rd free trial warning", /This is their 3rd free trial/.test(mtext()));
       ok("no discount for free", !q("#cvDisc"));

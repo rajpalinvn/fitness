@@ -10,7 +10,7 @@ var f = document.getElementById("f"); f.style.width = w + "px"; f.style.height =
 f.onload = function () { setTimeout(function () {
   var W = f.contentWindow; W.App.openProfile(id, { state: "normal" });
   var d = W.document;
-  if (tab === "convert") setTimeout(function () { d.querySelector('[data-pd="convert"]').click(); d.querySelector('[data-cv="next"]').click(); d.querySelector('[data-acc="Membership"]').click(); d.querySelector('[data-pkg="pk7"]').click(); }, 100);
+  if (tab === "convert") setTimeout(function () { d.querySelector('[data-pd="convert"]').click(); d.querySelector('[data-cv="next"]').click(); d.querySelector('[data-pkg="pk7"]').click(); }, 100);
   else if (tab === "quicklead") setTimeout(function () { W.App.closeProfile(); W.App.QuickLead.open({ mobile: "90000 01234" }); d.querySelector('[data-ql="more"]').click(); }, 100);
   else if (tab) setTimeout(function () { d.querySelector('[data-tab-k="' + tab + '"]').click(); }, 100);
 }, 600); };

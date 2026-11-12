@@ -250,9 +250,36 @@
 68. Quick lead opens in a drawer (not a modal) from "+ Lead" and "Create lead
     with this number". Fields: name, mobile (live duplicate check #19),
     source, temperature (Warm), owner (me, changeable), branch (top-bar);
-    More details: email, gender, birth date, inquiry type, campaign, remarks.
-    FF ID is not asked for here (overrides the app brief list). After save the
+    More details: email, gender, birth date, FF ID (optional, unique),
+    inquiry type, campaign, remarks. (Updated: FF ID is back, as in the app
+    brief.) Mobile comes first, then name (#74). After save the
     profile opens and asks for the first follow-up (#5).
 69. The Drawer width setting applies to every drawer (profile, quick lead,
     package / item forms, fob and history drawers). Sell mode is at least
     80%; tablet is always 92%.
+70. Free items in the bill: each line has "Issue now / Later". Default
+    Issue now when in stock; out of stock is forced Later (Pending issue).
+    "Skipped (already received)" stays as is (#46).
+71. "+ Add item" in the bill: any active accessory (search), qty, price
+    locked from the item master, branch stock shown, out of stock disabled.
+    Each added line has a "Free" switch (complimentary) that needs a short
+    reason. Stock goes down on conversion. Totals update live: package after
+    discount, paid accessories, key fob deposit, GST included, Total to pay.
+72. Paid trial: the Corporate entry step shows with an OPTIONAL FF ID (no
+    key fob for trials). Left empty, nothing is pending; only a Paid
+    membership creates FF ID / Key fob pending. Admin rule may come later.
+    (Was Q16.)
+73. Discount: [% | ₹] + amount in one row, live line "Discount ₹X · Final
+    ₹Y", reason is a dropdown (Festive offer, Referral, Corporate, Staff
+    family, Other; Other needs text) shown when the amount is above 0. The
+    limit note sits under the row (placeholder); over the limit shows an
+    inline error and blocks Next.
+74. Polish: stepper on one line at desktop (wraps on tablet); Package step
+    opens the Membership group, others collapsed; Quick lead asks Mobile
+    first (duplicate check), then Name.
+75. Key fob "Free (no deposit)" switch in Corporate entry: the bill shows the
+    fob as Complimentary · ₹0 and a short reason is required; the fob is
+    recorded with deposit ₹0, complimentary, and the reason.
+76. Lead owner: at creation the creator can pick any owner (sales staff of
+    the branch). Reassigning an existing lead is managers only (#63).
+    (Was Q15.)

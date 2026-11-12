@@ -19,5 +19,3 @@ Every question we have not decided yet. When one is decided, move it to
 | Q12 | **Free trial cap** | Free trials are unlimited with a warning ("3rd free trial", #39). Cap per person / per period? | Admin | Warning only. |
 | Q13 | **Payment failure** | The real app converts only on payment success (#3, #48). What does staff see if payment fails or is partial? | Payment module owner | Not built (Payment later). |
 | Q14 | **Couple PT partner** | Couple PT needs both people as active clients (#43). How is the partner picked at sale, and who is the "main" client for the sale line? | Operations + PT head | Not built (PT sale later). |
-| Q15 | **Owner choice at lead create** | Quick lead lets anyone pick another owner (#68), but only managers assign leads (#63). Should a Sales Executive be limited to "me"? | Sales head | Owner = me by default, changeable by anyone. |
-| Q16 | **FF ID for paid trials** | Corporate entry (#67) appears only for Paid membership. Does a paid trial client also need an FF ID? | Operations | Not asked, not pending for paid trials. |

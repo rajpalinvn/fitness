@@ -552,7 +552,8 @@ kbd {
 
 /* ---------- Convert to Client stepper (shared/convert.js) ---------- */
 .modal-lg { width: min(var(--modal-width-lg), 94vw); }
-.stepper { display: flex; gap: var(--space-2); list-style: none; margin: 0 0 var(--space-4); padding: 0; flex-wrap: wrap; }
+.stepper { display: flex; gap: var(--space-2); list-style: none; margin: 0 0 var(--space-4); padding: 0; flex-wrap: nowrap; white-space: nowrap; }
+@media (max-width: 1024px) { .stepper { flex-wrap: wrap; } }
 .step { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); color: var(--color-text-muted); padding-right: var(--space-2); }
 .step + .step::before { content: ""; width: var(--space-5); height: 1px; background: var(--color-border); margin-right: var(--space-1); }
 .step-no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--radius-pill);
@@ -699,3 +700,30 @@ a.soon-card:hover { border-color: var(--color-primary); }
   .cv-layout { grid-template-columns: minmax(0, 1fr); }
   .cv-bill { position: static; }
 }
+
+/* ---------- Bill: free items Issue now / Later, + Add item, switches (decisions #70, #71, #75) ---------- */
+.switch { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); cursor: pointer; margin-top: var(--space-1); }
+.switch input { appearance: none; -webkit-appearance: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: var(--radius-pill);
+  background: var(--color-border); cursor: pointer; flex: none; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.switch input:checked { background: var(--color-primary); }
+.switch input:checked::after { left: 16px; }
+.switch input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.seg.seg-sm { margin: var(--space-1) 0 0; }
+.seg.seg-sm .seg-btn { padding: 0 var(--space-2); font-size: var(--font-size-xs); }
+.bill-xrow { display: flex; align-items: center; gap: var(--space-2); }
+.input.input-xs { width: 64px; height: 30px; padding: 0 var(--space-2); }
+.input.input-sm { height: 32px; margin-top: var(--space-1); }
+.bill-add { display: inline-flex; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
+.bill-pick { padding: var(--space-2) 0; }
+.pick-list { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-2) 0; max-height: 220px; overflow: auto; }
+.pick-item { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2); font: inherit; color: var(--color-text); text-align: left;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.pick-item:hover:not(:disabled) { border-color: var(--color-primary); }
+.pick-item:disabled { opacity: .55; cursor: not-allowed; }
+/* Discount row (decision #73) */
+.disc-row { display: flex; align-items: center; gap: var(--space-2); }
+.disc-row .seg { margin: 0; flex-wrap: nowrap; }
+.disc-row .input-num { flex: 1; min-width: 0; }
+.disc-live { margin-top: var(--space-1); font-weight: var(--font-weight-medium); }
+.fob-pick { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }

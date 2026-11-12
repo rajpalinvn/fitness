@@ -81,13 +81,13 @@ List, sidebar badges and Today update.
 
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Name | text | Yes | No | — | "Name is required." |
-| Country code + Mobile | select + tel | Yes | Yes, company-wide | +91 | 10 digits. Live check while typing: same branch "Already exists: <name>" + Open profile; other branch "Already exists in <branch> · Owner: <first name>" + Request access (#19). Save blocked while duplicate. Saved as "90000 01234". |
+| Country code + Mobile (first field, #74) | select + tel | Yes | Yes, company-wide | +91 | 10 digits. Live check while typing: same branch "Already exists: <name>" + Open profile; other branch "Already exists in <branch> · Owner: <first name>" + Request access (#19). Save blocked while duplicate. Saved as "90000 01234". |
+| Name (second field) | text | Yes | No | — | "Name is required." |
 | Source | select (lead sources) | Yes | No | — (Choose…) | "Choose a source." |
 | Temperature | chips Hot / Warm / Cold | Yes | No | Warm | |
-| Owner | select | Yes | No | me | Me + sales staff of the chosen branch. Changeable. |
+| Owner | select | Yes | No | me | Me + sales staff of the chosen branch. Any creator can pick any owner here; reassigning later is managers only (#76). |
 | Branch | select | Yes | No | top-bar branch (or my first branch when "All") | Only my branches. Changing it refreshes the owner list. |
-| More details (collapsed) | link | — | — | closed | Email (unique if given), Gender, Birth date (not future), Inquiry type, Campaign, Remarks. FF ID is NOT here (it belongs to Corporate entry after conversion). |
+| More details (collapsed) | link | — | — | closed | Email (unique if given), Gender, Birth date (not future), FF ID (optional, unique company-wide; same branch "Already used by <name>", other branch "Already exists in <branch> · Owner: <first name>"), Inquiry type, Campaign, Remarks. |
 | Stage / Created by / Created | system | — | — | New / me / now | |
 
 ## 4. States

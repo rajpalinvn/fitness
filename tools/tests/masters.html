@@ -206,7 +206,7 @@ load(PK, function () {
             load(SET.replace("index.html", "") + "../leads/index.html", function () {
               step("convert uses package masters", function () {
                 role("CEO");
-                W().App.openProfile("p1", { state: "normal" }); click(q('[data-pd="convert"]')); click(q('#sellMode [data-cv="next"]')); click(q('[data-acc="Membership"]'));
+                W().App.openProfile("p1", { state: "normal" }); click(q('[data-pd="convert"]')); click(q('#sellMode [data-cv="next"]'));
                 ok("inactive package hidden", !q('[data-pkg="pk15"]'));
                 ok("renewal-only package hidden for leads", !q('[data-pkg="pk16"]'));
                 ok("Add-on not sellable to a lead", !q('[data-pkg="pk13"]'));
