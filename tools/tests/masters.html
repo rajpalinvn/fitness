@@ -92,8 +92,8 @@ load(PK, function () {
       ok("past start date blocked", /can't start in the past/.test(text("#pkgDrawer")));
       key("Escape");
     });
-    step("packages access (placeholder)", function () {
-      role("Sales Manager");
+    step("packages access (grid: settings.packages / settings.stock)", function () {
+      role("Club Manager");   // view-only comes from settings.stock; Sales Manager has no settings row since #96
       ok("manager: view only banner, no New", /View only/.test(text("#banner")) && q("#btnNew").hidden);
       ok("manager: View action, no Copy", /View/.test(text("#rows")) && !q('#rows [data-act="copy"]'));
       click(q('#rows tr[data-id="pk4"] [data-act="open"]'));
@@ -128,7 +128,7 @@ load(PK, function () {
             click(q("#itemDrawer [data-save]"));
             ok("item added", D().items.length === 6 && qa("[data-item]").length === 6);
             scan("items");
-            role("Sales Manager");
+            role("Club Manager");   // view-only = settings.stock (SM has no settings row since #96)
             ok("manager: selling price Admin only", /Admin only/.test(text("#panel")) && !/₹1,200/.test(text("#panel")));
             role("CEO");
           });
@@ -190,7 +190,7 @@ load(PK, function () {
             ok("rate change flows to GST split (no hardcoded rate)", W().App.gstSplit(1180, "tx1").gst === 180);
             scan("tax");
           });
-          step("stock access (placeholder)", function () {
+          step("stock access (grid)", function () {
             role("Club Manager");
             click(q('[data-itab="fobs"]'));
             ok("club manager: only own branch (Sec 31) fobs", /KF-S31/.test(text("#panel")) && !/KF-GC/.test(text("#panel")) && !/KF-S65/.test(text("#panel")));

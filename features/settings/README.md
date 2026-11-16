@@ -47,7 +47,7 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 
 ## 2. Flow
 - Settings → **Packages** card. Breadcrumb "Settings / Packages" goes back.
-- **+ Package** (SuperAdmin, CEO) → empty form, category = current tab.
+- **+ Package** (grid row `settings.packages`: CEO) → empty form, category = current tab.
 - Row click or **Edit** → form. Managers see **View** and a read-only form.
 - **Copy as new** (row icon, or the link inside a sold package) → form prefilled, name "… (copy)", sold count 0; nothing is saved until Save.
 - Save → drawer closes, toast (a future price says "new price ₹8,500 from <date>"), list updates.
@@ -75,7 +75,7 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 
 ## 4. States
 - **Loading**: skeleton rows (`?debug` → Loading). **Error**: "Couldn't load this list" + Retry. **Empty**: "No packages yet" + Package button. **No results**: "No packages match these filters" + Clear filters.
-- **View only** (managers): banner "View only … Placeholder"; no + Package, no Copy, read-only form.
+- **View only** (roles with `settings.stock`, i.e. CM / RM by default): banner "View only"; no + Package, no Copy, read-only form.
 - **No access** (other roles): "You don't have access to packages".
 - **Locked** (sold): amber callout "Sold N times. … are locked" + Copy as new; locked fields disabled with "Locked: sold".
 - **Validation**: "Enter a name.", "Enter the number of days (1 or more).", "Enter the number of sessions.", "Enter a price (0 or more).", "A price of 0 is only allowed for a trial.", "A new price can't start in the past.", "Choose at least one branch.", "Each free item can be added once."
@@ -155,7 +155,7 @@ Ready for review
 
 ## 4. States
 - **Loading / Error / Empty** via `?debug` on every tab. Empty: "No items yet", "No accessories yet", "No fobs at this branch", "No tax categories yet". No results (fobs filter): "No fobs match" + Clear filters.
-- **No access**: masters (Items, Tax) for non-managers; stock and fobs below Club Manager. "None of your branches is selected" when the top-bar branch isn't one of yours.
+- **No access**: masters (Items, Tax) and stock / fobs for roles without `settings.stock` (see docs/permissions.md). "None of your branches is selected" when the top-bar branch isn't one of yours.
 - **Stock**: 0 → red "Out of stock" (colour + words).
 - **Success**: toasts ("T-shirt: +10 at Sec 31 · now 10", "9 fobs added to Golf Course · 2 skipped", "Refunded ₹600 · KF-S65-0102").
 
@@ -175,13 +175,13 @@ Ready for review
 ---
 
 # Settings → Sales rules (`sales.html`)
-Decisions #77, #80 (Default, can change). Placeholder access (#56): SuperAdmin and CEO edit; Regional Manager,
-Club Manager, Sales Manager view only; others "You don't have access to sales rules".
+Decisions #77, #80, #96 (Default, can change). Access from the grid (docs/permissions.md): edit = `settings.packages` (CEO);
+view = `settings.stock` (CM / RM); others "You don't have access to sales rules".
 
 ## 1. Screens
 | Screen | File | Purpose |
 |---|---|---|
-| Discount limits tab | `sales.html?tab=limits` + `sales.js` | Max discount % per role, used by Sell mode. |
+| Discount limits tab | `sales.html?tab=limits` + `sales.js` | READ-ONLY view of the grid row `sales.discountMax` (one source) + link "Edit in Roles & permissions" for the CEO. Minimum first payment stays editable here. |
 | Payment methods tab | `sales.html?tab=methods` | Methods offered in the Payment step. |
 
 ## 2. Flow
@@ -192,7 +192,7 @@ Methods: **+ Payment method** opens an inline form (name, reference required); t
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Minimum first payment on packages | number % | Yes | — | 30 | 0–100. At conversion: accessories + fob deposit in full + this % of the package after discount (#85). Not used for later installments. |
-| Max discount (per role) | number % | Yes | — | SE 10, SM 20, Club Manager 30, Regional Manager 50, CEO 50, SuperAdmin 100, Trainer 0, MXM 0 | 0–100 ("Max discount must be between 0 and 100%."). "Changed" badge when it differs from the default. Package only. |
+| Max discount (per role) | read-only (grid row `sales.discountMax`) | — | — | SE 10, SM 20, CM 30, RM 50, CEO 100 (Q31), Trainer / MXM / Finance 0 | Edited only in Roles & permissions (0–100, whole number). "Changed" badge when it differs from the default. Package only. |
 | Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Net banking, Card | "Enter a name." / "This method already exists." |
 | Reference no. required | switch | — | — | On (Cash: off) | Payment step asks for a reference when on. |
 | Active | switch | — | — | On (Cheque: off, dummy) | At least one method stays active. Online payment (gateway) later. |
@@ -235,10 +235,20 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 - **Trainer types**: + Trainer type / Edit open the shared form drawer (name*, short code*, can take PT sessions, active). Name and short
   are unique. A type in use (a trainer has it) has no Delete, only Deactivate / Activate; an unused type can be deleted (confirm).
 - **Audit log** records Permissions, Settings values and Trainer types changes. "Who" = the View-as demo user; session only.
-- Existing screens are NOT rewired to `App.can` yet (roadmap: Lead flow update). Hard-coded role checks still live in:
-  `shared/app.js` (`App.access.*`, `App.canSee`), `shared/profile.js` (`canWaive`), `features/today/today.js` (`pendingRole`),
-  `features/leads/leads.js` (Trainer / MXM check), `features/clients/clients.js` (`noLeadsRole`), `features/settings/sales.js` /
-  `packages.js` / `items.js` (via `App.access`), plus `DUMMY.discountLimits` on the Sales rules page (duplicate of `sales.discountMax`).
+- Every screen reads the grid through `App.can(key)` / `App.scopeAllows(key, person)` / `App.scopeBranches(key)` (no hard-coded role lists):
+  | Screen / action | Grid row |
+  |---|---|
+  | Leads list, Today leads sections, sidebar badges | `leads.view`; a lost lead `leads.viewLost`; an unassigned lead `leads.viewUnassigned`. "Own" = owner (follow-up assignee part of #97 comes with the lead flow update). |
+  | Today "Unassigned new leads" | `leads.assign` ≠ None AND `leads.viewUnassigned` ≠ None |
+  | Clients list, Today "Clients with pending items" | `clients.view` |
+  | Add FF ID / Assign fob / Issue item / Collect payment (profile + Today) | `clients.collectPayment` (no row of its own: mapping) |
+  | Waive a pending free item | `clients.waive` |
+  | Packages / Items / Tax / Sales rules: edit | `settings.packages` (Sales rules edit has no row of its own: mapping) |
+  | Packages / Items / Tax / Sales rules: view only | `settings.stock` ≠ None (masters view has no row of its own: mapping) |
+  | Accessory stock, key fobs (and their branches) | `settings.stock` (Branch = my branches, All = every branch) |
+  | Max discount in Sell mode | `sales.discountMax` (one source; `App.discountLimit`) |
+  | This page | `settings.rolesPermissions` |
+  Not in the grid (lists of who can BE an owner / sales rep, not access): `OWNER_ROLES` (profile), `ASSIGNABLE_ROLES` (follow-ups), `REP_ROLES` (Sell mode).
 
 ## 3. Field table
 | Field | Type | Required | Unique | Default | Notes |

@@ -256,7 +256,7 @@
   App.profilePending = pendingList;
 
   // ---------- Pending-item actions, shared by the profile and Today (decisions #40, #46, #62) ----------
-  function canWaive() { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; }
+  function canWaive(p) { return App.scopeAllows("clients.waive", p); }   // grid row clients.waive (#96)
   App.addFfId = function (pid) {
     var p = App.byId(D.people, pid), m = App.makeModal("ffModal");
     m.title.textContent = "Add FF ID · " + p.name;
@@ -283,7 +283,7 @@
     var p = App.byId(D.people, pid), line = (p.membership.freeItems || []).filter(function (f) { return f.itemId === itemId && f.status === "Pending issue"; })[0];
     if (!line) return;
     var st = D.itemStock.filter(function (x) { return x.itemId === itemId && x.branchId === p.branchId; })[0], qty = st ? st.qty : 0, ok = qty >= line.qty;
-    var m = App.makeModal("issueModal"), waive = canWaive();
+    var m = App.makeModal("issueModal"), waive = canWaive(p);
     m.title.textContent = "Issue " + line.name + " · " + p.name;
     m.body.innerHTML = '<dl class="kv kv-wide"><dt>Item</dt><dd>' + esc(line.name) + " × " + line.qty + " (free with " + esc(p.membership.package) + ")</dd>" +
         "<dt>" + esc(App.branchName(p.branchId)) + " stock</dt><dd>" + qty + (ok ? ' <span class="badge badge-success">In stock</span>' : ' <span class="badge badge-danger">Out of stock</span>') + "</dd></dl>" +

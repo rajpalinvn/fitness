@@ -34,7 +34,9 @@ The first screen staff see every day (decisions #22, #24, #61–#63).
 | CEO, SuperAdmin | Top-bar branch (All = every branch) | Own | Top-bar branch | Top-bar branch |
 | Trainer, MXM | Hidden | Own | Hidden | Hidden |
 
-Everything also follows the top-bar branch. Trainer / MXM see the note "Leads and follow-ups aren't part of your role."
+Everything also follows the top-bar branch and the Roles & permissions grid (docs/permissions.md): leads sections need `leads.view`,
+"Unassigned new leads" needs `leads.assign` + `leads.viewUnassigned`, "Clients with pending items" needs `clients.view` (actions: `clients.collectPayment`, waive: `clients.waive`).
+Roles with no `leads.view` (Trainer / MXM / Finance by default) see the note "Leads and follow-ups aren't part of your role."
 
 ## 3. Field table
 | Field | Type | Required | Unique | Default | Notes |

@@ -225,7 +225,7 @@
     if (list.length) return;
 
     var anyVisible = S.mode !== "empty" && App.visibleLeads("all").length > 0;
-    if (S.mode === "empty" || (!anyVisible && App.state.role !== "Trainer" && App.state.role !== "MXM")) {
+    if (S.mode === "empty" || (!anyVisible && App.can("leads.view") !== "None")) {
       box.innerHTML = '<div class="state"><h3>No leads yet</h3><p>Add your first lead to start following up.</p>' +
         '<button class="btn btn-primary" data-new-lead>' + App.icon("plus") + "Lead</button></div>";
     } else if (!anyVisible) {

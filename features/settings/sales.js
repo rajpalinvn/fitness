@@ -1,5 +1,5 @@
-/* Settings → Sales rules. Tabs: Discount limits (max % per role) · Payment methods.
-   Decisions #77, #80. Edit: SuperAdmin + CEO. View: managers. Others: no access (placeholder access, #56). */
+/* Settings → Sales rules. Tabs: Discount limits (read-only view of the grid row sales.discountMax) · Payment methods.
+   Decisions #77, #80, #96. Access from the Roles & permissions grid (see docs/permissions.md). */
 (function () {
   var D = window.DUMMY, esc = App.esc, A = window.Admin;
   var TABS = [["limits", "Discount limits"], ["methods", "Payment methods"]];
@@ -27,13 +27,11 @@
         '<div class="row row-tight">' + (can() ? '<input class="input input-num input-xs" type="number" min="0" max="100" value="' + mp + '" data-minpay aria-labelledby="mpT"><span>%</span>' : "<strong>" + mp + "%</strong>") +
         ' <span class="cell-sub">default ' + mpd + "%</span>" + (mp !== mpd ? ' <span class="badge badge-info">Changed</span>' : "") + ' <span class="badge badge-demo">Default, can change</span></div></div>' +
       '<p class="muted">Highest discount each role can give on a <strong>package</strong> in Sell mode. Accessories and the key fob deposit are never discounted. ' +
-      '<span class="badge badge-demo">Default, can change</span></p>' +
+      'One source: the grid row "Max discount %"' + (can() ? ' · <a href="roles.html" data-edit-limits>Edit in Roles &amp; permissions</a>' : " (edited by the CEO in Roles &amp; permissions)") + "</p>" +
       '<div class="table-wrap"><table class="table table-admin"><thead><tr><th>Role</th><th>Max discount</th><th>Default</th></tr></thead><tbody>' +
-      roles.map(function (r) {
-        var v = App.discountLimit(r), def = D.discountLimitDefaults[r];
-        return "<tr><td>" + esc(r) + "</td><td>" + (can()
-          ? '<div class="row row-tight"><input class="input input-num input-xs" type="number" min="0" max="100" value="' + v + '" data-limit="' + esc(r) + '" aria-label="Max discount for ' + esc(r) + '"><span>%</span></div>'
-          : v + "%") + '</td><td class="muted">' + def + "%" + (v !== def ? ' <span class="badge badge-info">Changed</span>' : "") + "</td></tr>";
+      D.roles.map(function (r) {
+        var v = App.discountLimit(r.name), def = App.Perm.defaultOf(r.short, D.permissionDefs.filter(function (d) { return d.key === "sales.discountMax"; })[0]);
+        return '<tr data-limit-row="' + esc(r.name) + '"><td>' + esc(r.name) + "</td><td><strong>" + v + '%</strong></td><td class="muted">' + def + "%" + (v !== def ? ' <span class="badge badge-info">Changed</span>' : "") + "</td></tr>";
       }).join("") + "</tbody></table></div>" + (S.err ? '<p class="error">' + esc(S.err) + "</p>" : "");
   }
   function methods() {
@@ -67,11 +65,6 @@
   });
   document.addEventListener("change", function (e) {
     var t = e.target;
-    if (t.dataset.limit) {
-      var v = Number(t.value);
-      if (t.value === "" || !(v >= 0 && v <= 100)) { S.err = "Max discount must be between 0 and 100%."; render(); return; }
-      S.err = ""; D.discountLimits[t.dataset.limit] = Math.round(v * 100) / 100; App.toast(t.dataset.limit + ": max discount " + v + "%", "success"); render();
-    }
     if (t.hasAttribute("data-minpay")) {
       var x = Number(t.value);
       if (t.value === "" || !(x >= 0 && x <= 100)) { S.err = "Minimum first payment must be between 0 and 100%."; render(); return; }

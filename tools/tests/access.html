@@ -1,0 +1,81 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// Access driven by the Roles & permissions grid (App.can / App.scopeAllows), decisions #96, #102.
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", TODAY = ROOT + "features/today/index.html", CL = ROOT + "features/clients/index.html", PK = ROOT + "features/settings/packages.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }   // pages may location.reload() on access change
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function ids() { return Array.prototype.map.call(qa("#rows tr[data-id]"), function (r) { return r.dataset.id; }); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function P() { return W().App.Perm; }
+function clear() { ["mock.perms", "mock.settings", "mock.audit"].forEach(function (k) { W().sessionStorage.removeItem(k); }); }
+
+load(LEADS, function () {
+  clear(); W().sessionStorage.setItem("mock.role", "Sales Executive"); W().sessionStorage.setItem("mock.branch", "b1");
+  load(LEADS, function () {
+    step("Leads · default grid (SE = Own)", function () {
+      ok("SE sees own leads only, no unassigned (Neha p14 hidden)", ids().length > 0 && ids().every(function (id) { return W().App.byId(W().DUMMY.people, id).ownerUserId === "u6"; }) && !q('#rows tr[data-id="p14"]'));
+      ok("App.can: leads.view Own, leads.viewUnassigned None, discount 10", W().App.can("leads.view") === "Own" && W().App.can("leads.viewUnassigned") === "None" && W().App.discountLimit() === 10);
+      // Change a cell in Roles & permissions (as data; the screen does the same through App.Perm.save)
+      P().save([{ short: "SE", key: "leads.viewUnassigned", value: "Branch" }], "Permissions");
+    });
+    load(LEADS, function () {
+      step("Leads · after SE gets View unassigned = Branch", function () {
+        ok("reload: Neha (unassigned, Sec 31) now visible to Priya", !!q('#rows tr[data-id="p14"]'));
+        ok("still not Fatima (unassigned, Golf Course)", !q('#rows tr[data-id="p8"]'));
+        ok("other people's owned leads still hidden", ids().every(function (id) { var p = W().App.byId(W().DUMMY.people, id); return !p.ownerUserId || p.ownerUserId === "u6"; }));
+      });
+      load(TODAY, function () {
+        step("Today · follows the grid", function () {
+          ok("SE: Unassigned section hidden (no leads.assign), Needs attention + pending shown", !q("#sec-unassigned") && !!q("#sec-attention") && !!q("#sec-pending"));
+          P().save([{ short: "SE", key: "leads.assign", value: "Branch" }], "Permissions");
+        });
+        load(TODAY, function () {
+          step("Today · SE given Assign = Branch", function () {
+            ok("Unassigned new leads section appears with Neha", !!q("#sec-unassigned") && /Neha/.test(text("#sec-unassigned")));
+            ok("no bad text", !badText(), badText());
+            clear();
+          });
+          load(CL, function () {
+            step("Clients · clients.view", function () {
+              ok("SE default (Branch): Sec 31 clients listed", ids().length > 0 && ids().every(function (id) { return W().App.byId(W().DUMMY.people, id).branchId === "b1"; }));
+              P().save([{ short: "SE", key: "clients.view", value: "None" }], "Permissions");
+              W().App.setRole("Sales Executive");
+              ok("SE with clients.view None: 'Clients aren't part of your role'", /aren't part of your role/.test(text("#stateBox")) && !ids().length);
+              clear(); W().App.setRole("Trainer");
+              ok("Trainer (None by default): same note", /aren't part of your role/.test(text("#stateBox")));
+              P().save([{ short: "TR", key: "clients.view", value: "Branch" }], "Permissions"); W().App.setRole("Trainer");
+              ok("Trainer given Branch: sees Sec 31 clients", ids().length > 0 && ids().every(function (id) { return W().App.byId(W().DUMMY.people, id).branchId === "b1"; }));
+              clear();
+            });
+            load(PK, function () {
+              step("Settings masters · settings.packages / settings.stock", function () {
+                W().App.setRole("Club Manager"); ok("CM: view only (settings.stock Branch)", /View only/.test(text("#banner")));
+                W().App.setRole("Sales Manager"); ok("SM: no access (no settings row) — visible difference, see README", /don't have access/.test(text("#content")));
+                W().App.setRole("CEO"); ok("CEO edits", !q("#btnNew").hidden);
+                P().save([{ short: "SM", key: "settings.stock", value: "Branch" }], "Permissions"); W().App.setRole("Sales Manager");
+                ok("SM given stock = Branch: view only again", /View only/.test(text("#banner")));
+                clear();
+              });
+              step("discount limit from the grid", function () {
+                W().App.setRole("Sales Executive"); ok("SE 10% from sales.discountMax", W().App.discountLimit() === 10);
+                P().save([{ short: "SE", key: "sales.discountMax", value: 25 }], "Permissions");
+                ok("after the grid change: 25% (Sell mode reads App.discountLimit)", W().App.discountLimit() === 25 && W().App.discountLimit("Sales Executive") === 25);
+                ok("DUMMY.discountLimits is gone (one source)", W().DUMMY.discountLimits === undefined);
+                clear(); W().App.setRole("CEO");
+              });
+              document.getElementById("out").textContent = out.join("\n");
+            });
+          });
+        });
+      });
+    });
+  });
+});
+</script></body></html>

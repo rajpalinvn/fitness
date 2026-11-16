@@ -481,9 +481,7 @@
     keyFobs: keyFobs, taxCategories: taxCategories, items: items, itemStock: itemStock, stockMoves: stockMoves,
     membershipSubTypes: membershipSubTypes, ptSubTypes: ptSubTypes, addOnKinds: addOnKinds,
     // Max discount % by role (decision #77). Default, can change in Settings → Sales rules. Every role has a number; never "no limit".
-    // CEO 100% is a placeholder (Q31, decision #102); the rest per #77.
-    discountLimits: { "CEO": 100, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0, "Finance": 0 },
-    discountLimitDefaults: { "CEO": 100, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0, "Finance": 0 },
+    // Max discount % per role lives ONLY in the grid row sales.discountMax (permissionDefs, decisions #77, #96).
     // Minimum first payment on packages (decision #85). Default, can change (Settings → Sales rules).
     salesRules: { minFirstPayPct: 30 }, salesRuleDefaults: { minFirstPayPct: 30 },
     // Payment methods (decision #80). Default, can change. needsRef: reference / transaction no. required.

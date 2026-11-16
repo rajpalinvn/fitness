@@ -24,7 +24,7 @@ App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shar
   - + Follow-up → add follow-up modal → Save → row, cards and sidebar badges update, toast
 - Owner cell "Assign" (unassigned leads only) → assign modal → Assign → row updates, toast.
 - No results + search looks like a phone number → "Create lead with this number" → quick lead drawer with the number prefilled.
-- Top-bar branch switcher changes the list's branch filter. "View as role" changes what is visible (placeholder rules below).
+- Top-bar branch switcher changes the list's branch filter. "View as role" changes what is visible through the Roles & permissions grid (`leads.view`, `leads.viewLost`, `leads.viewUnassigned`; see docs/permissions.md).
 
 ## 3. Field table
 
@@ -99,14 +99,11 @@ List, sidebar badges and Today update.
 - **Success:** toasts after Assign and Save follow-up.
 - Test toggle for Loading / Empty / Error appears only with `?debug` in the URL (`index.html?debug`).
 
-### Role view (display-only placeholder until the permission matrix)
-| View as | Sees |
-|---|---|
-| Sales Executive (Priya Sharma, Sec 31) | Own leads only |
-| Sales Manager / Club Manager (Sec 31) | Leads in their branch |
-| Regional Manager (Sec 31 + Sec 65) | Leads in their branches |
-| CEO / SuperAdmin | All branches |
-| Trainer / MXM | No leads |
+### Role view (from the grid, decision #96)
+Visibility = grid row `leads.view` (lost leads: `leads.viewLost`; unassigned: `leads.viewUnassigned`), scopes None / Own / Branch / All.
+With the default grid: Sales Executive = own leads; Sales Manager / Club Manager / Regional Manager = their branches; CEO = all;
+Trainer / MXM / Finance = none; unassigned leads = CM / RM / CEO only. Change a cell in Settings → Roles & permissions and reload: the list follows.
+Full defaults: docs/permissions.md.
 
 ### Dummy edge cases (set "View as" CEO + "All branches" to see all)
 | Lead | Shows |

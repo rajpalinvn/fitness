@@ -194,7 +194,11 @@
     return { rate: rate, gst: gst, base: Math.round((price - gst) * 100) / 100 };
   };
   // ---------- Sales rules + payments (decisions #77–#84) ----------
-  App.discountLimit = function (role) { var l = DUMMY.discountLimits[role || App.state.role]; return typeof l === "number" ? l : 0; };
+  // ONE discount source: the grid row sales.discountMax (decisions #77, #96). Every role has a number; never "no limit".
+  App.discountLimit = function (role) {
+    var r = App.Perm.roleByName(role || App.state.role), l = r ? App.Perm.get(r.short, "sales.discountMax") : 0;
+    return typeof l === "number" ? l : 0;
+  };
   App.minFirstPayPct = function () { var v = DUMMY.salesRules && DUMMY.salesRules.minFirstPayPct; return typeof v === "number" ? v : 0; };
   App.payBalance = function (pay) { return pay ? Math.max(0, Math.round((pay.total - pay.paid) * 100) / 100) : 0; };
   App.activePayMethods = function () { return DUMMY.paymentMethods.filter(function (m) { return m.active; }); };
@@ -300,33 +304,41 @@
   App.can = function (key) { var r = Perm.roleByName(App.state.role); return r ? Perm.get(r.short, key) : null; };
   App.setting = function (key) { return Perm.settings()[key]; };
 
-  // PLACEHOLDER access until the permission matrix (decision #56).
-  App.access = {
-    salesRules: function () { return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1; },
-    editMasters: function () { return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1; },
-    viewMasters: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; },
-    stock: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager"].indexOf(App.state.role) > -1; },
-    // Add FF ID / Assign fob / Issue item (decision #62): the client's sales rep, Sales Executives and
-    // Sales Managers of that branch (front desk), and managers above. Not Trainer, not MXM.
-    pendingActions: function (p) {
-      var r = App.state.role, u = App.demoUser();
-      if (["SuperAdmin", "CEO"].indexOf(r) > -1) return true;
-      if (!u || ["Regional Manager", "Club Manager", "Sales Manager", "Sales Executive"].indexOf(r) < 0) return false;
-      return (p.membership && p.membership.salesRepUserId === u.id) || u.branches.indexOf(p.branchId) > -1;
-    },
-    // Only managers assign leads (decision #63).
-    assignLeads: function () { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager"].indexOf(App.state.role) > -1; },
-    stockBranches: function () {
-      var u = App.demoUser(); if (!App.access.stock() || !u) return [];
-      return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1 ? DUMMY.branches.map(function (b) { return b.id; }) : u.branches.slice();
-    }
+  // ---------- Access = the Roles & permissions grid (decisions #96, #102; keys in docs/permissions.md) ----------
+  // Scope meaning: None = nothing · Own = the person's owner is me (TODO c4: + leads where I have an open follow-up, #97)
+  // · Branch = the person's branch is one of my branchIds · All = everyone in the tenant.
+  App.scopeAllows = function (key, p) {
+    var s = App.can(key), u = App.demoUser();
+    if (s === true) return true;
+    if (!s || s === false || s === "None" || !u) return false;
+    if (s === "All") return true;
+    if (s === "Branch") return !p || u.branchIds.indexOf(p.branchId) > -1;
+    if (s === "Own") return !!p && !!p.ownerUserId && p.ownerUserId === u.id;
+    return false;
   };
-  // Clients (decision #91, placeholder Q8): same rule as Today's "Clients with pending items" (#61, #62) so numbers match.
-  // SuperAdmin / CEO: all (top-bar branch). Managers: their branches. Sales Executive: their branch (or their own sale).
-  // Trainer / MXM: none.
+  // Branch ids a scope covers: All = every branch, Branch / Own = my branches, None = [].
+  App.scopeBranches = function (key) {
+    var s = App.can(key), u = App.demoUser();
+    if (s === "All") return DUMMY.branches.map(function (b) { return b.id; });
+    if ((s === "Branch" || s === "Own") && u) return u.branchIds.slice();
+    return [];
+  };
+  App.access = {
+    // Mappings for actions with no grid row of their own (listed in features/settings/README.md): Sales rules edit → settings.packages;
+    // masters view (Packages / Items / Tax / Sales rules read-only) → settings.stock or settings.packages.
+    salesRules: function () { return App.can("settings.packages") === true; },
+    editMasters: function () { return App.can("settings.packages") === true; },
+    viewMasters: function () { return App.can("settings.packages") === true || App.can("settings.stock") !== "None"; },
+    stock: function () { return App.can("settings.stock") !== "None"; },
+    stockBranches: function () { return App.scopeBranches("settings.stock"); },
+    // Add FF ID / Assign fob / Issue item / Collect payment on a client (#62) → grid row clients.collectPayment.
+    pendingActions: function (p) { return App.scopeAllows("clients.collectPayment", p); },
+    assignLeads: function () { return App.can("leads.assign") !== "None"; }
+  };
+  // Clients (decision #91): grid row clients.view. Today's "Clients with pending items" uses the same helper so numbers match.
   App.visibleClients = function (branchId) {
     return DUMMY.people.filter(function (p) {
-      return p.kind === "Client" && App.access.pendingActions(p) && (!branchId || branchId === "all" || p.branchId === branchId);
+      return p.kind === "Client" && App.scopeAllows("clients.view", p) && (!branchId || branchId === "all" || p.branchId === branchId);
     });
   };
   App.clientNeedsAttention = function (p) { return !!(App.profilePending && App.profilePending(p).length); };
@@ -335,13 +347,11 @@
     open.sort(function (a, b) { return new Date(App.dueIso(a)) - new Date(App.dueIso(b)); });
     return open[0] || null;
   };
-  // Placeholder visibility (decision #15) until the permission matrix arrives.
+  // Lead visibility from the grid: leads.view; a lost lead needs leads.viewLost; an unassigned lead needs leads.viewUnassigned.
   App.canSee = function (p) {
-    var role = App.state.role, u = App.demoUser();
-    if (role === "Trainer" || role === "MXM") return false;
-    if (role === "Sales Executive") return p.ownerUserId === u.id;
-    if (role === "SuperAdmin" || role === "CEO") return true;
-    return u.branches.indexOf(p.branchId) > -1;
+    if (p.stage === "Lost") return App.scopeAllows("leads.viewLost", p);
+    if (!p.ownerUserId) return App.scopeAllows("leads.viewUnassigned", p);
+    return App.scopeAllows("leads.view", p);
   };
   App.visibleLeads = function (branchId) {
     return DUMMY.people.filter(function (p) {

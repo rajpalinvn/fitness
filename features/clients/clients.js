@@ -11,7 +11,7 @@
   var lastList = [];
 
   // ---------- data helpers ----------
-  function noLeadsRole() { return App.state.role === "Trainer" || App.state.role === "MXM"; }
+  function noLeadsRole() { return App.can("clients.view") === "None"; }   // grid row clients.view (#96)
   // Status (#27, #31): Active > 15 days left, Renewal due <= 15, Expired. Paid trial that ended = "Trial ended" (Q26), counted as Expired.
   function status(p) {
     var ms = App.membershipStatus(p.membership), trial = p.membership.saleType === "Trial Paid";
@@ -155,7 +155,7 @@
     if (noLeadsRole()) {
       tbody.innerHTML = ""; $("pipeline").innerHTML = ""; $("clientCount").textContent = ""; $("activeFilters").innerHTML = "";
       box.innerHTML = '<div class="state"><h3>Clients aren\'t part of your role</h3><p class="muted">Viewing as ' + esc(App.state.role) +
-        '. <span class="badge badge-demo">Placeholder</span> until the permission matrix.</p></div>';
+        '. Access comes from Settings → Roles &amp; permissions (row "View clients").</p></div>';
       return;
     }
     var sc = scope(), list = sortList(applyCard(base()));

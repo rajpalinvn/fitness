@@ -4,7 +4,8 @@
     "allow": [
       "Bash(bash tools/run-tests.sh)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(python -c \"import playwright; print\\('pw ok'\\)\")"
     ],
     "deny": [
       "WebFetch",

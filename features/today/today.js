@@ -8,8 +8,9 @@
 
   function role() { return App.state.role; }
   function me() { return App.demoUser(); }
-  function leadsRole() { return ["Trainer", "MXM"].indexOf(role()) < 0; }
-  function managerView() { return role() !== "Sales Executive"; }
+  // Access = the Roles & permissions grid (#96): leads.view, leads.assign + leads.viewUnassigned, clients.view.
+  function leadsRole() { return App.can("leads.view") !== "None"; }
+  function managerView() { return App.can("leads.view") !== "Own"; }   // owner shown when the user sees other people's leads
   function inTopBranch(p) { var b = App.state.branchId; return !b || b === "all" || p.branchId === b; }
   function daysAgo(iso) { var d = -App.daysFromToday(iso); return d === 1 ? "1 day" : d + " days"; }
 
@@ -38,15 +39,16 @@
         return oa - ob || PRI[a.priority] - PRI[b.priority] || new Date(a.dueAt) - new Date(b.dueAt);
       });
   }
+  function unassignedRole() { return App.access.assignLeads() && App.can("leads.viewUnassigned") !== "None"; }
   function unassigned() {
-    if (!App.access.assignLeads()) return [];
+    if (!unassignedRole()) return [];
     return App.visibleLeads(App.state.branchId).filter(function (p) { return !p.ownerUserId && p.stage !== "Lost"; })
       .sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
   }
-  function pendingRole() { return ["SuperAdmin", "CEO", "Regional Manager", "Club Manager", "Sales Manager", "Sales Executive"].indexOf(role()) > -1; }
+  function pendingRole() { return App.can("clients.view") !== "None"; }
   function pending() {
     if (!pendingRole()) return [];
-    return D.people.filter(function (p) { return p.kind === "Client" && inTopBranch(p) && App.access.pendingActions(p) && App.profilePending(p).length; })
+    return App.visibleClients(App.state.branchId).filter(function (p) { return App.profilePending(p).length; })
       .sort(function (a, b) { return new Date(a.joinedAt) - new Date(b.joinedAt); })
       .map(function (p) { return { p: p, items: App.profilePending(p) }; });
   }
@@ -91,7 +93,7 @@
           action: btn("done", "Mark done", { t: t.id }, false) });
       } },
     { k: "unassigned", area: "u", t: "Unassigned new leads", ic: "user", tone: "amber", get: unassigned, words: "without an owner",
-      empty: "Every new lead has an owner", all: "../leads/index.html?owner=none", show: function () { return App.access.assignLeads(); },
+      empty: "Every new lead has an owner", all: "../leads/index.html?owner=none", show: unassignedRole,
       row: function (p) {
         return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : ""),
           sub: esc(p.source) + " · " + esc(App.branchName(p.branchId)) + " · received " + esc(App.fmtShortWhen(p.createdAt)) + ", " + esc(App.fmtTime(p.createdAt)),

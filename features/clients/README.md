@@ -40,13 +40,9 @@ List-first, like Leads (decision #91). Built on the same shared drawer and modal
 | Branch | Only when "All branches" is selected. |
 | Actions | Call · WhatsApp · Collect payment or + Follow-up. |
 
-### Who sees what (placeholder, Q8; badge "Placeholder visibility" on the page)
-| Role | Clients |
-|---|---|
-| Sales Executive | Clients of their branch (or where they are the sales rep), same as Today (#61, #62). |
-| Sales Manager, Club Manager, Regional Manager | Their branches. |
-| CEO, SuperAdmin | Top-bar branch (All = every branch). |
-| Trainer, MXM | Hidden: "Clients aren't part of your role". |
+### Who sees what (grid row `clients.view`, decision #96)
+Scope from Settings → Roles & permissions: default SE / SM / CM / RM = Branch (their branches), CEO = All, Trainer / MXM / Finance = None
+("Clients aren't part of your role"). Row actions Collect payment / pending items follow `clients.collectPayment`. Defaults: docs/permissions.md.
 
 ## 3. Field table (filters)
 | Field | Type | Required | Unique | Default | Notes |

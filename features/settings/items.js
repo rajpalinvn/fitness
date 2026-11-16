@@ -29,7 +29,7 @@
     var can = masters ? App.access.viewMasters() : App.access.stock();
     A.banner(document.getElementById("banner"), !can ? "none" : masters ? (admin() ? "edit" : "view") : "edit", S.tab === "tax" ? "tax categories" : "items");
     head.innerHTML = "";
-    if (!can) { panel.innerHTML = A.noAccess(masters ? "this master" : "stock and key fobs (Club Manager and above, own branches)"); return; }
+    if (!can) { panel.innerHTML = A.noAccess(masters ? "this master" : "stock and key fobs (grid row \"Accessory / key fob stock\")"); return; }
     if (!masters && !branches().length) { panel.innerHTML = '<div class="state"><h3>None of your branches is selected</h3><p class="muted">Pick one of your branches in the top bar.</p></div>'; return; }
     ({ items: itemsTab, stock: stockTab, fobs: fobsTab, tax: taxTab })[S.tab](panel, head);
   }

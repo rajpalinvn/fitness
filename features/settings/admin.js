@@ -20,15 +20,15 @@
     return { el: d, title: d.querySelector("[data-d-title]"), body: d.querySelector("[data-d-body]"), foot: d.querySelector("[data-d-foot]") };
   };
 
-  // Placeholder access (decision #56) — shown as words, never colour alone.
+  // Access from the Roles & permissions grid (decisions #56, #96) — shown as words, never colour alone.
   Admin.banner = function (el, mode, what) {
     el.hidden = mode === "edit";
     if (mode === "view") el.innerHTML = '<div class="callout">' + App.icon("eye") + "<span><strong>View only.</strong> Only the CEO can create or edit " + esc(what) +
-      '. <span class="badge badge-demo">Placeholder</span> until the permission matrix.</span></div>';
+      ' (Settings → Roles &amp; permissions, row "Packages").</span></div>';
   };
   Admin.noAccess = function (what) {
-    return '<div class="state">' + App.icon("eye") + "<h3>You don't have access to " + esc(what) + '</h3><p class="muted">Ask a manager. ' +
-      '<span class="badge badge-demo">Placeholder</span> access until the permission matrix. Switch "View as" in the avatar menu to try another role.</p></div>';
+    return '<div class="state">' + App.icon("eye") + "<h3>You don't have access to " + esc(what) + '</h3><p class="muted">Access comes from Settings → Roles &amp; permissions. ' +
+      'Switch "View as" in the avatar menu to try another role.</p></div>';
   };
 
   Admin.debugState = function () {
