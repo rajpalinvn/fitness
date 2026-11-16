@@ -55,3 +55,19 @@ Mockup mapping: `membership` / `pt` ≈ one Package SaleLine; `membership.items`
 key fob `deposit` ≈ KeyFobDeposit line; `payment.receipts[].rows` ≈ Payment + PaymentRow; allocation is worked out on screen.
 Dates are stored as ISO (`YYYY-MM-DD` or full ISO time) and shown as "12 Nov 2026" (#86).
 
+## Roles, permissions and lead flow (decisions #92–#101)
+Mockup names (`shared/data.js`) expected in the API. Not built yet; the screens come with the roadmap items "Roles & permissions" and "Lead flow update".
+
+| Entity | Fields | Notes |
+|---|---|---|
+| Role (`roles`) | `key` (SUPER_ADMIN … FINANCE), `name`, `short`, `reportsTo` (role key or null), `multiBranch` (bool) | Seeded, locked rows (#95). Code and the grid use `key`, never the row id. |
+| Staff (user) | `roleKey` (exactly one), `branchIds` [branchId] (exactly 1 for single-branch roles), `trainerTypeId` (Trainer only) | One role per staff (#95). |
+| TrainerType (`trainerTypes`) | `id`, `name`, `short` (GT / PT / GT-PT), `canTakePt` (default true), `active` | Admin master list (#95). PT session / sale line stores `trainerTypeId` + `trainerTypeShort` as a snapshot. |
+| Permission (`permissions`) | `roleKey` × `key` (dotted, e.g. `leads.view`, `leads.assign`, `trials.book`) → `scope` (None / Own / Branch / All) or `value` (number, e.g. max discount %) or `allowed` (bool) | Settings → Roles & permissions (#96). Changes go to the audit log (who, when, old → new). |
+| Setting (`settings`) | `key` → `value` | `freeTrialsPerPerson` 2, `freeTrialsPerBranch` 1, `paidTrialAdjustBufferDays` 7, `inactivityReleaseDays` 7, `releaseWarnDaysBefore` 1, `newLeadAssignment` Manual / RoundRobin (#96). |
+| Package | `category` adds **Premium PT**; `referenceMembershipPrice` (required for Premium PT) | At sale a Premium PT splits into a membership line (= reference price) and a PT line (= the rest) (#92). |
+| Trial sale line | `approvalStatus` (Pending / Approved / Rejected), `approverUserId`, `approvalComment` (booking comment), `approvalRemark`, `approvedAt` | Trial approval = pending reference (#94). Paid trial adjust: `adjustedTrialLineId` on the membership line. |
+| Follow-up | `assigneeUserId` | Can differ from the lead's `ownerUserId` (#97). Default = owner. |
+| Lead (person) | `unassignedReason` (New / Released, null when owned), `releaseWarnedAt` | Unassigned when `ownerUserId` is null (#100). |
+| Follow-up / WorkTask | `closeReason` adds "Owner changed", "Released (inactive)" | #99, #100. |
+

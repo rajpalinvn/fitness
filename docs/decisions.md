@@ -6,6 +6,7 @@
 2. One person = one profile shared by lead and client.
 3. Rule "money taken = client": Free Trial stays a Lead (shown as a timeline
    event). Trial Paid and Paid packages convert the lead to a Client.
+    Changed by #92: client = bought a Membership or Premium PT; a paid trial stays a Lead.
 4. Explicit "Convert to Client" step (stepper), separate from the sale.
 5. Every open lead must have a next follow-up date. "No activity" means no
    follow-up set or follow-up overdue. No auto "new lead" or "no visit" tasks.
@@ -15,10 +16,12 @@
    "Mark as Lost?" (never silent). Follow-ups are assigned to the lead owner
    by default. There is ONE add-follow-up flow used everywhere. Follow-ups
    are cancelled, never deleted.
+    Changed by #97: a follow-up can be assigned to staff other than the owner (any branch); owner unchanged.
 8. Task statuses: Open, Done, Cancelled. Overdue is shown from the due date.
    No task categories (visibility comes from the permission matrix).
 9. Lead stages are configurable; Converted and Lost are fixed system stages.
    Lost needs a reason. A lost lead can be re-opened (old reason cleared).
+    Changed by #101: stages are the fixed 5 (New, Contacted, Trial, Negotiation, Lost); Converted is not a stage.
 10. Short lead form: name + mobile required; owner and branch prefilled;
     temperature default Warm; everything else under "More details".
 11. Mobile stored with country code (default +91). Unique company-wide.
@@ -31,16 +34,19 @@
     Profile actions: Return, Lost, Replace.
 14. Package price is NOT editable at sale. Discount needs a reason.
     Sale types: Trial (free), Trial Paid, Paid. Special approval: later.
+    Changed by #92, #93: 4 package categories incl. Premium PT; trials get no discount; special approval = Roles & permissions grid (#96).
 15. Roles: SuperAdmin, CEO, Regional Manager, Club Manager, Sales Manager,
     Sales Executive, Trainer, MXM. One clear permission matrix, no hidden
     exceptions. Matrix will be provided later; until then use simple
     placeholders (Sales Executive = own leads; managers = their branches).
     Mockups include a "View as role" switcher.
+    Changed by #95, #96: roles are fixed (9 keys incl. Finance) and permissions come from the Settings grid; placeholders end.
 16. Multiple branches: a branch switcher in the top bar and a branch filter
     on lists.
 17. Extensibility: every lead has a Source and an optional external ID, so
     future auto-sync (e.g. Meta/Facebook leads) adds a source, not a redesign.
     Synced leads show a badge and land in "Unassigned new leads".
+    Changed by #100: Unassigned leads carry a reason (New / Released); who sees and takes them comes from the grid.
 18. Desktop + tablet only. Mobile app later.
 19. Duplicate mobile check. Same branch: show the person's name +
     "Open profile". Another branch: always show that it exists, with branch
@@ -49,6 +55,7 @@
 20. Packages: types Trial, Trial Paid, Membership, PT. Membership and PT are
     sale type "Paid". PT-only packages never get a key fob (PT needs an
     active paid membership, so the client already has one).
+    Changed by #92: package categories are Membership, PT, Premium PT, Add-on; trial is a flag on a package, not a type.
 21. Leads list default view = open leads only. Lost leads appear only via
     the Lost card or the Lost stage filter. "Needs attention" card is first.
 22. Sidebar count badges (scoped to the "View as" role + top-bar branch):
@@ -78,6 +85,7 @@
     reason from the lost reasons list; "Other" requires text (stored as
     "Other: <text>"). Marking Lost cancels the lead's open follow-ups
     (status Cancelled, reason "Lead marked as Lost"; never deleted).
+    Changed by #101: re-opening someone else's lost lead (allowed by scope) makes you the owner; owner-change dialog (#99) if anything is open.
 27. Client NEXT STEP: green when more than 15 days left on the membership;
     amber "Renewal due soon" at 15 days or fewer; red when expired.
 28. Docs tab: upload placeholder with a type picker: ID proof,
@@ -86,6 +94,7 @@
     (fallback Contacted), the old lost reason is cleared, "Re-opened by
     <name>" is added to the timeline, and the next follow-up is asked
     straight away.
+    Changed by #101: if the stage before Lost was Trial and no trial is running, re-open returns to Negotiation.
 30. Key fob actions on a client: Return (fob status Returned), Lost (fob
     status Lost), Replace (pick why: old fob Lost or Damaged/returned, then
     pick a new fob from the home branch stock; stock goes down by one).
@@ -119,24 +128,29 @@
     (`ownerHistory`). Sales rep (`salesRepUserId`) gets the credit per SALE
     LINE, exactly one rep per line. Default, can change: the sales rep
     defaults to the lead owner and can be changed at sale.
+    Changed by #97, #98: when a follow-up assignee (or the new-branch SE) converts, they are the sales rep by default; the owner never changes by this.
 37. Follow-up statuses: Open, Done (staff did it), Cancelled (by staff, with a
     reason), Closed by system (reason: Client converted / Lead lost / Client
     transferred). The system never marks a follow-up Done. Owners of
     follow-ups closed by the system get a notification. This replaces
     "cancelled when lost" in #26 and the plan for conversion.
+    Changed by #99, #100: new system close reasons "Owner changed" and "Released (inactive)".
 38. Mobile is required and unique company-wide. Email is optional and unique
     when given (no email: receipts go by WhatsApp only).
 39. Free trial can be taken many times; show a warning "This is their 3rd
     free trial". Capping comes later from admin.
+    Changed by #94: free-trial limits are settings (default 2 per person, 1 per branch), counted by mobile across branches; over the limit the button is disabled.
 40. FF ID (permanent client ID from the corporate software) and key fob come
     only after the client is entered in the corporate software. Free trial:
     never. Paid trial: admin rule later. Paid membership: required. FF ID
     and key fob show as SEPARATE pending items ("FF ID pending", "Key fob
     pending") until filled. Both unique company-wide. A fob can be reissued.
+    Changed by #93: FF ID is mandatory at Convert to Client (key fob may stay Pending); no trial ever gets an FF ID or fob.
 41. Start date: today up to 30 days ahead (back dates: open question, not
     allowed for now). No overlapping membership and no overlapping PT for the
     same client on the same date. Expiry is by calendar days with the start
     day included (7 days from Mon ends Sun).
+    Changed by #94: paid trial adjust during a running trial sets the membership start = the trial's start date (system-set, in the past).
 42. PT longer than the membership: allowed with a warning; the seller must
     tick an acknowledge checkbox.
 43. Couple PT: both people must be clients with an active membership.
@@ -160,6 +174,7 @@
     settings exist: Sales Executive max 10%, Sales Manager max 20%, other
     roles no limit. Converting an unassigned lead makes the converting user
     the owner.
+    Changed by #92, #96, #100: client = Membership / Premium PT bought; discount limits live in the grid; taking an unassigned lead is the explicit "Take this lead" button.
 49. Tax categories are an admin master (Settings → Items & stock → Tax
     categories): name, GST rate, active. Prices are stored INCLUDING GST; GST
     is worked out backwards: GST = price × rate ÷ (100 + rate). No rate is
@@ -174,6 +189,7 @@
     The result is derived, never typed: Free trial (trial + price 0, stays a
     Lead) / Paid trial / Paid. Price 0 without trial is an error, except an
     Add-on (a free Transfer is allowed, #45).
+    Changed by #92: category list is Membership / PT / Premium PT / Add-on; Premium PT adds a required reference membership price; the "Premium" sub-type label is removed.
 51. Price history: a price applies from its "effective from" date. A new
     price can't start in the past; the current price is the latest one on or
     before today; upcoming prices show on the list.
@@ -199,8 +215,10 @@
     managers (Regional, Club, Sales Manager). Selling prices are shown to
     SuperAdmin/CEO only. Accessory stock and key fobs = Club Manager and
     above, for their own branches. Others see "You don't have access".
+    Changed by #96: access comes from the Roles & permissions grid (Packages = CEO; stock = CM / RM Branch, CEO All).
 57. Packages offered when converting a lead: active, sold at the lead's
     branch, audience New or Both, not Add-ons; PT stays disabled (#20).
+    Changed by #93: Convert offers Membership and Premium PT packages only; trial packages move to Book trial.
 58. Key fob deposit on Replace: if the old fob was damaged / returned, the
     deposit moves to the new fob. If the old fob was LOST, its deposit is
     forfeited and the new fob needs a NEW deposit (its own sale line).
@@ -220,13 +238,16 @@
     something positive ("All caught up", "Nothing due today"). Sections
     follow the "View as" role and the top-bar branch. Trainer and MXM see
     only My open tasks.
+    Changed by #100, #98: "Unassigned new leads" follows the grid row "View unassigned leads" (CM / RM / CEO by default) and shows the reason; Today also gets "Transferred in · needs follow-up person" for the CM.
 62. Add FF ID, Assign fob and Issue item: the client's sales rep, Sales
     Executives and Sales Managers of that branch (they are the front desk
     and do sales / billing), and managers above them. NOT MXM, not Trainer.
     Waiving a free item (#46) is for Sales Manager and above, with a reason.
+    Changed by #96: Collect payment and Waive pending item are grid rows (Waive = SM and above, Branch).
 63. Only managers assign leads. Sales Executives do not see unassigned
     leads. Auto-assign (round-robin) may come later with Meta sync (see
     docs/open-questions.md).
+    Changed by #96, #100: assign / reassign is a grid row (SM / CM / RM Branch, CEO All); SEs see unassigned leads only if the grid gives them View + Take.
 64. Bigger flows open IN the profile drawer as a wide work mode, never as a
     modal over the drawer. Convert to Client = "Sell mode": header
     "<Name> › Convert to client", "Back" returns to the profile, same steps.
@@ -243,10 +264,12 @@
     packages is open. Search by name across groups. Each card shows its free
     items; a "Once per client" item already received shows "(already
     received)" and is Skipped.
+    Changed by #93: Free trial / Paid trial accordions move to Book trial; Convert shows Membership and Premium PT groups only.
 67. FF ID and key fob are ONE section "Corporate entry: FF ID & key fob": a
     conversion step (Paid membership only, both optional, each pending until
     filled), a section on the profile Membership tab, and a group in NEXT STEP
     and Today's pending items. FF ID is no longer in the Details step.
+    Changed by #93: FF ID is mandatory in the Corporate entry step; only the key fob can be Pending.
 68. Quick lead opens in a drawer (not a modal) from "+ Lead" and "Create lead
     with this number". Fields: name, mobile (live duplicate check #19),
     source, temperature (Warm), owner (me, changeable), branch (top-bar);
@@ -269,6 +292,7 @@
     key fob for trials). Left empty, nothing is pending; only a Paid
     membership creates FF ID / Key fob pending. Admin rule may come later.
     (Was Q16.)
+    Changed by #92, #93: a paid trial is booked with Book trial, never through Convert; no FF ID on any trial.
 73. Discount: [% | ₹] + amount in one row, live line "Discount ₹X · Final
     ₹Y", reason is a dropdown (Festive offer, Referral, Corporate, Staff
     family, Other; Other needs text) shown when the amount is above 0. The
@@ -283,18 +307,21 @@
 76. Lead owner: at creation the creator can pick any owner (sales staff of
     the branch). Reassigning an existing lead is managers only (#63).
     (Was Q15.)
+    Changed by #96, #98: moving a lead to another branch is a grid row (SE Own); assign / reassign stays a grid row for SM and above.
 77. Discount limits: every role has a max discount % set by admin in
     Settings → Sales rules (SuperAdmin / CEO edit). Default, can change:
     Sales Executive 10%, Sales Manager 20%, Club Manager 30%, Regional
     Manager 50%, CEO 50%, SuperAdmin 100% (Trainer / MXM 0%). Sell mode uses
     the current role's limit; "no limit" never shows. The discount applies
     to the PACKAGE only, never accessories or the key fob deposit.
+    Changed by #96: max discount % per role is a grid row (defaults in the notes: SE 10, SM 20, CM 30, RM 30, CEO no limit; still placeholders).
 78. GST: calculated per line with its own tax category (prices incl. GST),
     always shown with 2 decimals, and broken down by rate in the bill
     ("GST 5% ₹1,142.86 · GST 18% ₹53.24").
 79. Payment is step 6 of Sell mode, after Summary. "Money taken = client":
     the person becomes a client when the first payment is saved. Free trial
     has no payment step.
+    Changed by #92: the person becomes a client on the first payment of a Membership or Premium PT; a paid trial payment does not.
 80. Payment methods are an admin list (Settings → Payment methods). Default,
     can change: Cash, UPI, Net banking, Card; admin can add or disable;
     online payment comes later.
@@ -335,6 +362,7 @@
     At conversion PT stays disabled (#20, #57). PT is sold later, in its
     own Sell mode, only to a client who already has an active paid
     membership (PT longer than the membership: #42). May be revisited later.
+    Changed by #92: Premium PT is the one package that sells membership + PT together (split into 2 lines at sale).
 90. Follow-up due dates keep the short human form ("today", "Tomorrow",
     "Tue, 10 Nov, 5:00 pm") everywhere they appear: list badges, NEXT STEP,
     Today, timeline and modals. Every other full date stays "12 Nov 2026"
@@ -352,4 +380,128 @@
     ?view=attention. Visibility is a placeholder (Q8): SE their branch,
     managers their branches, CEO / SuperAdmin top-bar branch, Trainer / MXM
     hidden. Ex-client (Q25) and paid trial ended (Q26) are open.
-
+    Changed by #92, #96: the "Paid trial" card goes (paid trial = lead; the paid-trial dummy client becomes a lead), visibility follows the grid row "View clients". Q26 closed.
+92. Client definition and package categories (notes v3 §1, A1–A8;
+    docs/meeting/lead-client-notes-v3.md). Client = a person who bought a
+    Membership or a Premium PT; free and paid trial = Lead. 4 package
+    categories: Membership, PT, Premium PT, Add-on. Premium PT = one
+    package (membership days, PT sessions, price, reference membership
+    price required); at sale it splits into 2 lines: membership line =
+    reference price, PT line = the rest; client status, renewal, session
+    unlock and incentives reuse the existing rules; the incentive split is
+    set in the incentive scheme, not on the package (A7); no trial for
+    Premium PT (A4). The "Premium" membership sub-type label and the dummy
+    "Annual + PT Premium Combo" package are removed. Membership = access to
+    all branches; PT = home branch only (A8). Closes Q5 and Q26 (a paid
+    trial is a lead; "Trial ended" is a lead badge, #101).
+93. Convert to Client (notes §1): offers Membership and Premium PT packages
+    only (PT disabled #89; never trial packages). FF ID is mandatory; the
+    key fob can be Pending; free items follow #67 (#46). Trials give
+    nothing extra: no accessories, no free items, no FF ID, no key fob, no
+    discount; a paid trial is paid in full, at once. A lead has two buttons:
+    Book trial and Convert to Client. Closes Q5.
+94. Trials (notes §1, L1–L7, L1b, L1c). Book trial shows trial packages
+    only. Who gets which: lead = membership trials; active client = PT
+    trials (package "Requires an active membership"); expired client = no
+    trial (button hidden); lost lead = "Re-open the lead first" (#26).
+    Trial stage is automatic (stage dropdown: New, Contacted, Negotiation;
+    locked while a trial runs, unlocks after it ends, L5). Trial ends: stage
+    stays Trial, status "Trial ended" (L7), follow-up for the owner.
+    Free-trial limits are settings (default 2 per person counted by mobile
+    across all branches, L6; 1 per branch), the same for every role (L1c),
+    no per-booking override; over the limit the button is disabled "Free
+    trial limit reached" (L1). Paid trials unlimited, count shown. Trial
+    approval = a pending reference, not a block (L1b): every booking needs
+    a comment + "Approval asked from" (SM / CM / RM of the branch, per the
+    grid); booked at once, status Pending; approver marks Approved /
+    Rejected + remark; Rejected is only recorded. Paid trial adjust:
+    running trial → the adjust checkbox is ticked and locked, full trial
+    price subtracted (L4), membership start = trial start date; trial
+    ended → 7-day buffer, only for roles with the grid permission (L2),
+    start = today, full price subtracted (L3). Closes Q12.
+95. Roles (notes §2a): fixed, seeded, locked `roles` table with keys
+    SUPER_ADMIN (SA, all branches), CEO (multi, reports to SuperAdmin),
+    REGIONAL_MANAGER (RM, multi → CEO), CLUB_MANAGER (CM, single → RM),
+    SALES_MANAGER (SM, single → CM), SALES_EXECUTIVE (SE, single → SM),
+    MXM (single → CM), TRAINER (TR, single → MXM), FINANCE (FIN, single →
+    CM). Code uses the key, never the row id. One staff = exactly one
+    `roleKey` + `branchIds[]` (exactly 1 for single-branch roles). Region
+    = a grouping / filter of branches (and how branches are given to an
+    RM), not a permission scope. Trainer type is not a role: an
+    admin-managed Trainer types master list (name, short code, active,
+    "Can take PT sessions" default Yes; seeded General Trainer GT, Personal
+    Trainer PT, General + Personal GT-PT); each trainer has one
+    `trainerTypeId`; any type can take PT sessions; the type only changes
+    the payout (rate per type in the incentive scheme); every PT session /
+    sale line stores the trainer type at that time (snapshot).
+96. Roles & permissions grid + Settings values (notes §2). Settings →
+    Roles & permissions: fixed roles × actions; each cell is a tick, a
+    scope (None / Own / Branch / All; Branch = the staff's branch(es)) or a
+    number (discount %). Defaults ship pre-set (default grid in the notes:
+    Leads, Trials, Sales, Clients, Settings rows for SE / SM / CM / RM /
+    CEO; Trainer, MXM, Finance have no lead / sales access; SuperAdmin
+    everything). Only CEO and SuperAdmin edit; every change is logged
+    (who, when, old → new). No per-user permissions, custom roles or
+    conditions. Locked rules: SuperAdmin has every permission; only CEO /
+    SuperAdmin edit the grid; at least one role keeps Assign / reassign;
+    an owner can always see and log follow-ups on their own leads.
+    Settings values (numbers, not per role): free trials per person 2,
+    per branch 1 (grid row "Edit free-trial limit settings"); paid trial
+    adjust buffer 7 days (CEO); inactivity release after 7 days + warn 1
+    day before (grid row "Edit inactivity release days"); new-lead
+    assignment Manual (round-robin later, CEO); max discount % per role
+    (#77, CEO). Replaces every "Placeholder" visibility rule (#15, #56,
+    #62, #63, #91). Closes Q7, Q8, Q11.
+97. Follow-up assigned to a non-owner, any branch (notes L8–L11, L9b).
+    The assignee sees the lead while they have an open follow-up on it;
+    when it is Done / Cancelled / Closed by system the lead leaves their
+    Leads list (stays in their follow-up history). Scope "Own" = leads I
+    own + leads where I have an open follow-up, so the assignee can call,
+    WhatsApp, add notes, log their follow-up, Book trial and Convert as
+    the grid allows, on the full profile (L9b). The owner never changes by
+    this. If the assignee converts they are the sales rep of that sale by
+    default (#36, changeable at sale). Leads list badge "Follow-up from
+    <owner>" on leads the user does not own (L11).
+98. Lead moved to another branch (notes L12–L15). The lead's branch
+    changes; the owner stays (cross-branch owner). Remark mandatory;
+    timeline "Moved Sec 31 → Golf Course by Priya". Mover without the grid
+    row "pick the follow-up person directly" (SE by default): the lead
+    shows for the new branch's CM as "Transferred in · needs follow-up
+    person" (Leads filter + Today); the CM picks an SE of that branch, who
+    gets a follow-up. Mover with that row: a dropdown of the new branch's
+    SEs in the move dialog, follow-up created at once. The owner's open
+    follow-ups stay as they are. The new-branch SE who converts is the
+    sales rep by default (#97); any owner credit is for the incentive
+    scheme.
+99. Owner change dialog, single or bulk (notes L16–L17). Shows "Open
+    follow-ups and tasks (N)" with 3 choices, default first: (1) Move to
+    the new owner; (2) Close them ("Closed by system · Owner changed") and
+    create ONE new follow-up for the new owner (due = earliest open due
+    date, editable); (3) Keep with the old owner (who keeps seeing the lead
+    while they stay open, #97). In bulk one choice applies to all. Applies
+    to open follow-ups and open tasks only; done / closed history, notes,
+    timeline and trial-approval requests are not moved. Same dialog for a
+    client's owner change.
+100. Inactivity release and Unassigned (notes L18–L22), built now. A lead
+    is inactive when its next follow-up is overdue or not set for N days
+    (setting, default 7): owner removed → Unassigned, open follow-ups and
+    tasks "Closed by system · Released (inactive)", timeline entry. Applies
+    to all open leads; never while a trial runs; lost leads are never
+    released. Warning 1 day before (notification + "Releases tomorrow"
+    badge); any follow-up logged or scheduled resets the clock. "Pool" =
+    Unassigned leads, controlled only by the grid (no new screen):
+    Unassigned has a reason, New (Meta / Excel / manual) or Released
+    (inactive), filterable; default only CM / RM / CEO see and take them;
+    giving SE View + Take (Branch) turns the pool on for SEs. "Take this
+    lead" is an explicit button (no auto-claim by activity); the taker
+    becomes owner, the lead's branch does not change. Lost leads are not
+    Unassigned: they keep their owner; visibility by the grid row "View
+    lost leads"; re-opening someone else's lost lead makes you the owner,
+    with the owner-change dialog (#99) if anything is open.
+101. Lead stages stay 5 (notes L23–L24): New, Contacted, Trial (automatic),
+    Negotiation, Lost. Converted = becomes a Client, not a stage.
+    Situations are badges, not stages: Trial ended, Unassigned, Transferred
+    in, Releases tomorrow, Re-opened, Follow-up from <owner>. Junk / wrong
+    number / not interested are Lost reasons, not stages. Re-open returns
+    to the stage before Lost (#29); if that was Trial and no trial is
+    running, it returns to Negotiation.

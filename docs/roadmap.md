@@ -15,14 +15,16 @@ feature README. Rules: `docs/decisions.md`. Questions: `docs/open-questions.md`.
 - Test runner: `bash tools/run-tests.sh`.
 
 ## Next
-1. **Tasks**: my / team tasks, task modal (title, assigned to, due, priority, person), Open / Done / Cancelled.
-2. **Follow-ups list**: all open follow-ups by date, owner, type; "View all" target for Due today.
-3. **Renewals**: "Renew" action on Clients and the profile (drawer work mode), automatic renewal follow-ups, and a Today section "Expiring this week".
-4. **Global search (real)**: search leads, clients, FF ID, key fob, mobile from the top bar with results grouped by type.
+1. **Settings › Roles & permissions** screen (fixed roles × actions, scopes None / Own / Branch / All, discount %, audit log) + Settings values (free-trial limits, paid trial adjust buffer, inactivity days, new-lead assignment). #95, #96.
+2. **Lead flow update** (#92–#101): Book trial (who gets which trial, approval as pending reference, free-trial limits, "Trial ended"), Convert = Membership / Premium PT only (FF ID mandatory), Premium PT package (reference membership price, 2 lines at sale), owner change dialog, branch move, follow-up to others ("Follow-up from <owner>"), inactivity release + Unassigned reasons + Take this lead, stage dropdown (New / Contacted / Negotiation), and the Clients list fix (remove the "Paid trial" card; the paid-trial dummy client becomes a lead).
+3. **Tasks**: my / team tasks, task modal (title, assigned to, due, priority, person), Open / Done / Cancelled.
+4. **Follow-ups list**: all open follow-ups by date, owner, type; "View all" target for Due today.
+5. **Renewals**: "Renew" action on Clients and the profile (drawer work mode), automatic renewal follow-ups, and a Today section "Expiring this week".
+6. **Global search (real)**: search leads, clients, FF ID, key fob, mobile from the top bar with results grouped by type.
 
 ## Later
 - **Upgrade** (membership and PT, #44), opens in the drawer work mode (#64).
 - **Transfer** (first Add-on, #45), drawer work mode.
 - **Payment** module: converts on payment success, deposits, refunds, receipts.
 - **Data migration** from the old system (people, memberships, FF IDs, fobs).
-- **Meta sync**: live lead sync and auto-assign (Q10).
+- **Meta sync**: live lead sync and round-robin assignment (Q10, parked).
