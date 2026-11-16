@@ -92,7 +92,7 @@
 | Settings | Edit inactivity release days | — | — | ✓ | ✓ | ✓ |
 | Settings | Roles & permissions | — | — | — | — | ✓ |
 
-Trainer, MXM, Finance: no lead / sales access by default (PT and payment rows come later). CEO: everything, locked (#102). The trial approver dropdown = SM, CM, RM of the branch (L1b); the CEO also has the permission because the CEO column is locked.
+Trainer, MXM, Finance: no lead / sales access by default (PT and payment rows come later). CEO: everything, locked (#102). `trials.approve` = who can approve / reject; the "Approval asked from" dropdown is a separate rule (L1b).
 Discount % numbers follow #77 (CEO 100% = placeholder Q31; "no limit" never shows), placeholders until admin sets them.
 
 ### Locked (cannot be changed in the grid)
@@ -123,7 +123,7 @@ O-R3, O-R5, O-R6, T-R7 (who approves), and **Q8** (permission matrix) everywhere
 | ID | Decision |
 |---|---|
 | L1 | **No per-booking override.** Free-trial limits are **settings** (default: 2 per person, 1 per branch). Within the limit anyone allowed to book gives the free trial. Over the limit the button is disabled: "Free trial limit reached". To give more, a role with the permission changes the setting (even CEO does it through the setting). |
-| L1b | **Trial approval = a pending reference, not a block.** Every trial booking needs a comment + "Approval asked from" (dropdown: SM, CM, RM of the branch, per the grid). Trial is booked at once; status Pending. The approver can mark Approved / Rejected + remark; Rejected is only recorded (trial keeps running). |
+| L1b | **Trial approval = a pending reference, not a block.** Every trial booking needs a comment + "Approval asked from". The dropdown is a **rule, not the permission**: it lists only the SM, CM and RM of the lead's branch who have `trials.approve`. The CEO never appears in it, but can approve / reject any pending trial (e.g. from a pending approvals list), since `trials.approve` = All for CEO (locked, #102). Trial is booked at once; status Pending. The approver can mark Approved / Rejected + remark; Rejected is only recorded (trial keeps running). |
 | L1c | Free-trial limits are the **same for every role** (a rule about the person, not the staff). More trials only by changing the setting. |
 | L2 | **7-day buffer adjust:** whoever has the permission does the conversion; the adjust checkbox appears for them only, within 7 days after the trial ended. |
 | L3 | Buffer adjust: membership start = **today** (not the trial start, or the client loses days). Full trial price subtracted. |

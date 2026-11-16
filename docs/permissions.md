@@ -28,7 +28,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `leads.movePickPerson` | While moving, pick the follow-up person in the new branch directly | Leads | scope | All | Branch | Branch | None | None | None | None | None | CEO |
 | `trials.book` | Book trial | Trials | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
 | `trials.editLimits` | Edit free-trial limit settings (per person, per branch) | Trials | tick | Yes | Yes | Yes | No | No | No | No | No | CEO |
-| `trials.approve` | Can be picked as trial approver (approve / reject) | Trials | scope | All | Branch | Branch | Branch | None | None | None | None | CEO (see note) |
+| `trials.approve` | Can be picked as trial approver (approve / reject) | Trials | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
 | `trials.adjustAfterEnd` | Paid trial adjust after it ended (7-day buffer) | Trials | scope | All | None | Branch | None | None | None | None | None | CEO |
 | `sales.convert` | Convert to Client / Sell | Sales | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
 | `sales.discountMax` | Max discount % (#77) | Sales | number | 100 | 50 | 30 | 20 | 10 | 0 | 0 | 0 | CEO (100 = placeholder, Q31) |
@@ -40,8 +40,9 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `settings.editInactivity` | Edit inactivity release days | Settings | tick | Yes | Yes | Yes | No | No | No | No | No | CEO |
 | `settings.rolesPermissions` | Roles & permissions | Settings | tick | Yes | No | No | No | No | No | No | No | every cell (CEO only) |
 
-Note on `trials.approve`: the notes (L1b) say the approver dropdown is SM / CM / RM of the branch and CEO is not an approver by
-default; with #102 the CEO column is locked to All, so the CEO has the permission too. Open for the user to confirm.
+Note on `trials.approve`: this is who CAN approve / reject a pending trial (CEO = All, locked). The "Approval asked from"
+dropdown at booking (L1b, #94) is a separate rule: it lists only the SM, CM and RM of the lead's branch who have `trials.approve`.
+The CEO never appears in that dropdown but can approve / reject any pending trial (e.g. from a pending approvals list).
 
 ## Settings values (numbers, not per role)
 | Key | Label | Default | Range | Changed by |

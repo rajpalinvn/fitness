@@ -417,15 +417,21 @@
     no per-booking override; over the limit the button is disabled "Free
     trial limit reached" (L1). Paid trials unlimited, count shown. Trial
     approval = a pending reference, not a block (L1b): every booking needs
-    a comment + "Approval asked from" (SM / CM / RM of the branch, per the
-    grid; CEO not an approver by default, can add themselves via the
-    grid); booked at once, status Pending; approver marks Approved /
+    a comment + "Approval asked from"; booked at once, status Pending;
+    the approver marks Approved /
     Rejected + remark; Rejected is only recorded. Paid trial adjust:
     running trial → the adjust checkbox is ticked and locked, full trial
     price subtracted (L4), membership start = trial start date (set by
     the system; staff can never back-date, #41 stays for staff); trial
     ended → 7-day buffer, only for roles with the grid permission (L2),
     start = today, full price subtracted (L3). Closes Q12.
+    Approver rule vs permission: `trials.approve` = who CAN approve /
+    reject a pending trial (CEO = All, locked, #102). The "Approval asked
+    from" dropdown (L1b) is a separate rule, not the permission: it lists
+    only the SM, CM and RM of the lead's branch who have `trials.approve`.
+    The CEO never appears in that dropdown but can approve / reject any
+    pending trial (e.g. from a pending approvals list). Dropdown built in
+    the lead flow update.
 95. Roles (notes §2a): fixed, seeded, locked `roles` table with keys
     SUPER_ADMIN (SA, all branches), CEO (multi, reports to SuperAdmin),
     REGIONAL_MANAGER (RM, multi → CEO), CLUB_MANAGER (CM, single → RM),
