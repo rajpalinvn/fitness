@@ -324,15 +324,18 @@
     return [];
   };
   App.access = {
-    // Mappings for actions with no grid row of their own (listed in features/settings/README.md): Sales rules edit → settings.packages;
-    // masters view (Packages / Items / Tax / Sales rules read-only) → settings.stock or settings.packages.
+    // Sales rules edit has no row of its own → settings.packages (accepted mapping). View-only masters = settings.viewMasters.
     salesRules: function () { return App.can("settings.packages") === true; },
     editMasters: function () { return App.can("settings.packages") === true; },
-    viewMasters: function () { return App.can("settings.packages") === true || App.can("settings.stock") !== "None"; },
+    viewMasters: function () { return App.can("settings.packages") === true || App.can("settings.viewMasters") !== "None"; },
     stock: function () { return App.can("settings.stock") !== "None"; },
     stockBranches: function () { return App.scopeBranches("settings.stock"); },
-    // Add FF ID / Assign fob / Issue item / Collect payment on a client (#62) → grid row clients.collectPayment.
-    pendingActions: function (p) { return App.scopeAllows("clients.collectPayment", p); },
+    // Pending items on a client (#62): Add FF ID / Assign fob / Issue item → clients.issueItems; Collect payment → clients.collectPayment.
+    // kind: "pay" or an issue kind ("addFf" / "goFob" / "issue"); no kind = either.
+    pendingActions: function (p, kind) {
+      var issue = App.scopeAllows("clients.issueItems", p), pay = App.scopeAllows("clients.collectPayment", p);
+      return kind === "pay" ? pay : kind ? issue : (issue || pay);
+    },
     assignLeads: function () { return App.can("leads.assign") !== "None"; }
   };
   // Clients (decision #91): grid row clients.view. Today's "Clients with pending items" uses the same helper so numbers match.

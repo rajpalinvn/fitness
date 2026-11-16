@@ -244,8 +244,9 @@
     return out;
   }
   function pendingItems(p) {
-    var can = App.access.pendingActions(p), list = pendingList(p);
+    var list = pendingList(p);
     function one(x) {
+      var can = App.access.pendingActions(p, x.k);
       return '<div class="ns-pending"><span class="badge badge-warning">' + esc(x.t) + "</span> " +
         (can ? '<button class="link-btn" data-pd="' + x.k + '"' + (x.itemId ? ' data-item="' + x.itemId + '"' : "") + ">" + esc(x.a) + "</button>" : "") + "</div>";
     }
@@ -551,7 +552,7 @@
   function paySection(title, line, p, extra) {
     var pay = line && line.payment;
     if (!pay) return '<section class="corp-sec"><h4 class="sec-title">' + esc(title) + '</h4><p class="muted">No payment recorded yet.</p></section>';
-    var bal = App.payBalance(pay), can = App.access.pendingActions(p);
+    var bal = App.payBalance(pay), can = App.access.pendingActions(p, "pay");
     return '<section class="corp-sec" data-pay-sec><h4 class="sec-title">' + esc(title) + '</h4><dl class="kv kv-wide">' + (extra || "") +
         kv("Total", App.fmtMoney(pay.total)) + kv("Paid", App.fmtMoney(pay.paid)) +
         "<dt>Balance due</dt><dd>" + (bal ? '<span class="badge badge-warning">' + App.fmtMoney(bal) + (pay.dueDate ? " by " + esc(App.fmtIsoDate(pay.dueDate)) : "") + "</span>" +

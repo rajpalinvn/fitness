@@ -86,8 +86,12 @@
 | Sales | Max discount % (#77) | 10% | 20% | 30% | 50% | 100% (placeholder, Q31) |
 | Clients | View clients | Branch | Branch | Branch | Branch | All |
 | Clients | Collect payment | Branch | Branch | Branch | Branch | All |
+| Clients | Issue FF ID / key fob / item on a client (pending items) | Branch | Branch | Branch | Branch | All |
+| Clients | Issue FF ID / key fob / item on a client (pending items) | Branch | Branch | Branch | Branch | All |
 | Clients | Waive pending item (#67) | — | Branch | Branch | Branch | All |
 | Settings | Packages | — | — | — | — | ✓ |
+| Settings | View Packages / Items / Tax / Sales rules (read-only) | — | Branch | Branch | Branch | All |
+| Settings | View Packages / Items / Tax / Sales rules (read-only) | — | Branch | Branch | Branch | All |
 | Settings | Accessory / key fob stock (#56) | — | — | Branch | Branch | All |
 | Settings | Edit inactivity release days | — | — | ✓ | ✓ | ✓ |
 | Settings | Roles & permissions | — | — | — | — | ✓ |

@@ -75,7 +75,7 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 
 ## 4. States
 - **Loading**: skeleton rows (`?debug` → Loading). **Error**: "Couldn't load this list" + Retry. **Empty**: "No packages yet" + Package button. **No results**: "No packages match these filters" + Clear filters.
-- **View only** (roles with `settings.stock`, i.e. CM / RM by default): banner "View only"; no + Package, no Copy, read-only form.
+- **View only** (grid row `settings.viewMasters`: SM / CM / RM by default): banner "View only"; no + Package, no Copy, read-only form.
 - **No access** (other roles): "You don't have access to packages".
 - **Locked** (sold): amber callout "Sold N times. … are locked" + Copy as new; locked fields disabled with "Locked: sold".
 - **Validation**: "Enter a name.", "Enter the number of days (1 or more).", "Enter the number of sessions.", "Enter a price (0 or more).", "A price of 0 is only allowed for a trial.", "A new price can't start in the past.", "Choose at least one branch.", "Each free item can be added once."
@@ -155,7 +155,7 @@ Ready for review
 
 ## 4. States
 - **Loading / Error / Empty** via `?debug` on every tab. Empty: "No items yet", "No accessories yet", "No fobs at this branch", "No tax categories yet". No results (fobs filter): "No fobs match" + Clear filters.
-- **No access**: masters (Items, Tax) and stock / fobs for roles without `settings.stock` (see docs/permissions.md). "None of your branches is selected" when the top-bar branch isn't one of yours.
+- **No access**: masters (Items, Tax) for roles without `settings.viewMasters`; stock / fobs for roles without `settings.stock` (see docs/permissions.md). "None of your branches is selected" when the top-bar branch isn't one of yours.
 - **Stock**: 0 → red "Out of stock" (colour + words).
 - **Success**: toasts ("T-shirt: +10 at Sec 31 · now 10", "9 fobs added to Golf Course · 2 skipped", "Refunded ₹600 · KF-S65-0102").
 
@@ -176,7 +176,7 @@ Ready for review
 
 # Settings → Sales rules (`sales.html`)
 Decisions #77, #80, #96 (Default, can change). Access from the grid (docs/permissions.md): edit = `settings.packages` (CEO);
-view = `settings.stock` (CM / RM); others "You don't have access to sales rules".
+view = `settings.viewMasters` (SM / CM / RM); others "You don't have access to sales rules".
 
 ## 1. Screens
 | Screen | File | Purpose |
@@ -241,10 +241,11 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
   | Leads list, Today leads sections, sidebar badges | `leads.view`; a lost lead `leads.viewLost`; an unassigned lead `leads.viewUnassigned`. "Own" = owner (follow-up assignee part of #97 comes with the lead flow update). |
   | Today "Unassigned new leads" | `leads.assign` ≠ None AND `leads.viewUnassigned` ≠ None |
   | Clients list, Today "Clients with pending items" | `clients.view` |
-  | Add FF ID / Assign fob / Issue item / Collect payment (profile + Today) | `clients.collectPayment` (no row of its own: mapping) |
+  | Add FF ID / Assign fob / Issue item (profile + Today) | `clients.issueItems` |
+  | Collect payment (profile, Today, Clients list) | `clients.collectPayment` |
   | Waive a pending free item | `clients.waive` |
   | Packages / Items / Tax / Sales rules: edit | `settings.packages` (Sales rules edit has no row of its own: mapping) |
-  | Packages / Items / Tax / Sales rules: view only | `settings.stock` ≠ None (masters view has no row of its own: mapping) |
+  | Packages / Items / Tax / Sales rules: view only | `settings.viewMasters` |
   | Accessory stock, key fobs (and their branches) | `settings.stock` (Branch = my branches, All = every branch) |
   | Max discount in Sell mode | `sales.discountMax` (one source; `App.discountLimit`) |
   | This page | `settings.rolesPermissions` |

@@ -102,12 +102,13 @@
     { k: "pending", area: "p", t: "Clients with pending items", ic: "key", tone: "amber", get: pending, words: "FF ID, key fob, free item or payment",
       empty: "No pending items", all: "../clients/index.html?view=attention", show: pendingRole,
       row: function (x) {
-        var first = x.items[0], act = { addFf: "ff", goFob: "fob", issue: "issue", pay: "pay" }[first.k];
+        var first = x.items.filter(function (it) { return App.access.pendingActions(x.p, it.k); })[0] || x.items[0];
+        var allowed = App.access.pendingActions(x.p, first.k), act = { addFf: "ff", goFob: "fob", issue: "issue", pay: "pay" }[first.k];
         return row({ open: x.p.id, tab: "membership", title: esc(x.p.name) + ' <span class="muted">· ' + esc(x.p.clientNo) + "</span>",
           sub: esc(x.p.membership.package) + " · " + esc(App.branchName(x.p.branchId)) + " · joined " + esc(App.fmtShortWhen(x.p.joinedAt)) +
             '<div class="stack mt-1">' + pendBadges(x.items) + "</div>",
           status: "",
-          action: btn(act, first.a, { p: x.p.id, item: first.itemId || "" }) });
+          action: allowed ? btn(act, first.a, { p: x.p.id, item: first.itemId || "" }) : "" });
       } }
   ];
   // Same grouping as the profile: "Corporate entry: FF ID & key fob" first, then free items.

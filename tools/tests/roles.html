@@ -39,8 +39,10 @@ var DOC = {
   "sales.discountMax": [100, 50, 30, 20, 10, 0, 0, 0],
   "clients.view": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
   "clients.collectPayment": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
+  "clients.issueItems": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
   "clients.waive": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
   "settings.packages": [true, false, false, false, false, false, false, false],
+  "settings.viewMasters": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
   "settings.stock": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
   "settings.editInactivity": [true, true, true, false, false, false, false, false],
   "settings.rolesPermissions": [true, false, false, false, false, false, false, false]
@@ -61,7 +63,7 @@ load(SET, function () {
       step("defaults = docs/permissions.md", function () {
         var bad = [];
         Object.keys(DOC).forEach(function (k) { SHORTS.forEach(function (s, i) { if (P().get(s, k) !== DOC[k][i]) bad.push(s + "." + k + "=" + P().get(s, k)); }); });
-        ok("24 permission keys, 8 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 24 && D().roles.length === 8 && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
+        ok("24 permission keys, 8 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 26 && D().roles.length === 8 && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
         ok("tenant: one tenant, tenantId on branches, users, people, packages", D().tenants.length === 1 && D().branches.every(function (b) { return b.tenantId === "t1"; }) && D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.tenantId === "t1"; }) && D().people.every(function (p) { return p.tenantId === "t1"; }) && D().packages.every(function (p) { return p.tenantId === "t1"; }));
         ok("every default matches docs/permissions.md", !bad.length, bad.join(" "));
         ok("App.can for CEO: rolesPermissions true, leads.view All, discount 100", W().App.can("settings.rolesPermissions") === true && W().App.can("leads.view") === "All" && W().App.can("sales.discountMax") === 100);
@@ -73,7 +75,7 @@ load(SET, function () {
       step("grid", function () {
         ok("5 tabs, Permissions active", qa("#rpTabs .tab").length === 5 && /Permissions/.test(text("#rpTabs .tab.active")));
         ok("8 role columns in order, no SA", Array.prototype.map.call(qa("#permTable thead th.perm-col"), function (t) { return t.textContent; }).join() === SHORTS.join());
-        ok("5 module groups, 24 rows", qa("#permTable .perm-group").length === 5 && qa("#permTable tr[data-perm]").length === 24);
+        ok("5 module groups, 26 rows", qa("#permTable .perm-group").length === 5 && qa("#permTable tr[data-perm]").length === 26);
         ok("chip shows value, not an open dropdown", /Branch/.test(chip("SM", "leads.view").textContent) && !q(".perm-pop") && !qa("#permTable select").length);
         ok("CEO column locked with reason", SHORTS.length === 8 && Object.keys(DOC).every(function (k) { return chip("CEO", k).classList.contains("locked"); }) && /every permission/.test(chip("CEO", "leads.view").dataset.tip));
         ok("Roles & permissions row locked for every role", SHORTS.every(function (s) { return chip(s, "settings.rolesPermissions").classList.contains("locked"); }));
@@ -128,7 +130,7 @@ load(SET, function () {
           type("#rpSearch", "discount"); ok("search filters rows", qa("#permTable tr[data-perm]").length === 1 && qa("#permTable .perm-group").length === 1);
           type("#rpSearch", "zzz"); ok("no match state", /No actions match/.test(text("#permTable")));
           type("#rpSearch", "");
-          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 13); click(q('[data-module="Leads"]'));
+          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 15); click(q('[data-module="Leads"]'));
         });
         step("settings values", function () {
           click(q('[data-rtab="values"]'));

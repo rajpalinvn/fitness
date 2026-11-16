@@ -92,8 +92,10 @@
     { key: "sales.discountMax",     module: "Sales",    label: "Max discount % (#77)",                                  type: "number", defaults: { SE: 10, SM: 20, CM: 30, RM: 50, CEO: 100 } },   // CEO 100% = placeholder (Q31)
     { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.collectPayment", module: "Clients", label: "Collect payment",                                       type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "clients.issueItems",    module: "Clients",  label: "Issue FF ID / key fob / item on a client",           type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.waive",         module: "Clients",  label: "Waive pending item (#67)",                              type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.packages",     module: "Settings", label: "Packages",                                              type: "tick",   defaults: { CEO: true } },
+    { key: "settings.viewMasters",  module: "Settings", label: "View Packages / Items / Tax / Sales rules (read-only)", type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.stock",        module: "Settings", label: "Accessory / key fob stock (#56)",                       type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.editInactivity", module: "Settings", label: "Edit inactivity release days",                        type: "tick",   defaults: { CM: true, RM: true, CEO: true } },
     { key: "settings.rolesPermissions", module: "Settings", label: "Roles & permissions",                               type: "tick",   defaults: { CEO: true }, lock: "all" }

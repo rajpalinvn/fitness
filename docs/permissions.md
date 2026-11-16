@@ -34,8 +34,10 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `sales.discountMax` | Max discount % (#77) | Sales | number | 100 | 50 | 30 | 20 | 10 | 0 | 0 | 0 | CEO (100 = placeholder, Q31) |
 | `clients.view` | View clients | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
 | `clients.collectPayment` | Collect payment | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
+| `clients.issueItems` | Issue FF ID / key fob / item on a client (pending items: add FF ID, assign fob, issue item) | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
 | `clients.waive` | Waive pending item (#67) | Clients | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
 | `settings.packages` | Packages | Settings | tick | Yes | No | No | No | No | No | No | No | CEO |
+| `settings.viewMasters` | View Packages / Items / Tax / Sales rules (read-only) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
 | `settings.stock` | Accessory / key fob stock (#56) | Settings | scope | All | Branch | Branch | None | None | None | None | None | CEO |
 | `settings.editInactivity` | Edit inactivity release days | Settings | tick | Yes | Yes | Yes | No | No | No | No | No | CEO |
 | `settings.rolesPermissions` | Roles & permissions | Settings | tick | Yes | No | No | No | No | No | No | No | every cell (CEO only) |

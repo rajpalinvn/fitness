@@ -56,11 +56,21 @@ load(LEADS, function () {
             });
             load(PK, function () {
               step("Settings masters · settings.packages / settings.stock", function () {
-                W().App.setRole("Club Manager"); ok("CM: view only (settings.stock Branch)", /View only/.test(text("#banner")));
-                W().App.setRole("Sales Manager"); ok("SM: no access (no settings row) — visible difference, see README", /don't have access/.test(text("#content")));
+                W().App.setRole("Club Manager"); ok("CM: view only (settings.viewMasters Branch)", /View only/.test(text("#banner")));
+                W().App.setRole("Sales Manager"); ok("SM: view only too (settings.viewMasters)", /View only/.test(text("#banner")) && q("#btnNew").hidden);
+                W().App.setRole("Sales Executive"); ok("SE: no access", /don't have access/.test(text("#content")));
                 W().App.setRole("CEO"); ok("CEO edits", !q("#btnNew").hidden);
-                P().save([{ short: "SM", key: "settings.stock", value: "Branch" }], "Permissions"); W().App.setRole("Sales Manager");
-                ok("SM given stock = Branch: view only again", /View only/.test(text("#banner")));
+                P().save([{ short: "SM", key: "settings.viewMasters", value: "None" }], "Permissions"); W().App.setRole("Sales Manager");
+                ok("SM with viewMasters None: no access", /don't have access/.test(text("#content")));
+                clear();
+              });
+              step("issue items vs collect payment (clients.issueItems / clients.collectPayment)", function () {
+                var rohit = W().App.byId(W().DUMMY.people, "p12");
+                W().App.setRole("Finance"); P().save([{ short: "FIN", key: "clients.view", value: "Branch" }, { short: "FIN", key: "clients.collectPayment", value: "Branch" }], "Permissions");
+                var fin = W().App.byId(W().DUMMY.users, "u12"), sameBranch = W().DUMMY.people.filter(function (p) { return p.kind === "Client" && p.branchId === fin.branchIds[0]; })[0];
+                ok("Finance with collectPayment only: can collect, cannot issue a fob / FF ID", W().App.access.pendingActions(sameBranch, "pay") === true && W().App.access.pendingActions(sameBranch, "goFob") === false && W().App.access.pendingActions(sameBranch, "addFf") === false);
+                W().App.setRole("Sales Executive");
+                ok("SE default: can issue and collect in own branch, not elsewhere", W().App.access.pendingActions(rohit, "goFob") === (rohit.branchId === "b1") && W().App.access.pendingActions(rohit, "pay") === (rohit.branchId === "b1"));
                 clear();
               });
               step("discount limit from the grid", function () {

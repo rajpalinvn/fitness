@@ -466,7 +466,11 @@
     assignment Manual (round-robin later, CEO); max discount % per role
     = the #77 numbers (SE 10, SM 20, CM 30, RM 50, CEO 50, SuperAdmin
     100; "no limit" never shows; CEO edits). Replaces every "Placeholder"
-    visibility rule (#15, #56, #62, #63, #91). Closes Q7 (no separate
+    visibility rule (#15, #56, #62, #63, #91). Added later: rows
+    `clients.issueItems` (FF ID / fob / item on a client; SE–RM Branch,
+    CEO All) and `settings.viewMasters` (read-only Packages / Items / Tax /
+    Sales rules; SM–RM Branch, CEO All); Sales rules edit maps to
+    `settings.packages`. Closes Q7 (no separate
     Front desk role: front desk work = Sales Executive and Sales
     Manager, #62), Q8, Q11.
     Changed by #102: no SuperAdmin column; CEO has every permission (locked), only CEO edits the grid and the Settings values; CEO max discount 100% (Q31).
