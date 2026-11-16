@@ -103,12 +103,13 @@ load(LEADS, function () {
         ok("lost via menu", person("p10").stage === "Lost" && person("p10").lostReason === "Price high");
       });
       step("clients", function () {
-        openP("p6");
+        openP("p19");
         ok("client tabs include Membership", /Membership/.test(text(".pd-tabs")));
-        ok("Ananya amber renewal due soon", q(".pd-left .next-step").classList.contains("amber") && /Renewal due soon/.test(left()));
+        ok("Divya amber renewal due soon", q(".pd-left .next-step").classList.contains("amber") && /Renewal due soon/.test(left()));
         ok("no Convert on client", !q('[data-pd="convert"]'));
         click(q('[data-tab-k="membership"]'));
-        ok("trial paid has no key fob", /trial memberships don't get one/.test(text(".pd-scroll")));
+        ok("fob assigned shown", /KF-S31-0021/.test(text(".pd-scroll")));
+        openP("p6"); ok("Ananya is a lead on a paid trial: Convert available, NEXT STEP trial line", !!q('[data-pd="convert"]') && /Paid trial · ends in/.test(text(".next-step")));
         openP("p7"); click(q('[data-tab-k="membership"]'));
         ok("Vivaan green + fob actions", q(".pd-left .next-step").classList.contains("green") && !!q('[data-pd="fobReturn"]') && !!q('[data-pd="fobLost"]') && !!q('[data-pd="fobReplace"]'));
         var before = D().keyFobs.filter(function (k) { return k.branchId === "b1" && k.status === "In stock"; }).length;

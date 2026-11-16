@@ -33,11 +33,11 @@ load(TODAY, function () {
     load(CL, function () {
       step("cards + default view (CEO, all branches)", function () {
         ok("sidebar Clients is active", /Clients/.test(text(".nav-item.active")));
-        ok("5 cards, Needs attention first", qa("#pipeline .pipe-card").length === 5 && qa("#pipeline .pipe-card")[0].dataset.card === "attention");
+        ok("4 cards (no Paid trial), Needs attention first", qa("#pipeline .pipe-card").length === 4 && !q('[data-card="trial"]') && qa("#pipeline .pipe-card")[0].dataset.card === "attention");
         ok("Needs attention = Today pending count (CEO)", cnt("attention") === todayPending.ceo, cnt("attention") + " vs " + todayPending.ceo);
         ok("Renewal due 2+ (3 and 12 days left)", cnt("renewal") >= 2 && !!rowOf("p19") && !!rowOf("p20"));
-        ok("Expired card counts 3 (5d, 60d, trial ended)", cnt("expired") === 3, cnt("expired"));
-        ok("default view hides Expired", !rowOf("p21") && !rowOf("p22") && !rowOf("p23"));
+        ok("Expired card counts 2 (5d, 60d); paid-trial leads are not clients", cnt("expired") === 2 && !rowOf("p6") && !rowOf("p23"), cnt("expired"));
+        ok("default view hides Expired", !rowOf("p21") && !rowOf("p22"));
         ok("ends-on column: '12 Nov 2026' + days left", /\d{1,2} [A-Z][a-z]{2} \d{4}/.test(text('#rows tr[data-id="p19"] .col-next')) && /3 days left/.test(text('#rows tr[data-id="p19"] .col-next')));
         ok("PT column: 5 of 12 unlocked", /PT 12 Sessions/.test(text('#rows tr[data-id="p18"]')) && /5 of 12 unlocked/.test(text('#rows tr[data-id="p18"]')));
         ok("balance column with date", /₹6,600\s*by \d{1,2} [A-Z][a-z]{2} \d{4}/.test(text('#rows tr[data-id="p7"]')));
@@ -49,10 +49,8 @@ load(TODAY, function () {
       });
       step("cards filter", function () {
         click(q('[data-card="expired"]'));
-        ok("Expired card shows expired + trial ended", ids().length === 3 && /Trial ended/.test(text('#rows tr[data-id="p23"]')) && /Expired 60 days ago/.test(text('#rows tr[data-id="p22"]')));
+        ok("Expired card shows the 2 expired clients", ids().length === 2 && /Expired 60 days ago/.test(text('#rows tr[data-id="p22"]')) && !/Trial ended/.test(text("#rows")));
         click(q('[data-card="expired"]')); ok("click again clears", !q('[data-card].selected') && !rowOf("p22"));
-        click(q('[data-card="trial"]')); ok("Paid trial card: running paid trials only", ids().length === 1 && !!rowOf("p6"));
-        click(q('[data-card="trial"]'));
       });
       step("row actions (max 3, switch)", function () {
         ok("max 3 actions per row", Array.prototype.every.call(qa("#rows tr"), function (r) { return r.querySelectorAll(".row-actions button").length <= 3; }));

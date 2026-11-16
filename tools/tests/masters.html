@@ -26,7 +26,9 @@ load(PK, function () {
   W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
   load(PK, function () {
     step("packages list", function () {
-      ok("all 15 packages listed", rows() === 15, rows());
+      ok("all 16 packages listed (no Premium Combo; 2 Premium PT)", rows() === 16 && !D().packages.some(function (p) { return p.id === "pk11"; }) && D().packages.filter(function (p) { return p.category === "Premium PT"; }).length === 2, rows());
+      ok("Premium PT row shows incl. membership", /incl\. membership ₹8,000/.test(text('#rows tr[data-id="pk17"]')) && /PT ₹22,000/.test(text('#rows tr[data-id="pk17"]')));
+      ok("membership sub-types have no Premium", D().membershipSubTypes.indexOf("Premium") < 0);
       ok("title + breadcrumb", /Packages/.test(text(".tb-title")) && /Settings/.test(text(".crumbs")));
       click(q('[data-cat="Add-on"]')); ok("Add-on tab shows Transfer only", rows() === 1 && /Branch transfer/.test(text("#rows")));
       click(q('[data-cat="all"]'));
@@ -36,7 +38,7 @@ load(PK, function () {
       ok("couple PT tags", /Couple/.test(text('#rows tr[data-id="pk12"]')) && /Needs membership/.test(text('#rows tr[data-id="pk12"]')));
       ok("max 3 row actions", Math.max.apply(null, Array.prototype.map.call(qa(".row-actions"), function (r) { return r.children.length; })) <= 3);
       type("#fSearch", "zzz"); ok("no results state", /No packages match/.test(text("#rows")));
-      click(q('[data-act="clear"]')); ok("clear filters", rows() === 15, rows());
+      click(q('[data-act="clear"]')); ok("clear filters", rows() === 16, rows());
       scan("pk-list");
     });
     step("sold package locked + copy as new", function () {
@@ -52,7 +54,7 @@ load(PK, function () {
       ok("copy: name (copy), unlocked", q("#pkName").value === "Annual Membership (copy)" && !q("#pkDays").disabled);
       type("#pkDays", "400"); click(q("#pkgDrawer [data-save]"));
       var c = D().packages.filter(function (p) { return p.name === "Annual Membership (copy)"; })[0];
-      ok("copy saved as a new package", !!c && c.days === 400 && c.soldCount === 0 && D().packages.length === 16);
+      ok("copy saved as a new package", !!c && c.days === 400 && c.soldCount === 0 && D().packages.length === 17);
       ok("original unchanged", pk("pk7").days === 365);
     });
     step("new package validation + result box", function () {
@@ -70,16 +72,31 @@ load(PK, function () {
       ok("trial + price = Paid trial", /Paid trial/.test(text("[data-result]")));
       ok("GST worked out backwards (5%)", /Includes GST ₹50 \(5%\) · base ₹1,000/.test(text("[data-gst]")), text("[data-gst]"));
       type("#pkName", "Trial Paid 10 Days");
-      click(q("#pkgDrawer [data-fi-add]"));
-      ok("free item row added", qa("#pkgDrawer .free-row").length === 1);
+      ok("trial: free items hidden (trials give nothing extra, #93)", !q("#pkgDrawer [data-fi-add]") && /Trials give nothing extra/.test(text("#pkgDrawer")));
+      seg("isTrial", "false"); click(q("#pkgDrawer [data-fi-add]"));
+      ok("free item row added (non-trial)", qa("#pkgDrawer .free-row").length === 1);
+      seg("isTrial", "true");
       click(q('#pkgDrawer [data-pkbranch="b3"]'));
       click(q("#pkgDrawer [data-save]"));
       var n = D().packages.filter(function (p) { return p.name === "Trial Paid 10 Days"; })[0];
-      ok("saved: derived Trial Paid, 2 branches, 1 free item", !!n && n.saleType === "Trial Paid" && n.branchIds.length === 2 && n.freeItems.length === 1 && n.price === 1050);
+      ok("saved: derived Trial Paid (stays a Lead), 2 branches, free items dropped for a trial", !!n && n.saleType === "Trial Paid" && n.branchIds.length === 2 && n.freeItems.length === 0 && n.price === 1050);
     });
     step("PT form + future price", function () {
       click(q("#btnNew")); seg("category", "PT");
       ok("PT shows sessions + people, requires membership checked", !!q("#pkSess") && !!q('[data-seg="people"]') && q('[data-f="requiresMembership"]').checked);
+      seg("category", "Premium PT");
+      ok("Premium PT: membership days + PT sessions + reference price, no Trial chip, no requires-membership", !!q("#pkDays") && !!q("#pkSess") && !!q("#pkRef") && !q('[data-seg="isTrial"]') && !q('[data-f="requiresMembership"]') && /Premium PT has no trial/.test(text("#pkgDrawer")));
+      type("#pkName", "Half-year + 24 PT"); type("#pkDays", "180"); type("#pkSess", "24"); type("#pkPrice", "60000"); type("#pkRef", "0"); click(q("#pkgDrawer [data-save]"));
+      ok("reference price must be > 0", /reference membership price \(more than 0\)/.test(text("#pkgDrawer")));
+      type("#pkRef", "60000"); click(q("#pkgDrawer [data-save]"));
+      ok("reference price must be < price", /less than the package price/.test(text("#pkgDrawer")));
+      type("#pkRef", "14000");
+      ok("result box: 2 lines at sale", /Membership \(included\) ₹14,000 \+ PT ₹46,000/.test(text("[data-result]")) && /membership \+ PT/.test(text("[data-result]")));
+      click(q("#pkgDrawer [data-save]"));
+      var np = D().packages.filter(function (p) { return p.name === "Half-year + 24 PT"; })[0];
+      ok("saved: Premium PT, ref price in the price entry, derived Paid", !!np && np.category === "Premium PT" && np.priceHistory[0].referenceMembershipPrice === 14000 && np.referenceMembershipPrice === 14000 && np.saleType === "Paid" && np.requiresMembership === false && np.sessions === 24);
+      click(q("#btnNew")); seg("category", "Membership"); seg("isTrial", "true");
+      ok("Trial = Yes hides free items and says stays a Lead · paid in full", /Trials give nothing extra/.test(text("#pkgDrawer")) && !q("[data-fi-add]") && (type("#pkPrice", "900"), /stays a Lead/.test(text("[data-result]")) && /paid in full/.test(text("[data-result]"))));
       seg("category", "Add-on");
       ok("Add-on hides days/trial, kind = Transfer", !q("#pkDays") && !q('[data-seg="isTrial"]') && q("#pkSub").value === "Transfer");
       key("Escape"); ok("Esc closes drawer", !q("#pkgDrawer").classList.contains("open"));
@@ -212,7 +229,7 @@ load(PK, function () {
                 ok("Add-on not sellable to a lead", !q('[data-pkg="pk13"]'));
                 ok("Student Monthly (new only, Sec 31) offered", !!q('[data-pkg="pk14"]'));
                 click(q('[data-pkg="pk7"]')); click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="next"]'));
-                click(q('[data-fob="KF-S31-0013"]')); click(q('#sellMode [data-cv="next"]'));
+                type("#cvFf", "FF-90010"); click(q('[data-fob="KF-S31-0013"]')); click(q('#sellMode [data-cv="next"]'));
                 ok("bill: deposit line + total", /Key fob deposit · KF-S31-0013/.test(text(".cv-bill")) && /₹1,200/.test(text(".cv-bill")) && /₹25,200/.test(text("[data-total]")));
                 ok("bill: T-shirt pending issue (out of stock), towel issued", /T-shirt × 1\s*Pending issue/.test(text(".cv-bill")) && /Gym towel × 1\s*Issued/.test(text(".cv-bill")));
                 click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="finish"]'));

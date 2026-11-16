@@ -1,18 +1,18 @@
 # Convert to Client
 
-> **Real app rule:** the person becomes a client **only when payment succeeds**
-> ("money taken = client", decision #3). The mockup converts on
-> "Proceed to Payment" because Payment is a later module (decision #48).
+> **Real app rule:** the person becomes a client **only when the first payment of a Membership or Premium PT succeeds**
+> (decisions #79, #92). Trials (free or paid) are never sold here: they are booked with **Book trial** (c3) and the person stays a Lead (#93).
 
 ## 1. Screens
 | Screen / part | File | Purpose |
 |---|---|---|
-| Convert to Client stepper (Sell mode in the profile drawer) | `shared/convert.js` → `App.Convert.open(personId)` (uses `App.DrawerMode`) | Turns an open lead into a client, or books a free trial (stays a lead). |
+| Convert to Client stepper (Sell mode in the profile drawer) | `shared/convert.js` → `App.Convert.open(personId)` (uses `App.DrawerMode`) | Turns an open lead into a client with a Membership or a Premium PT (membership + PT). |
 | Bill summary | right column of Sell mode (below the steps on tablet) | Checkout-style, sticky, updates live on every step (decision #65). |
 | Done screen | same drawer | "<name> is now a client (CL-1003)" + payment note + pending items. |
 
-Steps: **1 Details · 2 Package · 3 Sale & start · 4 Corporate entry · 5 Summary**.
-Step 4 "**Corporate entry: FF ID & key fob**" appears for a Paid **Membership** (FF ID + fob, pending if empty) and a **Paid trial** (FF ID only, optional, never pending) — decisions #13, #20, #67, #72.
+Steps: **1 Details · 2 Package · 3 Sale & start · 4 Corporate entry · 5 Summary · 6 Payment**.
+Step 4 "**Corporate entry: FF ID & key fob**": **FF ID is required** to convert (#93); the key fob can be "Add later" (Key fob pending) — decisions #13, #67, #93.
+**Premium PT** (#92): the bill shows 2 lines, "Membership (included)" = reference membership price and "PT" = price − reference; GST per line; the discount is split proportionally; one sales rep per line (both default to the lead owner). The buyer becomes a Client with a membership AND a PT line (sessions unlock per #83).
 
 Layout (decision #65): steps on the LEFT, sticky **Bill summary** on the RIGHT:
 person (name, mobile, branch) · package line (price) · discount + reason (+ "Package after discount") ·
@@ -30,15 +30,15 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 - Previous / Next move between steps; Next validates the current step. Back (header),
   Cancel (step 1), Esc or outside click return to the profile with the toast
   "Conversion not saved"; nothing is saved.
-- **Free trial** → "Book free trial" → stays a **Lead**, stage Trial, timeline
-  "Free trial booked · 1 day from today · 3rd free trial". If the lead has no open
-  follow-up, the shared "Set next follow-up" modal opens (type Visit planned).
-- **Paid trial / Paid** → Summary **Next** → **Step 6 Payment** → **Save payment** (decision #79: "money taken = client";
+- Trials are **not** here: the Package step offers Membership and Premium PT only (PT listed but disabled, #89) and says
+  'Trials are booked with "Book trial"'. **Until c3 there is no way to book a trial in the mockup.**
+- **Paid** → Summary **Next** → **Step 6 Payment** → **Save payment** (decision #79: "money taken = client";
   the person becomes a client when the first payment is saved) →
   - person `kind` = Client, stage Converted, next client no (CL-1003, CL-1004 …),
     home branch = lead branch, joined today;
   - membership line saved with package, sale type, start, end, price, discount + reason,
-    final price, sales rep;
+    final price, sales rep; Premium PT also saves `p.pt` (PT line: price − reference, its discount share, sessions, its
+    own sales rep, its own payment totals) — allocation accessories → fob deposit → membership line → PT line (#93);
   - key fob (if picked) → status Assigned, branch stock −1;
   - payment saved on the membership: one receipt (auto no. per branch, e.g. S31-000124) with one row per method
     (split payment); total, paid, balance + due date. Balance → "Payment due" pending item (profile + Today) and a
@@ -48,8 +48,7 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
   - unassigned lead → converting user becomes owner (owner history kept);
   - done screen → **Done · back to profile**. The drawer leaves Sell mode and shows the client view on the Membership tab,
     link becomes `#client-<name>`, the row leaves the Leads list, counts and badges update.
-- After a Paid membership: NEXT STEP shows **FF ID pending** and **Key fob pending**
-  separately until filled (decision #40). Paid trial shows neither.
+- After conversion: NEXT STEP shows **Key fob pending** until a fob is assigned (FF ID can no longer be pending for a new client, #93).
 - **Layout** (decision #84): stepper and steps column max ~760px; every step's content sits in cards with a
   heading (24px between cards, 16px inside); inputs max ~480px; bill fixed ~380px with grouped lines
   (package / free items / accessories / key fob / totals) and a highlighted **Total to pay**; footer buttons
@@ -69,32 +68,31 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Search packages | search text | No | — | empty | Filters by name across all groups; groups with matches open; none → "No packages match "<text>"" (decision #66). |
-| Package | cards in accordions (+ / −) Free trial / Paid trial / Membership / Personal training, count per group; Membership open, others collapsed (#74) | Yes | No | none | Only active packages sold at the lead's branch with audience New or Both; no Add-ons (#57). Price = current price from the price history. PT disabled: "PT needs an active membership" (#20). Couple package converts this person only (partner later). Free trial again → warning "This is their Nth free trial" (#39, warning only). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
+| Package | cards in accordions (+ / −) Membership / Premium PT (membership + PT) / Personal training, count per group; Membership open, others collapsed (#74) | Yes | No | none | Only active, non-trial packages sold at the lead's branch with audience New or Both; no Add-ons (#57, #93). Price = current price from the price history. PT disabled: "PT needs an active membership" (#89). Premium PT card shows "incl. membership ₹8,000 · PT ₹22,000". Couple package converts this person only (partner later). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
 | Price | read-only | — | — | package price | Locked (#14). |
-| Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Not shown for free packages. Can't be negative or more than the price. **Limit = the role's max % from Settings → Sales rules** (decision #77, default, can change): SE 10%, SM 20%, Club Manager 30%, Regional Manager / CEO 50%, SuperAdmin 100%. Never "no limit". Applies to the **package only** (note under the row), never accessories or the fob deposit. Over the limit: inline "Your limit is 10%." while typing; Next blocked (#73). |
+| Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Can't be negative or more than the price. **Limit = the role's max % from the Roles & permissions grid** (`sales.discountMax`, #77, #96): SE 10%, SM 20%, CM 30%, RM 50%, CEO 100% (placeholder, Q31). Never "no limit". Applies to the **package only** (note under the row), never accessories or the fob deposit. Premium PT: split proportionally across the two lines ("split ₹800 / ₹2,200"). Over the limit: inline "Your limit is 10%." while typing; Next blocked (#73). |
 | Discount reason | select: Festive offer, Referral, Corporate, Staff family, Other | When discount > 0 | No | — | Shown as soon as the amount is above 0. "A reason is needed for a discount." |
 | Other reason | text | When reason = Other | No | — | "Write the reason." |
-| Sales rep (`salesRepUserId`) | select | Yes (paid packages) | No | lead owner (or you if unassigned) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. |
+| Sales rep (`salesRepUserId`) | select | Yes | No | lead owner (or you if unassigned) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. Premium PT shows two selects: "Sales rep · Membership line" and "Sales rep · PT line", both defaulting to the owner. |
 
 ### Step 3 · Sale & start
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Sale type | derived from package | — | — | — | Free trial (stays a Lead) / Paid trial (becomes a Client, no fob) / Paid (becomes a Client; next step Corporate entry). |
+| Sale type | derived from package | — | — | — | Paid (becomes a Client; next step Corporate entry). Premium PT: "Paid · becomes a Client with membership + PT". |
 | Start date | date | Yes | No | today | Today up to 30 days ahead; no back dates (#41). |
 | Ends | derived | — | — | — | Start + days − 1 ("365 days, start day included"). Overlap check (#41) applies to clients; a lead has no membership yet. |
 
-### Step 4 · Corporate entry: FF ID & key fob (Paid membership only)
+### Step 4 · Corporate entry: FF ID & key fob
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| FF ID | text | No (here) | Yes, company-wide | lead FF ID | From the corporate software; usually added later. Empty → "FF ID pending". Duplicate: same branch "Already used by <name>"; other branch "Already exists in <branch> · Owner: <first name>" + Request access. |
+| FF ID | text | **Yes** (#93) | Yes, company-wide | lead FF ID | From the corporate software (enter the client there first). Empty → "FF ID is required to convert …" blocks Next and Save payment. Duplicate: same branch "Already used by <name>"; other branch "Already exists in <branch> · Owner: <first name>" + Request access. |
 | Free (no deposit) | switch next to the fob picker | No | — | off | Shown when a fob is picked. On → bill "Key fob · Complimentary ₹0"; reason required ("A reason is needed for a free fob."). Saved as deposit ₹0, complimentary + reason (#75). |
 | Key fob | chips from the lead branch's stock + "Add later" | No (here) | Yes | Add later | Shows "<branch> stock: N in stock". No stock → message and the conversion can finish; "Key fob pending" shows. |
 
 ### Step 5 · Summary
-Read-only list: person, package, sale type, start – end, sales rep, discount reason,
-Corporate entry (FF ID / key fob or "Pending"), owner (if it was unassigned), and how many open
-follow-ups will be closed by system. All money (price, discount, free items, ₹1,200 key fob deposit as its own
-refundable line, GST included, Total to pay) is in the bill summary. Button: **Next** (to Payment) or **Book free trial** (free trial has no Payment step).
+Read-only list: person, package (Premium PT: "2 lines: Membership (included) ₹8,000 + PT ₹22,000"), sale type, start – end,
+sales rep (two for Premium PT), discount reason, Corporate entry (FF ID · key fob or "Pending"), owner (if it was unassigned), and how
+many open follow-ups will be closed by system. All money is in the bill summary. Button: **Next** (to Payment).
 
 ### Step 6 · Payment (decisions #79–#83; all Default, can change)
 | Field | Type | Required | Unique | Default | Notes |
@@ -106,17 +104,15 @@ refundable line, GST included, Total to pay) is in the bill summary. Button: **N
 | Slip (per row) | upload | No | No | — | Mockup: toggles "Slip attached" (placeholder file). |
 | + Add payment row | link | — | — | 1 row | Split payment (e.g. Cash + UPI). Rows can be removed (×). |
 | Total · Paid now · Balance due | derived, live | — | — | — | Also in the bill (Paid now, Balance due). |
-| Balance due date | date ("12 Nov 2026") | Yes when balance > 0 | No | — | **Shown only when Balance due > 0** (#87). After today. Only for Paid **Membership / PT** packages (partial allowed). "Pick a due date for the balance." |
-| Minimum first payment | derived, live | — | — | 30% (Settings → Sales rules) | = accessories in full + key fob deposit in full + 30% of the package after discount (#85). Below it **Save payment is disabled** and the line turns red: "Minimum ₹7,189 (accessories ₹349 + 30% of package)". Paid trial: "Pay the full amount …". |
+| Balance due date | date ("12 Nov 2026") | Yes when balance > 0 | No | — | **Shown only when Balance due > 0** (#87). After today. "Pick a due date for the balance." |
+| Minimum first payment | derived, live | — | — | 30% (Settings → Sales rules) | = accessories in full + key fob deposit in full + 30% of the package after discount (#85). Below it **Save payment is disabled** and the line turns red: "Minimum ₹7,189 (accessories ₹349 + 30% of package)". |
 
-Rules: Paid now can't be more than the total. **Allocation** (#85): accessories first, then the key fob deposit, then the
-package; the bill shows "Paid in full" on a line only when it is covered, otherwise "Paid ₹X · Balance ₹Y" (e.g. ₹340 paid with a
-₹349 accessory → "Paid ₹340 · Balance ₹9"). Collect payment later has no minimum. **Accessories and the key fob deposit are settled first and in full**
-("Accessories and the key fob deposit (₹1,200) must be paid in full first."). Partial payment only on main packages
-(Paid Membership, PT); a paid trial must be paid in full ("Pay the full amount for this package.").
-**PT sessions** (#83): per-session price = (PT price − discount) / sessions; unlocked = floor(paid towards PT / per-session
-price). Bill and profile show "Sessions unlocked 5 of 12" (12 sessions, ₹12,000, paid ₹5,500 → 5). Leads can't buy PT
-(needs an active membership), so the dummy case is on an existing client (Kabir Malhotra).
+Rules: Paid now can't be more than the total. **Allocation** (#85, #93): accessories → key fob deposit → membership line → PT line
+(Premium PT); the bill shows "Paid in full" on a line only when it is covered, otherwise "Paid ₹X · Balance ₹Y" (e.g. ₹340 paid with a
+₹349 accessory → "Paid ₹340 · Balance ₹9"). Collect payment later has no minimum. **Accessories and the key fob deposit are settled first and in full**.
+**PT sessions** (#83): per-session price = (PT line − its discount) / sessions; unlocked = floor(paid towards the PT line / per-session
+price). Premium PT bill shows "PT sessions unlocked 1 of 12" live (₹10,000 paid on ₹27,000: membership ₹7,200 first, ₹2,800 reaches PT).
+Leads can't buy a PT-only package (needs an active membership), so that dummy case is on an existing client (Kabir Malhotra).
 **GST** (#78): each line at its own tax category; bill shows "GST included ₹1,196.10" and a line per rate
 ("GST 5% ₹1,142.86", "GST 18% ₹53.24"), always 2 decimals.
 
@@ -131,26 +127,26 @@ price). Bill and profile show "Sessions unlocked 5 of 12" (12 sessions, ₹12,00
 
 ## 4. States
 - **Validation**: "Choose a gender.", "Check the email format.", duplicate messages,
-  "Choose a package.", "Your limit is N%.", "A reason is needed for a discount.",
+  "Choose a package.", "FF ID is required to convert …", "Your limit is N%.", "A reason is needed for a discount.",
   "Discount can't be more than the price.", "Back dates are not allowed.",
   "Start can be at most 30 days ahead."
 - **Empty**: no fobs in stock → warning callout, finish without fob.
 - **Loading / error**: none in the mockup (real app: payment in progress / payment failed
   are handled by the Payment module; the lead stays a lead on failure).
-- **Success**: done screen + toast "<name> is now a client (CL-1003)"; free trial toast
-  "Free trial booked for <name>".
+- **Success**: done screen + toast "<name> is now a client (CL-1003)".
 
 ### Dummy edge cases
 | Person | Shows |
 |---|---|
-| Aarav Patel (overdue) | Paid Annual with 10% discount + fob KF-S31-0013; overdue follow-up closed by system; FF ID pending. |
-| Sneha Reddy (no email) | WhatsApp-receipts hint; Aarav's email or FF-20431 blocked; Trial Paid 7 Days → client, no fob step. |
-| Ishaan Singh (free trial, 2 before) | Free trial again → "This is their 3rd free trial"; stays a Lead. |
-| Fatima Shaikh (Meta, unassigned) | Gender required; converting user becomes owner; external ID kept; FF ID + Key fob pending. |
+| Aarav Patel (overdue) | Paid Annual with 10% discount + fob KF-S31-0013; FF ID required; overdue follow-up closed by system. |
+| Sneha Reddy (no email) | WhatsApp-receipts hint; Aarav's email or FF-20702 blocked; **Premium PT "Quarterly + 12 PT"** → 2 lines ₹8,000 + ₹22,000, 10% off split ₹800 / ₹2,200, two sales reps, client with membership + PT. |
+| Ishaan Singh (free trial, 2 before) | T-shirt "(already received)"; no trial packages offered. |
+| Ananya Desai / Ira Kapoor | Leads on a paid trial (running / ended): NEXT STEP "Paid trial · ends in N days", badge "Trial ended". Convert offered (adjust comes in c3). |
+| Fatima Shaikh (Meta, unassigned) | Gender required; converting user becomes owner; external ID kept; Key fob pending. |
 | Nisha Agarwal (Sec 65) | Only 1 fob in Sec 65 stock. |
 | Simran Kaur (Golf Course) | Fobs from Golf Course stock. |
 | Rajesh Kumar (Lost) | No Convert button. |
-| Ananya / Vivaan (clients) | No Convert button. |
+| Vivaan / Divya (clients) | No Convert button. |
 
 ## 5. Status
-Ready for review
+Ready for review · **Book trial comes in c3** (until then no trial can be booked in the mockup; the paid-trial adjust on Convert also comes in c3).

@@ -36,10 +36,12 @@ load(LEADS, function () {
         click(q(".overlay")); ok("outside click close clears hash", W().location.hash === "");
       });
       step("client badges + label", function () {
-        W().App.openProfile("p6", { state: "normal" });
+        W().App.openProfile("p19", { state: "normal" });
         var b = txt(".pd-badges");
-        ok("client: Client + Renewal due, no stage/temperature", /Client/.test(b) && /Renewal due/.test(b) && !/Converted/.test(b) && !/Hot/.test(b), b);
-        ok("client hash is #client-ananya", W().location.hash === "#client-ananya", W().location.hash);
+        ok("client: Client + Renewal due, no stage/temperature", /Client/.test(b) && /Renewal due/.test(b) && !/Converted/.test(b) && !/Warm/.test(b), b);
+        ok("client hash is #client-divya", W().location.hash === "#client-divya", W().location.hash);
+        W().App.openProfile("p6", { state: "normal" });
+        ok("Ananya (paid trial) is a Lead: Lead + Trial badges, hash #lead-ananya", /Lead/.test(txt(".pd-badges")) && /Trial/.test(txt(".pd-badges")) && W().location.hash === "#lead-ananya", W().location.hash);
         W().App.openProfile("p7", { state: "normal" });
         ok("Vivaan: Active badge", /Active/.test(txt(".pd-badges")) && !/Converted|Hot/.test(txt(".pd-badges")), txt(".pd-badges"));
         W().App.openProfile("p1", { state: "normal" });

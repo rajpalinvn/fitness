@@ -42,7 +42,7 @@ load(LEADS, function () {
       type("#qlName", "Tanvi Desai"); pickSel("qlSource", "Referral");
       type("#qlEmail", "aarav.patel@example.com"); click(q('[data-ql="save"]'));
       ok("email must be unique", /already used/.test(text("#quickLeadDrawer")) && qOpen());
-      type("#qlEmail", "tanvi.desai@example.com"); type("#qlFf", "FF-20431"); click(q('[data-ql="save"]'));
+      type("#qlEmail", "tanvi.desai@example.com"); type("#qlFf", "FF-20702"); click(q('[data-ql="save"]'));
       ok("FF ID unique (other branch message)", /Already exists in Sec 65/.test(text("#quickLeadDrawer")) && qOpen());
       type("#qlFf", "FF-31000");
       click(q('[data-qltemp="Hot"]'));

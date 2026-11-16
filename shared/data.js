@@ -157,13 +157,13 @@
       inquiryType: "Walk-in", campaign: "Diwali Fit 2026", ownerUserId: "u6", branchId: "b1", remarks: null,
       externalId: null, createdAt: day(-4), lastActivityAt: day(-1), freeTrial: { from: day(-1), to: day(2) }, freeTrialCount: 2, freeItemsReceived: ["it2"],
       note: "EDGE: free trial lead (stays a Lead); got a free T-shirt before -> Annual shows 'T-shirt (already received)'" },
-    { id: "p6", kind: "Client", name: "Ananya Desai", cc: "+91", mobile: "90000 01239", email: "ananya.desai@example.com",
-      gender: "Female", birthDate: "1993-11-15", ffId: "FF-20431", source: "Facebook", temperature: "Hot", stage: "Converted",
+    { id: "p6", kind: "Lead", name: "Ananya Desai", cc: "+91", mobile: "90000 01239", email: "ananya.desai@example.com",
+      gender: "Female", birthDate: "1993-11-15", ffId: null, source: "Facebook", temperature: "Hot", stage: "Trial",
       inquiryType: "Call", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
-      createdAt: day(-15), lastActivityAt: day(-2), clientNo: "CL-1002", homeBranchId: "b2", joinedAt: day(-2),
-      keyFob: null, photo: null,
-      membership: { packageId: "pk2", package: "Trial Paid 7 Days", saleType: "Trial Paid", start: day(-2), end: day(4), price: 800, discount: 0, discountReason: null, finalPrice: 800, salesRepUserId: "u7" },
-      note: "EDGE: paid trial client (no fob)" },
+      createdAt: day(-15), lastActivityAt: day(-2),
+      // Paid trial = still a Lead (decision #92); paid in full at once (#93). Booked through "Book trial" (c3).
+      paidTrial: { packageId: "pk2", package: "Trial Paid 7 Days", from: day(-2), to: day(4), price: 800, paid: 800, receiptNo: "S65-000041", salesRepUserId: "u7" },
+      note: "EDGE: lead on a RUNNING paid trial (stage Trial) — for the paid trial adjust in c3" },
     { id: "p7", kind: "Client", name: "Vivaan Joshi", cc: "+91", mobile: "90000 01240", email: "vivaan.joshi@example.com",
       gender: "Male", birthDate: "1990-02-08", ffId: "FF-19877", source: "Referral", temperature: "Hot", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
@@ -258,13 +258,12 @@
       membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-89), end: day(-60), price: 3000,
         discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
       note: "EDGE (Clients): Expired 60 days ago" },
-    { id: "p23", kind: "Client", name: "Ira Kapoor", cc: "+91", mobile: "90000 01256", email: "ira.kapoor@example.com",
-      gender: null, birthDate: null, ffId: null, source: "Walk-in", temperature: "Warm", stage: "Converted",
+    { id: "p23", kind: "Lead", name: "Ira Kapoor", cc: "+91", mobile: "90000 01256", email: "ira.kapoor@example.com",
+      gender: null, birthDate: null, ffId: null, source: "Walk-in", temperature: "Warm", stage: "Trial",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
-      createdAt: day(-12), lastActivityAt: day(-10), clientNo: "CL-0923", homeBranchId: "b2", joinedAt: day(-10), keyFob: null, photo: null,
-      membership: { packageId: "pk2", package: "Trial Paid 7 Days", saleType: "Trial Paid", start: day(-10), end: day(-4), price: 800,
-        discount: 0, discountReason: null, finalPrice: 800, salesRepUserId: "u7", freeItems: [] },
-      note: "EDGE (Clients): paid trial ended without buying (Q26) -> Trial ended, Expired card" },
+      createdAt: day(-12), lastActivityAt: day(-4),
+      paidTrial: { packageId: "pk2", package: "Trial Paid 7 Days", from: day(-10), to: day(-4), price: 800, paid: 800, receiptNo: "S65-000051", salesRepUserId: "u7" },
+      note: "EDGE: lead whose paid trial ENDED 4 days ago (badge Trial ended) — for the 7-day buffer adjust in c3" },
     { id: "p24", kind: "Client", name: "Zoya Siddiqui", cc: "+91", mobile: "90000 01257", email: "zoya.s@example.com",
       gender: null, birthDate: null, ffId: "FF-20705", source: "Walk-in", temperature: "Warm", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u11", branchId: "b3", remarks: null, externalId: null,
@@ -281,7 +280,6 @@
     return { total: total, paid: paid, dueDate: dueDate || null, receipts: receipts };
   }
   function P(id) { return people.filter(function (x) { return x.id === id; })[0]; }
-  P("p6").membership.payment = pay(800, null, [rc("S65-000041", day(-2), "u7", [["UPI", 800, "UPI-55821934"]])]);
   // EDGE: partial membership — Annual + fob deposit ₹22,800, paid ₹16,200 by card, balance ₹6,600 due in 5 days
   P("p7").membership.payment = pay(22800, dd(5), [rc("S31-000098", day(-100), "u6", [["Card", 16200, "CARD-4471"]])]);
   // EDGE: full payment, cash
@@ -298,7 +296,6 @@
   P("p20").membership.payment = pay(9200, null, [rc("S65-000049", day(-78), "u7", [["Card", 9200, "CARD-5521"]])]);
   P("p21").membership.payment = pay(9200, null, [rc("GC-000024", day(-94), "u10", [["Cash", 9200]])]);
   P("p22").membership.payment = pay(4200, null, [rc("S31-000077", day(-89), "u6", [["Cash", 4200]])]);
-  P("p23").membership.payment = pay(800, null, [rc("S65-000051", day(-10), "u7", [["UPI", 800, "UPI-40012002"]])]);
   P("p24").membership.payment = pay(25200, null, [rc("GC-000027", day(-40), "u11", [["Card", 25200, "CARD-6610"]])]);
   // EDGE: PT 24 sessions ₹22,000, paid ₹11,000 -> per session 916.67 -> 12 of 24 unlocked; balance ₹11,000 due in 10 days
   P("p24").pt = { packageId: "pk10", package: "PT 24 Sessions", price: 22000, discount: 0, finalPrice: 22000, sessions: 24, start: day(-40), end: day(140),
@@ -334,6 +331,8 @@
     { id: "f8", personId: "p2", type: "Call", dueDate: dd(-5), dueTime: "10:00", ownerUserId: "u6", status: "Cancelled", outcome: null, note: null, cancelledAt: day(-6, 9), cancelReason: "Duplicate entry" },
     { id: "f10", personId: "p4", type: "Call", dueDate: dd(-35), dueTime: "12:00", ownerUserId: "u6", status: "Done", outcome: "Call later", note: "Busy with exams", doneAt: day(-35, 12, 5) },
     { id: "f11", personId: "p6", type: "Free trial planned", dueDate: dd(-4), dueTime: "10:00", ownerUserId: "u7", status: "Done", outcome: "Interested", note: "Liked the trainers", doneAt: day(-4, 10, 30) },
+    { id: "f11b", personId: "p6", type: "Visit planned", dueDate: dd(3), dueTime: "18:00", ownerUserId: "u7", status: "Open", outcome: null, note: "Last trial day · talk about Quarterly" },
+    { id: "f11c", personId: "p23", type: "Call", dueDate: dd(-3), dueTime: null, ownerUserId: "u7", status: "Open", outcome: null, note: "Trial ended · ask about joining" },
     { id: "f13", personId: "p15", type: "Call", dueDate: dd(-1), dueTime: "12:00", ownerUserId: "u7", status: "Open", outcome: null, note: "Wants weekend batch" },
     { id: "f14", personId: "p16", type: "Visit planned", dueDate: dd(-4), dueTime: "18:00", ownerUserId: "u10", status: "Open", outcome: null, note: null },
     { id: "f15", personId: "p17", type: "WhatsApp", dueDate: dd(-1), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "Send couple PT details" },
@@ -361,7 +360,9 @@
     { personId: "p4", at: day(-1), kind: "milestone", text: "Re-opened by Priya Sharma", by: "u6" },
     { personId: "p4", at: day(-1, 12), kind: "note", text: "Priya noted: exams over, wants evening batch", by: "u6" },
     { personId: "p5", at: day(-1), kind: "milestone", text: "Free trial started · 3 days", by: "u6" },
-    { personId: "p6", at: day(-2), kind: "milestone", text: "Converted to Client · Trial Paid 7 Days", by: "u7" },
+    { personId: "p6", at: day(-2), kind: "milestone", text: "Paid trial booked · Trial Paid 7 Days · ₹800 paid in full (UPI)", by: "u7" },
+    { personId: "p23", at: day(-10), kind: "milestone", text: "Paid trial booked · Trial Paid 7 Days · ₹800 paid in full (UPI)", by: "u7" },
+    { personId: "p23", at: day(-4), kind: "milestone", text: "Paid trial ended · no membership yet", by: null },
     { personId: "p7", at: day(-100), kind: "milestone", text: "Converted to Client · Annual Membership · key fob KF-S31-0012", by: "u6" },
     { personId: "p7", at: day(-7), kind: "note", text: "Priya noted: asked about PT sessions for next month", by: "u6" },
     { personId: "p8", at: day(0, 8, 15), kind: "milestone", text: "Lead received from Meta · waiting for an owner" },
@@ -376,7 +377,7 @@
     { id: "tx3", name: "Goods 12%",    rate: 12, active: true },
     { id: "tx4", name: "Exempt",       rate: 0,  active: true }
   ];
-  var membershipSubTypes = ["Regular", "Student", "Corporate", "Premium"];   // admin list
+  var membershipSubTypes = ["Regular", "Student", "Corporate"];   // admin list ("Premium" removed, decision #92)
   var ptSubTypes = ["One-on-one", "Group"];                                     // admin list
   var addOnKinds = ["Transfer"];                                                // fixed in code
 
@@ -417,7 +418,7 @@
   // soldCount > 0 locks category, trial, people, days, sessions.
   function pk(id, name, category, o) {
     return Object.assign({ id: id, name: name, category: category, subType: null, isTrial: false, people: 1, days: null, sessions: null,
-      taxCategoryId: "tx1", requiresMembership: category === "PT", branchIds: ["b1", "b2", "b3"], audience: "Both",
+      taxCategoryId: "tx1", requiresMembership: category === "PT", branchIds: ["b1", "b2", "b3"], audience: "Both",   // Premium PT: membership included, never "requires membership"
       freeItems: [], active: true, soldCount: 0 }, o);
   }
   var packages = [
@@ -432,7 +433,9 @@
       freeItems: [{ itemId: "it2", qty: 1, rule: "Once per client" }, { itemId: "it4", qty: 1, rule: "Every sale" }] }),  // EDGE: sold (locked) + free items; T-shirt out of stock at Sec 31
     pk("pk9",  "PT 12 Sessions",            "PT", { subType: "One-on-one", days: 90, sessions: 12, priceHistory: [{ price: 12000, from: dd(-365) }], soldCount: 4 }),
     pk("pk10", "PT 24 Sessions",            "PT", { subType: "One-on-one", days: 180, sessions: 24, priceHistory: [{ price: 22000, from: dd(-365) }], soldCount: 1 }),
-    pk("pk11", "Annual + PT Premium Combo", "Membership", { subType: "Premium", days: 365, priceHistory: [{ price: 100000, from: dd(-200) }] }),
+    // Premium PT (decision #92): one package = membership + PT; referenceMembershipPrice is part of each price entry (#50 rule).
+    pk("pk17", "Quarterly + 12 PT",          "Premium PT", { subType: "One-on-one", days: 90, sessions: 12, priceHistory: [{ price: 30000, referenceMembershipPrice: 8000, from: dd(-120) }], soldCount: 2 }),
+    pk("pk18", "Annual + 36 PT",             "Premium PT", { subType: "One-on-one", days: 365, sessions: 36, priceHistory: [{ price: 95000, referenceMembershipPrice: 24000, from: dd(-60) }] }),
     pk("pk12", "Couple PT 12 Sessions",     "PT", { subType: "One-on-one", people: 2, days: 90, sessions: 12, priceHistory: [{ price: 20000, from: dd(-60) }] }),  // EDGE: couple PT
     pk("pk13", "Branch transfer",           "Add-on", { subType: "Transfer", priceHistory: [{ price: 0, from: dd(-90) }], requiresMembership: true }),          // EDGE: free Add-on (allowed, decision #45)
     pk("pk14", "Student Monthly",           "Membership", { subType: "Student", days: 30, audience: "New", branchIds: ["b1", "b2"],

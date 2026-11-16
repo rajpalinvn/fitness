@@ -399,12 +399,21 @@
     "Annual + PT Premium Combo" package are removed. Membership = access to
     all branches; PT = home branch only (A8). Closes Q5 and Q26 (a paid
     trial is a lead; "Trial ended" is a lead badge, #101).
+    Reference membership price follows the PRICE rule (#50): it is part of
+    each price entry (priceHistory: { price, referenceMembershipPrice,
+    from }); after the first sale it can't be edited in place, a new price
+    entry with "effective from" carries a new reference price; past sales
+    keep theirs. Built in c2 (packages, Convert, Clients list).
 93. Convert to Client (notes §1): offers Membership and Premium PT packages
     only (PT disabled #89; never trial packages). FF ID is mandatory; the
     key fob can be Pending; free items follow #67 (#46). Trials give
     nothing extra: no accessories, no free items, no FF ID, no key fob, no
     discount; a paid trial is paid in full, at once. A lead has two buttons:
     Book trial and Convert to Client. Closes Q5.
+    Premium PT at sale: the discount is split proportionally across the
+    membership line and the PT line. Payment allocation order: accessories
+    → key fob deposit → membership line → PT line (PT sessions unlock from
+    what reaches the PT line, #83). Built in c2.
 94. Trials (notes §1, L1–L7, L1b, L1c). Book trial shows trial packages
     only. Who gets which: lead = membership trials; active client = PT
     trials (package "Requires an active membership"); expired client = no

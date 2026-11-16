@@ -167,24 +167,34 @@
   // ---------- Masters: packages, tax, items (decisions #49–#56) ----------
   App.todayIso = function () { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); };
   // Current price = latest priceHistory entry on or before today. Next = first future entry (if any).
+  // Each price entry: { price, from, referenceMembershipPrice? }. Premium PT carries the reference price per entry (#92, #50 rule).
   App.priceInfo = function (pk) {
     var t = App.todayIso(), h = (pk.priceHistory || []).slice().sort(function (a, b) { return a.from < b.from ? -1 : 1; });
     var cur = null, next = null;
     h.forEach(function (x) { if (x.from <= t) cur = x; else if (!next) next = x; });
-    return { price: cur ? cur.price : (h[0] ? h[0].price : 0), next: next };
+    var e = cur || h[0] || null;
+    return { price: e ? e.price : 0, refPrice: e && e.referenceMembershipPrice != null ? e.referenceMembershipPrice : null, next: next };
   };
-  // Result of a package: Free trial (stays lead) / Paid trial / Paid. Derived, never typed.
+  // Result of a package (decisions #92, #93): Free trial / Paid trial stay a Lead; Membership, PT, Premium PT = Paid, becomes a Client.
   App.saleResult = function (pk) {
     var price = pk.priceHistory ? App.priceInfo(pk).price : pk.price;
     if (pk.category === "Add-on") return { saleType: "Paid", type: "Add-on", text: price ? "Add-on" : "Add-on · free" };
-    if (pk.isTrial) return price ? { saleType: "Trial Paid", type: "Trial Paid", text: "Paid trial · becomes a Client" } : { saleType: "Trial", type: "Trial", text: "Free trial · stays a Lead" };
+    if (pk.isTrial && pk.category !== "Premium PT") return price ? { saleType: "Trial Paid", type: "Trial Paid", text: "Paid trial · stays a Lead · paid in full" } : { saleType: "Trial", type: "Trial", text: "Free trial · stays a Lead" };
     if (!price) return { error: "A price of 0 is only allowed for a trial." };
+    if (pk.category === "Premium PT") return { saleType: "Paid", type: "Premium PT", text: "Paid · becomes a Client (membership + PT, 2 lines at sale)" };
     return { saleType: "Paid", type: pk.category, text: "Paid · becomes a Client" };
   };
   App.derivePackage = function (pk) {
-    var r = App.saleResult(pk);
-    pk.price = App.priceInfo(pk).price; pk.saleType = r.saleType || "Paid"; pk.type = r.type || pk.category;
+    var r = App.saleResult(pk), info = App.priceInfo(pk);
+    pk.price = info.price; pk.referenceMembershipPrice = pk.category === "Premium PT" ? info.refPrice : null;
+    pk.saleType = r.saleType || "Paid"; pk.type = r.type || pk.category;
     return pk;
+  };
+  // Lead on a paid trial (#92): running / ended, for badges and NEXT STEP (the trial flow itself comes with Book trial).
+  App.paidTrialStatus = function (p) {
+    if (!p || !p.paidTrial) return null;
+    var left = App.daysFromToday(p.paidTrial.to);
+    return left < 0 ? { ended: true, left: left, text: "Trial ended" } : { ended: false, left: left, text: "Paid trial · " + (left === 0 ? "ends today" : "ends in " + left + (left === 1 ? " day" : " days")) };
   };
   (DUMMY.packages || []).forEach(App.derivePackage);
   App.tax = function (id) { return App.byId(DUMMY.taxCategories, id); };

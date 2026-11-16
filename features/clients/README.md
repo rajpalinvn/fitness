@@ -18,8 +18,7 @@ List-first, like Leads (decision #91). Built on the same shared drawer and modal
   | Needs attention (first) | Any pending item: Payment due, FF ID pending, Key fob pending, Pending issue. Same helper as Today (`App.profilePending`, #61, #67, #82), so the number equals Today's "Clients with pending items". |
   | Active | More than 15 days left (#27, #31). |
   | Renewal due | 15 days or fewer left. |
-  | Expired | End date passed; includes a paid trial that ended ("Trial ended", Q26). |
-  | Paid trial | Paid trial clients still running. |
+  | Expired | End date passed. (Paid trials are leads, #92: they never appear on this list.) |
 - **Default view**: Active + Renewal due. Expired only via its card or the status filter (like Lost on Leads, #21).
 - **Sort**: Needs attention first, then fewest days left.
 - **Row click** (not on a button) → profile drawer, Membership tab. **Row actions** (max 3, don't open the drawer): Call, WhatsApp,
@@ -32,7 +31,7 @@ List-first, like Leads (decision #91). Built on the same shared drawer and modal
 |---|---|
 | Name & mobile (pinned) | Name, Meta badge if synced, mobile · client no. |
 | ENDS ON (pinned, most prominent) | "12 Nov 2026" (#86) + badge "N days left" / "Ends today" / "Expired N days ago" (colour + words). |
-| Membership | Package name + status badge Active / Renewal due / Expired / Trial ended. |
+| Membership | Package name + status badge Active / Renewal due / Expired. Premium PT clients show "<package> · Membership (included)". |
 | PT | "PT 12 Sessions" + "5 of 12 unlocked" (#83) or "—". |
 | Balance due | "₹6,600 by 17 Nov 2026" (· PT for a PT balance) or "—". |
 | Pending | One small badge per pending item (FF ID pending, Key fob pending, Pending issue · item, Payment due). |
@@ -48,7 +47,7 @@ Scope from Settings → Roles & permissions: default SE / SM / CM / RM = Branch 
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Search | text | No | — | empty | Name, mobile (digits, +91 / leading 0 ignored, #11), email, client no, FF ID, key fob no. |
-| Membership status | select | No | — | Active + Renewal due | Same as the cards: Needs attention, Active, Renewal due, Expired, Paid trial. |
+| Membership status | select | No | — | Active + Renewal due | Same as the cards: Needs attention, Active, Renewal due, Expired. |
 | Sales rep | select | No | — | All | Users who are a sales rep on a membership. |
 | Branch | select | No | — | top-bar branch | Follows the top-bar branch switcher. |
 | Has PT (More filters) | checkbox | No | — | off | Clients with a PT line. |
@@ -70,8 +69,7 @@ Scope from Settings → Roles & permissions: default SE / SM / CM / RM = Branch 
 | Sameer Khan (Sec 65) | Renewal due · 12 days left. |
 | Pallavi Rao (Golf Course) | Expired 5 days ago. |
 | Tarun Mehra (Sec 31) | Expired 60 days ago. |
-| Ira Kapoor (Sec 65) | Paid trial ended without buying → "Trial ended", in the Expired card (Q26). |
-| Ananya Desai (Sec 65) | Paid trial running → Paid trial card. |
+| Ananya Desai, Ira Kapoor (Sec 65) | NOT on this list: leads on a paid trial (running / ended), see Leads. |
 | Kabir Malhotra (Sec 31) | PT 5 of 12 unlocked, PT balance ₹6,500 → Collect payment. |
 | Zoya Siddiqui (Golf Course) | PT 24 Sessions, 12 of 24 unlocked, PT balance ₹11,000. |
 | Vivaan Joshi | Membership balance ₹6,600 by date. |

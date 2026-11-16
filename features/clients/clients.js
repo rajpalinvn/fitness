@@ -4,7 +4,7 @@
   var D = window.DUMMY, esc = App.esc;
   var $ = function (id) { return document.getElementById(id); };
   var CARDS = [["attention", "Needs attention", "pending items"], ["active", "Active", "more than 15 days left"], ["renewal", "Renewal due", "15 days or fewer"],
-    ["expired", "Expired", "incl. trial ended"], ["trial", "Paid trial", "running"]];
+    ["expired", "Expired", "membership ended"]];
   var PENDING_TYPES = [["addFf", "FF ID pending"], ["goFob", "Key fob pending"], ["issue", "Pending issue"], ["pay", "Payment due"]];
   var S = { card: "", search: "", rep: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, mode: "loading" };
   if (/[?&]view=attention\b/.test(location.search)) S.card = "attention";
@@ -12,14 +12,13 @@
 
   // ---------- data helpers ----------
   function noLeadsRole() { return App.can("clients.view") === "None"; }   // grid row clients.view (#96)
-  // Status (#27, #31): Active > 15 days left, Renewal due <= 15, Expired. Paid trial that ended = "Trial ended" (Q26), counted as Expired.
+  // Status (#27, #31): Active > 15 days left, Renewal due <= 15, Expired. (Paid trials are leads, #92: never on this list.)
   function status(p) {
-    var ms = App.membershipStatus(p.membership), trial = p.membership.saleType === "Trial Paid";
-    if (ms.cls === "red") return { key: "expired", text: trial ? "Trial ended" : "Expired", badge: "badge-danger", left: ms.left };
+    var ms = App.membershipStatus(p.membership);
+    if (ms.cls === "red") return { key: "expired", text: "Expired", badge: "badge-danger", left: ms.left };
     if (ms.cls === "amber") return { key: "renewal", text: "Renewal due", badge: "badge-warning", left: ms.left };
     return { key: "active", text: "Active", badge: "badge-success", left: ms.left };
   }
-  function isTrial(p) { return p.membership.saleType === "Trial Paid" && status(p).key !== "expired"; }
   function balances(p) {
     return [["membership", p.membership], ["pt", p.pt]].filter(function (x) { return x[1] && App.payBalance(x[1].payment); })
       .map(function (x) { return { what: x[0], amount: App.payBalance(x[1].payment), due: x[1].payment.dueDate }; });
@@ -44,7 +43,6 @@
   }
   function inCard(p, k) {
     if (k === "attention") return App.clientNeedsAttention(p);
-    if (k === "trial") return isTrial(p);
     return status(p).key === k;
   }
   function applyCard(list) {

@@ -174,6 +174,8 @@
       var left = daysBetween(new Date(), p.freeTrial.to);
       html += '<div class="cell-sub">Free trial · ' + (left > 0 ? "ends in " + left + (left === 1 ? " day" : " days") : "ended") + "</div>";
     }
+    var pts = App.paidTrialStatus(p);
+    if (pts) html += '<div class="cell-sub">' + (pts.ended ? '<span class="badge badge-warning">Trial ended</span>' : esc(pts.text)) + "</div>";
     return html;
   }
   function ownerCell(p) {

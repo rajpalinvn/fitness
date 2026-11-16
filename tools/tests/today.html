@@ -60,7 +60,7 @@ load(TODAY, function () {
     step("pending items: Add FF ID -> Assign fob -> Issue item", function () {
       click(rowOf("pending", "Rohit").querySelector("button"));
       ok("FF ID modal", q("#ffModal").classList.contains("open"));
-      type("#ffIn", "FF-20431"); click(q("#ffModal [data-save]"));
+      type("#ffIn", "FF-20702"); click(q("#ffModal [data-save]"));
       ok("duplicate FF ID blocked (other branch)", /Already exists in Sec 65/.test(text("#ffModal")));
       type("#ffIn", "FF-30001"); click(q("#ffModal [data-save]"));
       ok("FF ID saved, next action Assign fob", person("p12").ffId === "FF-30001" && /Assign fob/.test(rowOf("pending", "Rohit").querySelector("button").textContent));

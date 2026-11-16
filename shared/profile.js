@@ -154,6 +154,7 @@
             '<span class="badge badge-' + p.temperature.toLowerCase() + '">' + esc(p.temperature) + "</span>") +
         (p.synced ? '<span class="badge badge-info" title="Synced from Meta">Meta</span>' : '<span class="badge">' + esc(p.source) + "</span>") +
         (p.reopenedAt ? '<span class="badge badge-info">Re-opened</span>' : "") +
+        (!client && App.paidTrialStatus(p) && App.paidTrialStatus(p).ended ? '<span class="badge badge-warning">Trial ended</span>' : "") +
       "</div>" +
       '<div class="pd-actions">' +
         qa("call", "phone", "Call", false) + qa("wa", "message", "WhatsApp", false) +
@@ -212,12 +213,15 @@
       }
       return out;
     }
-    var st = App.followUpStatus(f && App.dueIso(f)), body;
-    if (!f) body = "<strong>No follow-up set</strong><div class=\"cell-sub\">Add one so this lead isn't forgotten.</div>" +
+    var st = App.followUpStatus(f && App.dueIso(f)), body, pt = App.paidTrialStatus(p);
+    // Lead on a paid trial (#92): one line in NEXT STEP; the trial flow itself comes with Book trial (c3).
+    var trialLine = pt ? '<div class="cell-sub" data-paid-trial>' + (pt.ended ? "Paid trial ended " + (-pt.left) + (pt.left === -1 ? " day" : " days") + " ago · " + esc(p.paidTrial.package)
+      : esc(pt.text) + " · " + esc(p.paidTrial.package) + " · " + App.fmtMoney(p.paidTrial.paid) + " paid in full") + "</div>" : "";
+    if (!f) body = trialLine + "<strong>No follow-up set</strong><div class=\"cell-sub\">Add one so this lead isn't forgotten.</div>" +
       '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="follow">' + icon("plus") + "Add follow-up</button></div>";
     else {
       var head = st.cls === "red" ? "Overdue since " + App.fmtDay(App.dueIso(f)) : st.cls === "amber" ? "Due today · " + App.dueTimeText(f) : "Next: " + App.fmtDue(f);
-      body = "<strong>" + esc(head) + "</strong>" +
+      body = trialLine + "<strong>" + esc(head) + "</strong>" +
         '<div class="cell-sub">' + esc(f.type) + (f.note ? " · " + esc(f.note) : "") + " · " + esc(App.userName(f.ownerUserId)) + "</div>" +
         '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="outcome" data-f="' + f.id + '">Log outcome</button></div>';
     }

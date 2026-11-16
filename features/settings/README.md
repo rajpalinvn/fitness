@@ -56,16 +56,17 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 ## 3. Field table
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Category | Membership / PT / Add-on | Yes | No | current tab (Membership) | Locked after the first sale. |
-| Sub-type / Add-on kind | select | Add-on only | No | Not set (Add-on: Transfer) | Membership: Regular, Student, Corporate, Premium; PT: One-on-one, Group (admin lists). Add-on kinds fixed in code. |
+| Category | Membership / PT / Premium PT / Add-on | Yes | No | current tab (Membership) | Locked after the first sale. Premium PT (#92) = membership + PT in one package, 2 lines at sale. |
+| Sub-type / Add-on kind | select | Add-on only | No | Not set (Add-on: Transfer) | Membership: Regular, Student, Corporate; PT and Premium PT: One-on-one, Group (admin lists). Add-on kinds fixed in code. |
 | Name | text | Yes | Yes | — | "A package with this name already exists." |
-| Trial | Yes / No | Yes (not Add-on) | No | No | Locked after the first sale. |
+| Trial | Yes / No | Yes (Membership, PT) | No | No | Locked after the first sale. Not shown for Premium PT (no trial, #92) or Add-on. Trial = Yes hides Free items ("Trials give nothing extra", #93) and the result reads "Free trial · stays a Lead" / "Paid trial · stays a Lead · paid in full". |
 | People | Single / Couple | PT | No | Single | Couple PT: both must be clients with an active membership (#43). Locked after the first sale. |
 | Days | number ≥ 1 | Yes (not Add-on) | No | — | Locked after the first sale. |
-| Sessions | number ≥ 1 | PT | No | — | Locked after the first sale. |
+| Sessions (Premium PT: "PT sessions"; Days = "Membership days") | number ≥ 1 | PT, Premium PT | No | — | Locked after the first sale. |
+| Reference membership price | money, whole ₹ | Premium PT | No | — | > 0 and < price ("Must be less than the package price (₹30,000)."). Part of each price entry (#92, price rule #50): after the first sale it is not edited in place; changing it creates a new price entry from "effective from"; past sales keep theirs. Result box shows "At sale: Membership (included) ₹8,000 + PT ₹22,000". List shows "incl. membership ₹X · PT ₹Y". |
 | Price incl. GST | money ≥ 0 | Yes | No | — | Hint "Includes GST ₹50 (5%) · base ₹1,000". 0 only for a trial or an Add-on. |
 | GST category | select (tax master) | Yes | No | Gym services | Active categories only. |
-| Price effective from | date | Yes | No | today | A new price can't start in the past. Price history table (Current / Upcoming / Past). |
+| Price effective from | date | Yes | No | today | A new price can't start in the past. Price history table (Current / Upcoming / Past; Premium PT also shows the reference price per entry). |
 | Audience | New / Renewal / Both | Yes | No | Both (default, can change) | Renewal-only packages are not offered when converting a lead. |
 | Branches | multi-select chips | Yes (≥ 1) | No | all branches | |
 | Requires active membership | checkbox | — | — | on for PT | Always on for PT. |
@@ -212,7 +213,7 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 ## 1. Screens
 | Screen / part | File | Purpose |
 |---|---|---|
-| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 24 actions grouped by module (Leads, Trials, Sales, Clients, Settings) × 8 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN). |
+| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 26 actions grouped by module (Leads, Trials, Sales, Clients, Settings) × 8 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN). |
 | Settings values tab | `?tab=values` | 6 numbers / choices (free-trial limits, adjust buffer, inactivity days, warning days, new-lead assignment). |
 | Roles tab | `?tab=roles` | Read-only: the 8 fixed tenant roles, short, key, reports to, single / multi branch, staff count. |
 | Trainer types tab | `?tab=trainers` | Admin master list (GT, PT, GT-PT); add / edit in the shared form drawer. |

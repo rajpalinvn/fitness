@@ -48,10 +48,10 @@ load(LEADS, function () {
       ok("name + mobile read-only, gender required", /Aarav Patel/.test(mtext()) && /\+91 90000 01234/.test(mtext()) && /Gender \*/.test(mtext()));
       scan("p1/1"); next();
       ok("stepper on one line at 1280px", (function () { var s = qa("#sellMode .step"); return s[0].getBoundingClientRect().top === s[s.length - 1].getBoundingClientRect().top; })());
-      ok("step 2: groups as accordions with counts, Membership open", qa("#sellMode .acc").length === 4 && q('[data-acc="Membership"]').getAttribute("aria-expanded") === "true" &&
-        q('[data-acc="Trial"]').getAttribute("aria-expanded") === "false" && !!q('[data-pkg="pk7"]') && !q('[data-pkg="pk1"]') && /Membership\s*\d+/.test(text('[data-acc="Membership"]')));
+      ok("step 2: groups as accordions with counts, Membership open", qa("#sellMode .acc").length === 3 && q('[data-acc="Membership"]').getAttribute("aria-expanded") === "true" &&
+        q('[data-acc="Premium PT"]').getAttribute("aria-expanded") === "false" && !q('[data-acc="Trial"]') && !q('[data-acc="Trial Paid"]') && !!q('[data-pkg="pk7"]') && !q('[data-pkg="pk1"]') && /Membership\s*\d+/.test(text('[data-acc="Membership"]')));
       type("#cvPkgQ", "annual");
-      ok("search filters across groups + auto-expands", !!q('[data-pkg="pk7"]') && !!q('[data-pkg="pk11"]') && !q('[data-pkg="pk1"]') && /1 of|2 of/.test(text("[data-pkglist]")));
+      ok("search filters across groups + auto-expands", !!q('[data-pkg="pk7"]') && !!q('[data-pkg="pk18"]') && !q('[data-pkg="pk1"]') && /1 of|2 of/.test(text("[data-pkglist]")));
       type("#cvPkgQ", "zumba"); ok("search: No packages match", /No packages match/.test(text("[data-pkglist]")));
       type("#cvPkgQ", "");
       click(q('[data-acc="PT"]'));
@@ -101,9 +101,11 @@ load(LEADS, function () {
       ok("start date limited to today..+30", q("#cvStart").min && q("#cvStart").max && q("#cvStart").min < q("#cvStart").max);
       scan("p1/3"); next();
       ok("step 4: one Corporate entry section (FF ID + key fob)", /Corporate entry: FF ID & key fob/.test(mtext()) && !!q("#cvFf"));
-      type("#cvFf", "FF-20431"); next();
+      type("#cvFf", ""); next();
+      ok("FF ID required at conversion (#93)", /FF ID is required/.test(mtext()) && !!q("#cvFf"));
+      type("#cvFf", "FF-20702"); next();
       ok("duplicate FF ID (other branch) shows branch + owner", /Already exists in Sec 65 · Owner: Arjun/.test(mtext()), mtext().slice(0, 300));
-      type("#cvFf", "");
+      type("#cvFf", "FF-90001");
       ok("step 4: fob chips from Sec 31 stock", !!q('[data-fob="KF-S31-0013"]') && !q('[data-fob="KF-S65-0101"]'));
       click(q('[data-fob="KF-S31-0013"]'));
       ok("bill adds the key fob deposit line + total", /Key fob deposit · KF-S31-0013/.test(text(".cv-bill")) && /₹22,800/.test(text("[data-total]")), text("[data-total]"));
@@ -144,7 +146,7 @@ load(LEADS, function () {
       ok("open follow-up Closed by system · Client converted", openBefore > 0 && f1.status === "Closed by system" && f1.closeReason === "Client converted");
       ok("owner notified", D().notifications.some(function (n) { return /Aarav Patel was closed by system/.test(n.text); }));
       ok("done screen + payment note", /now a client \(CL-1003\)/.test(mtext()) && /Receipt S31-000124/.test(mtext()));
-      ok("FF ID pending shown (Aarav has no FF ID)", /FF ID pending/.test(mtext()) && !/Key fob pending/.test(mtext()));
+      ok("no FF ID pending (required at conversion), no Key fob pending", !/FF ID pending/.test(mtext()) && !/Key fob pending/.test(mtext()) && p.ffId === "FF-90001");
       ok("timeline milestone human text", D().timeline.some(function (t) { return t.personId === "p1" && /Converted to Client · Annual Membership · ₹21,600 \(₹2,400 off: Festive offer\) · key fob KF-S31-0013/.test(t.text); }));
       ok("payment saved: receipt, split rows, balance + due", p.membership.payment.receipts[0].no === "S31-000124" && p.membership.payment.receipts[0].rows.length === 2 &&
         p.membership.payment.paid === 16200 && W().App.payBalance(p.membership.payment) === 6600 && p.membership.payment.dueDate === isoPlus(5));
@@ -155,52 +157,61 @@ load(LEADS, function () {
       click(q('#sellMode [data-cv="done"]'));
       ok("Done returns to the profile (mode closed, drawer open)", !M() && q("#profileDrawer").classList.contains("open") && !q("#profileDrawer").classList.contains("mode-wide"));
       ok("drawer shows Client + Active on Membership tab", /Client/.test(text(".pd-left")) && /Active/.test(text(".pd-left")) && q(".pd-tabs .tab.active").dataset.tabK === "membership");
-      ok("NEXT STEP lists FF ID pending + Payment due", /FF ID pending/.test(text(".next-step")) && /Payment due · ₹6,600/.test(text(".next-step")));
+      ok("NEXT STEP lists Payment due (no FF ID pending)", !/FF ID pending/.test(text(".next-step")) && /Payment due · ₹6,600/.test(text(".next-step")));
       ok("Membership tab: Payments section", /Balance due/.test(text("[data-pay-sec]")) && /S31-000124/.test(text("[data-pay-sec]")) && /UPI ₹6,200 \(UPI-99887766\)/.test(text("[data-pay-sec]")));
       ok("closed follow-up struck in timeline", (click(q('[data-tab-k="timeline"]')), /closed by system · client converted/.test(text(".pd-scroll"))));
     });
 
-    step("Sneha: paid trial, email + FF ID duplicate checks", function () {
+    step("Sneha: Premium PT = 2 lines, FF ID required, email duplicate check", function () {
       startConvert("p2");
       ok("no email hint", /No email: receipts go by WhatsApp only/.test(mtext()));
       type("#cvEmail", "aarav.patel@example.com"); next();
       ok("duplicate email blocked", /Already used by/.test(mtext()) && /Aarav Patel/.test(mtext()));
       type("#cvEmail", ""); next();
-      pick("pk2", "Trial Paid");
-      ok("paid trial: Corporate entry step (optional)", steps() === "Details,Package,Sale & start,Corporate entry,Summary,Payment", steps());
-      next(); ok("sale type Paid trial", /Paid trial/.test(mtext()) && /No key fob/.test(mtext()));
-      next(); ok("paid trial corporate entry: FF ID optional, no fob", !!q("#cvFf") && /Optional for a paid trial/.test(mtext()) && !q("[data-fob]"));
-      next(); next();
-      type("#payA0", "400"); save();
-      ok("paid trial: no partial payment", /Pay the full amount/.test(mtext()) && /partial payment is only allowed on Membership and PT/.test(mtext()) && !q("#payDue"));
-      type("#payA0", "800"); save();
+      ok("Convert offers no trial packages (#93)", !q('[data-pkg="pk1"]') && !q('[data-pkg="pk2"]') && !q('[data-pkg="pk3"]') && /Trials are booked with "Book trial"/.test(mtext()));
+      pick("pk17", "Premium PT");
+      ok("Premium PT card: incl. membership", /incl\. membership ₹8,000/.test(q('[data-pkg="pk17"]').textContent) && /PT ₹22,000/.test(q('[data-pkg="pk17"]').textContent));
+      ok("bill: 2 lines (Membership included ₹8,000 + PT ₹22,000) summing to ₹30,000", /Membership \(included\)/.test(text('[data-line="mem"]')) && /₹8,000/.test(text('[data-line="mem"]')) && /₹22,000/.test(text('[data-line="pt"]')) && /₹30,000/.test(text("[data-total]")));
+      ok("two sales rep fields, both default to the owner (Priya)", q("#cvRep").value === "u6" && q("#cvRepPt").value === "u6");
+      type("#cvDisc", "10");
+      ok("discount split proportionally: ₹800 / ₹2,200; total ₹27,000", /split ₹800 \/ ₹2,200/.test(text(".cv-bill")) && /₹27,000/.test(text("[data-total]")), text(".cv-bill").slice(0, 300));
+      ok("GST per line (2 decimals each): ₹342.86 + ₹942.86 = ₹1,285.72", /GST 5%\s*₹1,285\.72/.test(text("[data-gst]")), text("[data-gst]"));
+      pickSel("cvReason", "Referral"); next();
+      ok("sale type: becomes a Client with membership + PT", /membership \+ PT/.test(mtext()));
+      next();
+      ok("Corporate entry: FF ID required marker, fob chips (Sec 31)", /FF ID \*/.test(mtext()) && !!q('[data-fob="KF-S31-0014"]'));
+      next(); ok("blocked without FF ID", /FF ID is required/.test(mtext()));
+      type("#cvFf", "FF-90003"); click(q('#sellMode [data-fob=""]')); next();
+      ok("summary shows both lines + both reps", /Membership \(included\) ₹8,000 \+ PT ₹22,000/.test(mtext()) && /Sales rep · PT line/.test(mtext()));
+      next();
+      ok("payment prefilled ₹27,000, PT sessions unlock shown", q("#payA0").value === "27000" && /PT sessions unlocked 12 of 12/.test(text(".cv-bill")));
+      type("#payA0", "10000"); ok("allocation: membership first, then PT (₹2,800 → 1 of 12)", /PT sessions unlocked 1 of 12/.test(text(".cv-bill")), text(".cv-bill").slice(-200));
+      type("#payA0", "27000"); save();
       var p = person("p2");
-      ok("Sneha is a Trial Paid client, no fob", p.kind === "Client" && p.membership.saleType === "Trial Paid" && !p.keyFob);
+      ok("Sneha is a Client with membership (₹7,200) AND PT (₹19,800, 12 sessions)", p.kind === "Client" && p.membership.finalPrice === 7200 && p.membership.premium === true && p.pt && p.pt.finalPrice === 19800 && p.pt.sessions === 12 && p.pt.premium === true);
+      ok("one receipt, both lines paid in full", p.membership.payment.paid === 7200 && p.pt.payment.paid === 19800 && W().App.payBalance(p.pt.payment) === 0 && p.pt.payment.receipts[0].no === p.membership.payment.receipts[0].no);
       click(q('#sellMode [data-cv="done"]'));
-      ok("paid trial shows no pending items", !/pending/i.test(text(".next-step")));
+      ok("profile: Key fob pending only; PT section 12 of 12", /Key fob pending/.test(text(".next-step")) && !/FF ID pending/.test(text(".next-step")));
+      click(q('[data-tab-k="membership"]')); ok("Membership tab shows the PT (included) section", /PT \(included\)/i.test(text(".pd-scroll")) && /Sessions unlocked 12 of 12/.test(text(".pd-scroll")));
     });
 
-    step("Ishaan: free trial again stays a Lead with warning", function () {
+    step("Ishaan / Ananya: trials are not in Convert", function () {
       startConvert("p5"); next();
       ok("once per client: T-shirt already received", /T-shirt \(already received\)/.test(q('[data-pkg="pk7"]').textContent));
-      click(q('[data-pkg="pk7"]')); ok("bill: T-shirt Skipped", /Skipped/.test(text(".cv-bill")));
-      pick("pk1", "Trial");
-      ok("free trial bill: total ₹0", /₹0/.test(text("[data-total]")) && /no payment/.test(text(".cv-bill")));
-      ok("3rd free trial warning", /This is their 3rd free trial/.test(mtext()));
-      ok("no discount for free", !q("#cvDisc"));
-      next(); ok("sale type: stays a Lead", /stays a Lead/.test(mtext()));
-      next(); ok("button = Book free trial", /Book free trial/.test(text('#sellMode [data-cv="finish"]')));
-      finish();
-      var p = person("p5");
-      ok("still a Lead, stage Trial, count 3", p.kind === "Lead" && p.stage === "Trial" && p.freeTrialCount === 3);
-      ok("open follow-up kept (not closed)", W().App.byId(D().followUps, "f3").status === "Open");
-      ok("modal closed", !M());
+      ok("no Free trial / Paid trial groups, no Book free trial", !q('[data-acc="Trial"]') && !q('[data-acc="Trial Paid"]') && !/Book free trial/.test(mtext()));
+      key("Escape");
+      var a = person("p6"), ira = person("p23");
+      ok("Ananya is a LEAD on a running paid trial (stage Trial)", a.kind === "Lead" && a.stage === "Trial" && !!a.paidTrial && a.paidTrial.paid === 800 && W().App.paidTrialStatus(a).ended === false);
+      ok("Ira is a LEAD whose paid trial ended", ira.kind === "Lead" && ira.stage === "Trial" && W().App.paidTrialStatus(ira).ended === true);
+      W().App.openProfile("p6", { state: "normal" }); ok("NEXT STEP: Paid trial · ends in N days", /Paid trial · ends in \d+ days/.test(text(".next-step")));
+      W().App.openProfile("p23", { state: "normal" }); ok("badge Trial ended", /Trial ended/.test(text(".pd-badges")));
+      key("Escape");
     });
 
     step("Arnav: paid accessory allocation (₹340 bug) + minimum", function () {
       startConvert("p17"); next(); pick("pk4", "Membership");
       click(q("[data-x-add]")); click(q('[data-x-pick="it3"]'));
-      next(); next(); next(); next();
+      next(); next(); type("#cvFf", "FF-90004"); next(); next();
       ok("on Payment step", !!q("#payA0") && q("#payA0").value === "3349");
       click(q("[data-x-add]")); click(q('[data-x-pick="it4"]'));
       ok("adding an item on the Payment step updates Total, prefilled amount and minimum", /Total\s*₹3,598/.test(text("[data-pay-sum]")) && q("#payA0").value === "3598" &&
@@ -226,14 +237,14 @@ load(LEADS, function () {
       pickSel("cvGender", "Female"); next();
       pick("pk4", "Membership");
       ok("rep defaults to converting user when unassigned", q("#cvRep").value === W().App.me().id || !!q("#cvRep").value);
-      next(); next(); click(q('#sellMode [data-fob=""]')); next();
+      next(); next(); type("#cvFf", "FF-90002"); click(q('#sellMode [data-fob=""]')); next();
       ok("summary: owner = you", /lead was unassigned/.test(mtext()));
       finish();
       var p = person("p8");
       ok("owner set to converting user + history", p.ownerUserId === W().App.me().id && p.ownerHistory.length === 1);
       ok("external ID kept", p.externalId === "meta_1203948571");
       click(q('#sellMode [data-cv="done"]'));
-      ok("FF ID pending and Key fob pending separately", /FF ID pending/.test(text(".next-step")) && /Key fob pending/.test(text(".next-step")));
+      ok("Key fob pending only (FF ID was required)", !/FF ID pending/.test(text(".next-step")) && /Key fob pending/.test(text(".next-step")));
     });
 
     step("Esc discards", function () {

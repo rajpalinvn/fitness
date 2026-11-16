@@ -1,24 +1,26 @@
-/* Convert to Client stepper (decisions #3, #4, #13, #14, #20, #36–#41, #64–#67, #70–#74).
+/* Convert to Client stepper (decisions #4, #13, #14, #36–#41, #64–#67, #70–#74, #92, #93).
    Opens IN the profile drawer as "Sell mode" (App.DrawerMode), not as a modal.
      App.Convert.open(personId)
-   Steps: 1 Details · 2 Package · 3 Sale & start · 4 Corporate entry (Paid membership / Paid trial) · 5 Summary · 6 Payment.
-   The person becomes a client when the first payment is saved ("money taken = client", decision #79).
-   Right column: live Bill summary (free items Issue now / Later, + Add item, deposit, GST, total).
-   Free trial: no payment step; "Book free trial" on Summary.
+   Steps: 1 Details · 2 Package · 3 Sale & start · 4 Corporate entry (FF ID required, key fob may be Pending) · 5 Summary · 6 Payment.
+   Offers Membership and Premium PT only (#93); trials are booked with "Book trial" (c3), never here. PT stays disabled (#89).
+   Premium PT = 2 lines at sale: "Membership (included)" = reference price, "PT" = the rest; discount split proportionally;
+   one sales rep per line (#36). Allocation of a payment: accessories → fob deposit → membership line → PT line.
+   The person becomes a client when the first payment is saved (#79).
    Load after profile.js. */
 (function () {
   var D = window.DUMMY, esc = App.esc, icon = App.icon;
   var REP_ROLES = ["Sales Executive", "Sales Manager", "Club Manager"];
   var STEPS = [{ k: 1, t: "Details" }, { k: 2, t: "Package" }, { k: 3, t: "Sale & start" }, { k: 4, t: "Corporate entry" }, { k: 5, t: "Summary" }, { k: 6, t: "Payment" }];
   var CORP = "Corporate entry: FF ID & key fob";
-  var GROUPS = [["Trial", "Free trial"], ["Trial Paid", "Paid trial"], ["Membership", "Membership"], ["PT", "Personal training"]];
+  var GROUPS = [["Membership", "Membership"], ["Premium PT", "Premium PT (membership + PT)"], ["PT", "Personal training"]];
   var C = null, m = null;
 
   function person() { return App.byId(D.people, C.pid); }
   function pkg() { return C.pkgId ? App.byId(D.packages, C.pkgId) : null; }
-  function needsFob() { var k = pkg(); return !!k && k.saleType === "Paid" && k.type === "Membership"; }
-  // Corporate entry step: Paid membership (FF ID + fob, pending if empty) and Paid trial (FF ID only, optional, never pending) — decision #72.
-  function showCorp() { var k = pkg(); return needsFob() || (!!k && k.saleType === "Trial Paid"); }
+  function isPrem() { var k = pkg(); return !!k && k.type === "Premium PT"; }
+  function needsFob() { var k = pkg(); return !!k && k.saleType === "Paid" && (k.type === "Membership" || k.type === "Premium PT"); }
+  // Corporate entry step (decision #93): FF ID mandatory, key fob can stay Pending. Shown for every package sold here.
+  function showCorp() { return needsFob(); }
   function isoDay(d) { var x = new Date(d); return x.getFullYear() + "-" + ("0" + (x.getMonth() + 1)).slice(-2) + "-" + ("0" + x.getDate()).slice(-2); }
   function plus(iso, n) { var d = new Date(iso + "T00:00"); d.setDate(d.getDate() + n); return d; }
   function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
@@ -30,9 +32,10 @@
   function accessories() { return D.items.filter(function (i) { return i.kind === "Accessory" && i.active; }); }
   function reasonText() { return C.reason === "Other" ? C.reasonOther.trim() : C.reason; }
 
-  // Packages a lead can buy: active, sold at the lead's branch, audience New or Both, not an Add-on (decisions #47, #50).
+  // Packages a lead can buy here (decisions #47, #50, #93): active, sold at the lead's branch, audience New or Both,
+  // not an Add-on and NEVER a trial (trials go through Book trial). PT is listed but disabled (#89).
   function sellable(p) {
-    return D.packages.filter(function (x) { return x.active && x.category !== "Add-on" && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal"; });
+    return D.packages.filter(function (x) { return x.active && x.category !== "Add-on" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal"; });
   }
   // Free items: "Once per client" is skipped if the person ever got it free; out of stock -> "Pending issue" (decision #46).
   // In stock: staff choose Issue now (default) or Later (-> Pending issue) — decision #70.
@@ -47,11 +50,18 @@
     });
   }
   function depositDue() { return needsFob() && C.fob && !C.fobFree ? App.fobDeposit() : 0; }
-  // Discount money + percent from what was typed.
+  // Discount money + percent from what was typed. Premium PT: the package splits into a membership line (reference price)
+  // and a PT line (the rest); the discount is split proportionally (#93).
   function money() {
-    var k = pkg(); if (!k) return { price: 0, disc: 0, pct: 0, final: 0 };
+    var k = pkg(); if (!k) return { price: 0, disc: 0, pct: 0, final: 0, mem: 0, pt: 0, memDisc: 0, ptDisc: 0, memFinal: 0, ptFinal: 0 };
     var v = Number(C.disc) || 0, disc = C.mode === "%" ? Math.round(k.price * v / 100) : Math.round(v);
-    return { price: k.price, disc: disc, pct: k.price ? disc / k.price * 100 : 0, final: k.price - disc };
+    var o = { price: k.price, disc: disc, pct: k.price ? disc / k.price * 100 : 0, final: k.price - disc };
+    if (k.type === "Premium PT") {
+      o.mem = k.referenceMembershipPrice || 0; o.pt = k.price - o.mem;
+      o.memDisc = k.price ? Math.round(disc * o.mem / k.price) : 0; o.ptDisc = disc - o.memDisc;
+      o.memFinal = o.mem - o.memDisc; o.ptFinal = o.pt - o.ptDisc;
+    } else { o.mem = k.price; o.pt = 0; o.memDisc = disc; o.ptDisc = 0; o.memFinal = o.final; o.ptFinal = 0; }
+    return o;
   }
   // Extra accessories added in the bill (decision #71): price locked from the item master; "Free" = complimentary with a reason.
   function extraLine(x) { var it = App.byId(D.items, x.itemId); return { it: it, amount: x.free ? 0 : it.sellingPrice * x.qty }; }
@@ -62,7 +72,7 @@
   function open(pid) {
     var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
-      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: p.ownerUserId || App.me().id, start: isoDay(new Date()),
+      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: p.ownerUserId || App.me().id, repPtId: p.ownerUserId || App.me().id, start: isoDay(new Date()),
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
       pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "" };
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
@@ -79,8 +89,7 @@
   }
 
   // ---------- render ----------
-  function isFreeTrial() { var k = pkg(); return !!k && k.saleType === "Trial"; }
-  function visibleSteps() { return STEPS.filter(function (s) { return (s.k !== 4 || !pkg() || showCorp()) && (s.k !== 6 || !isFreeTrial()); }); }
+  function visibleSteps() { return STEPS.filter(function (s) { return s.k !== 4 || !pkg() || showCorp(); }); }
   function header() {
     var vs = visibleSteps();
     return '<ol class="stepper" aria-label="Steps">' + vs.map(function (s, i) {
@@ -102,7 +111,7 @@
       '<aside class="cv-bill" aria-label="Bill summary" data-bill>' + bill(p) + "</aside></div></div>";
     var back = C.step > 1 ? '<button class="btn" data-cv="back">Previous</button>' : '<button class="btn" data-dm-back>Cancel</button>';
     var vs = visibleSteps(), last = C.step === vs[vs.length - 1].k;
-    var nextLabel = !last ? "Next" : isFreeTrial() ? "Book free trial" : "Save payment";
+    var nextLabel = !last ? "Next" : "Save payment";
     // Footer aligned with the steps column, not the far edge.
     m.foot.classList.add("cv-foot");
     m.foot.innerHTML = '<div class="cv-foot-inner"><div class="cv-foot-btns">' + back + '<button class="btn btn-primary" data-cv="' + (last ? "finish" : "next") + '">' + nextLabel + "</button></div></div>";
@@ -162,7 +171,7 @@
     var k = pkg(), mo = money(), dep = depositDue(), by = {};
     var fobItem = D.items.filter(function (i) { return i.kind === "Key fob"; })[0];
     function add(amount, taxId) { if (!amount) return; var g = App.gstSplit(amount, taxId); if (g.gst) by[g.rate] = Math.round(((by[g.rate] || 0) + g.gst) * 100) / 100; }
-    add(mo.final, k.taxCategoryId);
+    if (k.type === "Premium PT") { add(mo.memFinal, k.taxCategoryId); add(mo.ptFinal, k.taxCategoryId); } else add(mo.final, k.taxCategoryId);
     C.extras.forEach(function (x) { var l = extraLine(x); add(l.amount, l.it.taxCategoryId); });
     add(dep, fobItem && fobItem.taxCategoryId);
     return Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).map(function (r) { return { rate: r, gst: by[r] }; });
@@ -173,7 +182,6 @@
     return { total: total, must: acc + dep, paid: paid, balance: Math.max(0, Math.round((total - paid) * 100) / 100), towardsPkg: Math.max(0, paid - acc - dep) };
   }
   // Minimum first payment (decision #85): accessories + key fob deposit in full + X% of the package after discount.
-  // Packages that can't be part-paid (paid trial) need the full total.
   function minPay() {
     var t = payTotals(), pct = App.minFirstPayPct();
     if (!partialOk()) return { amount: t.total, full: true };
@@ -188,25 +196,31 @@
     return "Minimum " + App.fmtMoney(mi.amount) + " (" + parts.join(" + ") + ")";
   }
   function belowMin() { return payTotals().paid + 1e-9 < minPay().amount; }
-  // Real allocation of what is paid now: accessories first, then the fob deposit, then the package.
+  // Real allocation of what is paid now (#85, #93): accessories → key fob deposit → membership line → PT line.
   function alloc() {
-    var t = payTotals(), acc = extrasPaid(), dep = depositDue(), left = t.paid;
+    var t = payTotals(), acc = extrasPaid(), dep = depositDue(), mo = money(), left = t.paid;
     var a = Math.min(left, acc); left -= a; var d = Math.min(left, dep); left -= d;
-    return { acc: a, dep: d, pkg: Math.min(left, money().final) };
+    var mem = Math.min(left, mo.memFinal); left -= mem; var pt = Math.min(left, mo.ptFinal);
+    return { acc: a, dep: d, pkg: mem + pt, mem: mem, pt: pt };
   }
   function paidSub(paid, due, prefix) {
     return (prefix || "") + (paid + 1e-9 >= due ? "Paid in full" : "Paid " + App.fmtMoney(paid) + " · Balance " + App.fmtMoney(Math.round((due - paid) * 100) / 100));
   }
+  // PT sessions unlock with what is paid towards the PT line (#83). Premium PT: the PT line is paid after the membership line.
   function ptLine(t) {
-    var k = pkg(); if (!k || k.type !== "PT" || !k.sessions) return "";
-    var un = App.ptUnlocked(k.price, money().disc, k.sessions, C.step === 6 ? t.towardsPkg : t.total);
-    return "Sessions unlocked " + un + " of " + k.sessions;
+    var k = pkg(); if (!k || k.type !== "Premium PT" || !k.sessions) return "";
+    var mo = money(), paidPt = C.step === 6 ? alloc().pt : mo.ptFinal;
+    var un = App.ptUnlocked(mo.pt, mo.ptDisc, k.sessions, paidPt);
+    return "PT sessions unlocked " + un + " of " + k.sessions;
   }
   function totalsHtml() {
     var mo = money(), dep = depositDue(), acc = extrasPaid(), rates = gstByRate(), t = payTotals();
     var gst = Math.round(rates.reduce(function (s, r) { return s + r.gst; }, 0) * 100) / 100;
     var pay6 = C.step === 6, al = pay6 ? alloc() : null;
-    var h = '<div class="bill-group">' + bline("Package after discount", App.fmtMoney(mo.final), pay6 && mo.final ? paidSub(al.pkg, mo.final) : "", "", ' data-bl="pkg"');
+    var h = '<div class="bill-group">';
+    if (isPrem()) h += bline("Membership (included) after discount", App.fmtMoney(mo.memFinal), pay6 && mo.memFinal ? paidSub(al.mem, mo.memFinal) : "", "", ' data-bl="mem"') +
+      bline("PT after discount", App.fmtMoney(mo.ptFinal), pay6 && mo.ptFinal ? paidSub(al.pt, mo.ptFinal) : "Paid after the membership line", "", ' data-bl="ptl"');
+    else h += bline("Package after discount", App.fmtMoney(mo.final), pay6 && mo.final ? paidSub(al.pkg, mo.final) : "", "", ' data-bl="pkg"');
     if (acc) h += bline("Accessories", App.fmtMoney(acc), pay6 ? paidSub(al.acc, acc) : "Paid first, in full", "", ' data-bl="acc"');
     if (dep) h += bline("Key fob deposit", App.fmtMoney(dep), pay6 ? paidSub(al.dep, dep, "Refundable · ") : "Refundable · paid first, in full", "", ' data-bl="dep"');
     h += "</div>";
@@ -223,13 +237,21 @@
     var html = '<h3 class="bill-title">Bill summary</h3><div class="bill-person"><strong>' + esc(p.name) + '</strong><div class="cell-sub">' +
       esc(p.cc + " " + p.mobile) + " · " + esc(App.branchName(p.branchId)) + "</div></div>";
     if (!k) return html + '<p class="muted bill-empty">Choose a package to see the bill.</p>';
-    html += '<div class="bill-group">' + bline(esc(k.name), k.price ? App.fmtMoney(k.price) : "Free", k.days + (k.days === 1 ? " day" : " days") + (k.sessions ? " · " + k.sessions + " sessions" : ""));
-    if (mo.disc) html += bline("Discount", "− " + App.fmtMoney(mo.disc), reasonText() ? esc(reasonText()) : '<span class="warn-text">Reason needed</span>');
-    html += "</div>";
+    if (isPrem()) {
+      html += '<div class="bill-group"><div class="bill-group-label">' + esc(k.name) + ' · 2 lines</div>' +
+        bline("Membership (included)", App.fmtMoney(mo.mem), k.days + " days · reference membership price · rep " + esc(App.firstName(App.byId(D.users, C.repId))), "", ' data-line="mem"') +
+        bline("PT", App.fmtMoney(mo.pt), k.sessions + " sessions · price − reference · rep " + esc(App.firstName(App.byId(D.users, C.repPtId))), "", ' data-line="pt"');
+      if (mo.disc) html += bline("Discount", "− " + App.fmtMoney(mo.disc), (reasonText() ? esc(reasonText()) : '<span class="warn-text">Reason needed</span>') + " · split " + App.fmtMoney(mo.memDisc) + " / " + App.fmtMoney(mo.ptDisc));
+      html += "</div>";
+    } else {
+      html += '<div class="bill-group">' + bline(esc(k.name), k.price ? App.fmtMoney(k.price) : "Free", k.days + (k.days === 1 ? " day" : " days") + (k.sessions ? " · " + k.sessions + " sessions" : ""));
+      if (mo.disc) html += bline("Discount", "− " + App.fmtMoney(mo.disc), reasonText() ? esc(reasonText()) : '<span class="warn-text">Reason needed</span>');
+      html += "</div>";
+    }
     var fl = freeLines(p, k);
     if (fl.length) html += '<div class="bill-group"><div class="bill-group-label">Free with the package</div>' + fl.map(freeLineHtml).join("") + "</div>";
     html += '<div class="bill-group"><div class="bill-group-label">Accessories</div>' + C.extras.map(function (x, i) { return extraHtml(x, i, p); }).join("");
-    if (k.saleType !== "Trial") {
+    {
       html += C.picker
         ? '<div class="bill-pick"><label class="sr-only" for="xPickQ">Search items</label><input class="input input-sm" id="xPickQ" type="search" data-x-q value="' + esc(C.pickQ) + '" placeholder="Search accessories…" autocomplete="off">' +
           '<div class="pick-list" data-x-list>' + pickList(p) + '</div><button type="button" class="link-btn" data-x-cancel>Cancel</button></div>'
@@ -240,7 +262,6 @@
       : C.fobFree ? bline("Key fob · " + esc(C.fob), "₹0", "Complimentary · " + (C.fobFreeWhy.trim() ? esc(C.fobFreeWhy.trim()) : '<span class="warn-text">Reason needed</span>'), ' <span class="badge badge-info">Complimentary</span>')
       : bline("Key fob deposit · " + esc(C.fob), App.fmtMoney(App.fobDeposit()), "Refundable · its own sale line")) + "</div>";
     html += '<div data-bill-totals>' + totalsHtml() + "</div>";
-    if (k.saleType === "Trial") html += '<p class="hint">Free trial · no payment.</p>';
     return html;
   }
   function updateBill() { var b = m && m.body.querySelector("[data-bill]"); if (b) b.innerHTML = bill(person()); refreshPay(); }
@@ -316,8 +337,7 @@
     var html = '<section class="cv-card"><h3 class="cv-card-title">Package</h3><div class="field pkg-search"><label for="cvPkgQ" class="sr-only">Search packages</label>' +
       '<input class="input" id="cvPkgQ" type="search" data-k="pkgQ" autocomplete="off" placeholder="Search packages by name…" value="' + esc(C.pkgQ) + '"></div>' +
       '<div data-pkglist>' + pkgList(p) + "</div>" + err("pkg");
-    if (k && k.type === "Trial" && p.freeTrialCount > 0)
-      html += '<div class="callout callout-warn">' + icon("alert") + "<span>This is their " + ordinal(p.freeTrialCount + 1) + " free trial.</span></div>";
+    html += '<p class="hint">Trials are booked with "Book trial" (coming in c3), never here. Membership and Premium PT only (#93).</p>';
     if (k && k.people === 2) html += '<p class="hint">Converts this person only. Adding the partner comes later.</p>';
     html += "</section>";
     if (k && k.price > 0) {
@@ -334,19 +354,23 @@
         (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><select class="input' + inv("reason") + '" id="cvReason" data-k="reason">' +
             '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
             (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
-        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
+        '<div class="field"><label for="cvRep">Sales rep' + (k.type === "Premium PT" ? " · Membership line" : "") + ' <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") +
           '</select><span class="hint">Gets the credit for this sale line. Defaults to the lead owner.</span></div>' +
+        (k.type === "Premium PT" ? '<div class="field"><label for="cvRepPt">Sales rep · PT line <span class="req">*</span></label><select class="input" id="cvRepPt" data-k="repPtId">' + reps(p).map(function (u) {
+          return '<option value="' + u.id + '"' + (u.id === C.repPtId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") +
+          '</select><span class="hint">One rep per line (#36). The membership part\'s incentive split is set in the incentive scheme (#92).</span></div>' : "") +
         "</div></section>";
     }
     return html;
   }
   // Accordions per category (+ / −) with a count; search filters across all groups and opens the ones with matches.
   function card(p, x) {
-    var pt = x.type === "PT", sel = x.id === C.pkgId, fl = freeLines(p, x);
+    var pt = x.type === "PT", prem = x.type === "Premium PT", sel = x.id === C.pkgId, fl = freeLines(p, x);
     return '<button type="button" class="pkg-card' + (sel ? " selected" : "") + '" data-pkg="' + x.id + '"' + (pt ? ' disabled title="PT needs an active membership · sell it after joining"' : "") +
       ' aria-pressed="' + sel + '"><strong>' + esc(x.name) + '</strong><span class="cell-sub">' + x.days + (x.days === 1 ? " day" : " days") + (x.sessions ? " · " + x.sessions + " sessions" : "") +
       (x.people === 2 ? " · couple" : "") + '</span><span class="pkg-price">' + (x.price ? App.fmtMoney(x.price) : "Free") + "</span>" +
+      (prem ? '<span class="cell-sub">incl. membership ' + App.fmtMoney(x.referenceMembershipPrice || 0) + " · PT " + App.fmtMoney(x.price - (x.referenceMembershipPrice || 0)) + "</span>" : "") +
       (fl.length ? '<span class="pkg-free">Free: ' + fl.map(function (f) { return esc(f.name) + (f.status === "Skipped" ? " (already received)" : ""); }).join(", ") + "</span>" : "") +
       (pt ? '<span class="hint">PT needs an active membership · sell it after joining</span>' : "") + "</button>";
   }
@@ -377,9 +401,8 @@
 
   // Step 3 — sale type (automatic) + start date
   function saleBox(k) {
-    if (k.saleType === "Trial") return '<div class="next-step amber"><div class="ns-label">Sale type · automatic</div><strong>Free trial</strong> · stays a Lead<div class="cell-sub">No payment, no key fob, no FF ID. Next follow-up is asked right after.</div></div>';
-    if (k.saleType === "Trial Paid") return '<div class="next-step green"><div class="ns-label">Sale type · automatic</div><strong>Paid trial</strong> · becomes a Client<div class="cell-sub">No key fob (trial). Next: Corporate entry, FF ID optional; nothing shows as pending if left empty.</div></div>';
-    return '<div class="next-step green"><div class="ns-label">Sale type · automatic</div><strong>Paid</strong> · becomes a Client<div class="cell-sub">Next: Corporate entry (FF ID &amp; key fob). Both optional now; each shows as pending until filled.</div></div>';
+    if (k.type === "Premium PT") return '<div class="next-step green"><div class="ns-label">Sale type · automatic</div><strong>Paid</strong> · becomes a Client with membership + PT<div class="cell-sub">Two lines at sale (membership = reference price, PT = the rest). Next: Corporate entry (FF ID required, key fob can be pending).</div></div>';
+    return '<div class="next-step green"><div class="ns-label">Sale type · automatic</div><strong>Paid</strong> · becomes a Client<div class="cell-sub">Next: Corporate entry. FF ID is required; the key fob can stay pending.</div></div>';
   }
   function s3(p) {
     var k = pkg(), today = isoDay(new Date()), max = isoDay(plus(today, 30)), e = endDate();
@@ -400,11 +423,9 @@
   // Step 4 — Corporate entry: FF ID & key fob (decisions #67, #72, #75)
   function s4(p) {
     var st = stock(p), fobOk = needsFob();
-    var head = '<section class="cv-card"><h3 class="cv-card-title">' + esc(CORP) + '</h3><p class="muted">' + (fobOk ? "Both are optional now. Each shows as pending on the profile until filled."
-        : "Optional for a paid trial. If left empty nothing shows as pending.") + "</p>" +
-      '<div class="field"><label for="cvFf">FF ID</label><input class="input' + inv("ffId") + '" id="cvFf" data-k="ffId" value="' + esc(C.ffId) + '" placeholder="e.g. FF-20500">' +
-        (C.errors.ffId ? err("ffId") : '<span class="hint">From the corporate software. Usually added after the client is entered there.</span>') + "</div>";
-    if (!fobOk) return head + '<div class="field"><label>Key fob</label><p class="muted">No key fob for trial memberships.</p></div></section>';
+    var head = '<section class="cv-card"><h3 class="cv-card-title">' + esc(CORP) + '</h3><p class="muted">FF ID is required to convert (decision #93). The key fob can be assigned later and shows as pending until then.</p>' +
+      '<div class="field"><label for="cvFf">FF ID <span class="req">*</span></label><input class="input' + inv("ffId") + '" id="cvFf" data-k="ffId" value="' + esc(C.ffId) + '" placeholder="e.g. FF-20500" required>' +
+        (C.errors.ffId ? err("ffId") : '<span class="hint">From the corporate software. Enter the client there first, then the FF ID here.</span>') + "</div>";
     head += '<div class="field"><label>Key fob</label>';
     if (!st.length) return head + '<div class="callout callout-warn">' + icon("alert") + "<span>No key fobs in stock at " + esc(App.branchName(p.branchId)) +
       ". You can finish now; <strong>Key fob pending</strong> shows on the profile until one is assigned.</span></div></div></section>";
@@ -418,32 +439,31 @@
   }
   function check4() {
     var e = {}, p = person(), ff = C.ffId.trim().toLowerCase();
-    if (ff) { var d2 = D.people.filter(function (o) { return o.id !== p.id && (o.ffId || "").toLowerCase() === ff; })[0]; if (d2) e.ffId = dupMsg(d2); }
+    if (!ff) e.ffId = "FF ID is required to convert (enter the client in the corporate software first).";
+    else { var d2 = D.people.filter(function (o) { return o.id !== p.id && (o.ffId || "").toLowerCase() === ff; })[0]; if (d2) e.ffId = dupMsg(d2); }
     if (needsFob() && C.fob && C.fobFree && !C.fobFreeWhy.trim()) e.fobFreeWhy = "A reason is needed for a free fob.";
     return e;
   }
 
   // Step 5 — summary
   function s5(p) {
-    var k = pkg(), mo = money(), e = endDate(), trial = k.saleType === "Trial";
-    var rows = [["Person", p.name + " · " + p.cc + " " + p.mobile], ["Package", k.name], ["Sale type", trial ? "Free trial (stays a Lead)" : k.saleType],
+    var k = pkg(), mo = money(), e = endDate(), prem = k.type === "Premium PT";
+    var rows = [["Person", p.name + " · " + p.cc + " " + p.mobile], ["Package", k.name + (prem ? " · 2 lines: Membership (included) " + App.fmtMoney(mo.mem) + " + PT " + App.fmtMoney(mo.pt) : "")], ["Sale type", k.saleType + (prem ? " · membership + PT" : "")],
       ["Start – end", App.fmtDate(new Date(C.start + "T00:00").toISOString()) + " – " + App.fmtDate(e.toISOString())]];
     // Money lines (price, discount, free items, accessories, deposit, GST, total) are in the bill summary on the right.
-    if (!trial) {
-      rows.push(["Sales rep", App.userName(C.repId)]);
-      if (mo.disc) rows.push(["Discount reason", reasonText()]);
-      if (needsFob()) rows.push([CORP, "FF ID: " + (C.ffId.trim() || "Pending") + " · Key fob: " + (C.fob ? C.fob + (C.fobFree ? " (free)" : "") : "Pending")]);
-      else if (showCorp()) rows.push([CORP, "FF ID: " + (C.ffId.trim() || "Not set (optional)")]);
-    }
+    rows.push([prem ? "Sales rep · Membership line" : "Sales rep", App.userName(C.repId)]);
+    if (prem) rows.push(["Sales rep · PT line", App.userName(C.repPtId)]);
+    if (mo.disc) rows.push(["Discount reason", reasonText()]);
+    rows.push([CORP, "FF ID: " + C.ffId.trim() + " · Key fob: " + (C.fob ? C.fob + (C.fobFree ? " (free)" : "") : "Pending")]);
     if (!p.ownerUserId) rows.push(["Owner", App.me().name + " (you, lead was unassigned)"]);
     var open = App.Followup.openFollowUps(p.id).length;
     return sec("Summary", '<dl class="kv kv-wide">' + rows.map(function (r) { return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>"; }).join("") + "</dl>" +
-      (!trial && open ? '<p class="hint">' + open + " open follow-up" + (open > 1 ? "s" : "") + " will be closed by system · client converted.</p>" : "") +
-      (trial ? "" : '<div class="callout">' + icon("info") + "<span>Next: Payment. " + esc(p.name.split(" ")[0]) + " becomes a client when the first payment is saved.</span></div>"));
+      (open ? '<p class="hint">' + open + " open follow-up" + (open > 1 ? "s" : "") + " will be closed by system · client converted.</p>" : "") +
+      '<div class="callout">' + icon("info") + "<span>Next: Payment. " + esc(p.name.split(" ")[0]) + " becomes a client when the first payment is saved.</span></div>");
   }
 
   // Step 6 — Payment (decisions #79–#83). Money taken = client.
-  function partialOk() { var k = pkg(); return !!k && k.saleType === "Paid" && (k.type === "Membership" || k.type === "PT"); }
+  function partialOk() { var k = pkg(); return !!k && k.saleType === "Paid" && (k.type === "Membership" || k.type === "PT" || k.type === "Premium PT"); }
   function paySum() {
     var t = payTotals(), pl = ptLine(t);
     return '<div class="pay-sum-row"><span>Total</span><strong>' + App.fmtMoney(t.total) + '</strong></div><div class="pay-sum-row"><span>Paid now</span><strong>' + App.fmtMoney(t.paid) +
@@ -568,34 +588,23 @@
 
   // ---------- finish ----------
   function finish() {
-    var xe = Object.assign(checkExtras(), isFreeTrial() ? {} : check6());
-    if (Object.keys(xe).length) { C.errors = xe; render(); var f0 = m.body.querySelector(".invalid, .error"); if (f0 && f0.focus) f0.focus(); return; }
-    var T = isFreeTrial() ? null : payTotals();
+    var xe = Object.assign(checkExtras(), check4(), check6());
+    if (Object.keys(xe).length) { C.errors = xe; if (xe.ffId) { C.step = 4; } render(); var f0 = m.body.querySelector(".invalid, .error"); if (f0 && f0.focus) f0.focus(); return; }
+    var T = payTotals();
     var p = person(), k = pkg(), mo = money(), now = new Date().toISOString(), me = App.me();
     p.email = C.email.trim() || null; p.gender = C.gender; p.birthDate = C.birthDate || null; p.ffId = C.ffId.trim() || null;
     if (!p.ownerUserId) { p.ownerHistory.push({ from: null, to: me.id, at: now, by: me.id }); p.ownerUserId = me.id; App.Followup.openFollowUps(p.id).forEach(function (f) { f.ownerUserId = me.id; }); }
     var startIso = new Date(C.start + "T00:00").toISOString(), endIso = endDate().toISOString();
 
-    if (k.saleType === "Trial") {   // decision #3: free trial stays a Lead; many allowed (warning only)
-      p.freeTrialCount = (p.freeTrialCount || 0) + 1;
-      p.stage = "Trial"; p.freeTrial = { from: startIso, to: endIso };
-      App.addTimeline(p.id, "milestone", "Free trial booked · " + k.days + (k.days === 1 ? " day" : " days") + " from " + App.fmtShortWhen(startIso) +
-        (p.freeTrialCount > 1 ? " · " + ordinal(p.freeTrialCount) + " free trial" : ""));
-      C.done = true; m.exit(true); C = null;
-      App.toast("Free trial booked for " + p.name, "success"); App.dataChanged();
-      if (!App.Followup.openFollowUps(p.id).length)
-        App.Followup.openAdd(p.id, { title: "Set next follow-up", type: "Visit planned", intro: "Free trial booked. When will you follow up?", cancelText: "Later" });
-      return;
-    }
-
-    var clientNo = "CL-" + D.nextClientNo++, why = reasonText();
+    var prem = k.type === "Premium PT", clientNo = "CL-" + D.nextClientNo++, why = reasonText();
     function takeStock(itemId, qty, note) {
       var st = D.itemStock.filter(function (x) { return x.itemId === itemId && x.branchId === p.branchId; })[0];
       st.qty -= qty; D.stockMoves.push({ itemId: itemId, branchId: p.branchId, qty: -qty, at: now, by: me.id, note: note });
     }
     p.kind = "Client"; p.stage = "Converted"; p.clientNo = clientNo; p.homeBranchId = p.branchId; p.joinedAt = now; p.photo = null;
-    p.membership = { packageId: k.id, package: k.name, saleType: k.saleType, start: startIso, end: endIso, price: k.price,
-      discount: mo.disc, discountReason: mo.disc ? why : null, finalPrice: mo.final, salesRepUserId: C.repId,
+    // Premium PT (#92, #93): membership line = reference price, PT line = the rest; discount split proportionally; one rep per line.
+    p.membership = { packageId: k.id, package: prem ? k.name + " · Membership (included)" : k.name, saleType: k.saleType, start: startIso, end: endIso, price: mo.mem,
+      discount: mo.memDisc, discountReason: mo.disc ? why : null, finalPrice: mo.memFinal, salesRepUserId: C.repId, premium: prem || undefined,
       freeItems: freeLines(p, k).map(function (f) { return { itemId: f.itemId, name: f.name, qty: f.qty, status: f.status }; }),
       items: C.extras.map(function (x) { var l = extraLine(x); return { itemId: x.itemId, name: l.it.name, qty: x.qty, price: l.amount, free: x.free, reason: x.free ? x.why.trim() : null }; }) };
     p.membership.freeItems.forEach(function (f) {
@@ -613,18 +622,24 @@
       fob.history.push({ at: now, text: "Assigned to " + p.name + (C.fobFree ? " · free, no deposit (" + C.fobFreeWhy.trim() + ")" : " · deposit " + App.fmtMoney(App.fobDeposit()) + " collected"), by: me.id });
     }
     // Payment (decisions #79–#83): one receipt for this payment, split rows allowed. Balance -> due date + Payment expected follow-up.
-    var receiptNo = App.nextReceiptNo(p.branchId, true);
+    var receiptNo = App.nextReceiptNo(p.branchId, true), al = alloc();
     var rows = C.pay.rows.map(function (r) { return { method: r.method, amount: Math.round(Number(r.amount) * 100) / 100, ref: r.ref.trim() || null, slip: r.slip || null }; });
-    p.membership.payment = { total: T.total, paid: T.paid, dueDate: T.balance ? C.payDue : null, receipts: [{ no: receiptNo, at: now, by: me.id, rows: rows }] };
-    if (k.type === "PT") p.membership.sessions = k.sessions;
+    var receipt = { no: receiptNo, at: now, by: me.id, rows: rows };
+    // Allocation: accessories → fob deposit → membership line → PT line (#93). The membership line carries accessories + deposit.
+    p.membership.payment = { total: T.total - mo.ptFinal, paid: T.paid - al.pt, dueDate: T.balance && (T.total - mo.ptFinal) > (T.paid - al.pt) ? C.payDue : null, receipts: [receipt] };
+    if (prem) {
+      p.pt = { packageId: k.id, package: k.name + " · PT (included)", premium: true, price: mo.pt, discount: mo.ptDisc, finalPrice: mo.ptFinal, sessions: k.sessions,
+        start: startIso, end: endIso, salesRepUserId: C.repPtId,
+        payment: { total: mo.ptFinal, paid: al.pt, dueDate: mo.ptFinal > al.pt ? C.payDue : null, receipts: [receipt] } };
+    }
     var closed = App.Followup.closeBySystem(p.id, "Client converted");
     App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(T.paid) + " received · " + rows.map(function (r) { return r.method + " " + App.fmtMoney(r.amount); }).join(" + ") +
       " · receipt " + receiptNo + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + App.fmtIsoDate(C.payDue) : " · paid in full"));
     if (T.balance) App.Followup.create(p.id, { type: "Payment expected", dueDate: C.payDue, dueTime: null, note: "Balance " + App.fmtMoney(T.balance) + " · receipt " + receiptNo });
-    App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + " · " + App.fmtMoney(mo.final) +
+    App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + (prem ? " (membership " + App.fmtMoney(mo.memFinal) + " + PT " + App.fmtMoney(mo.ptFinal) + ", " + k.sessions + " sessions)" : "") + " · " + App.fmtMoney(mo.final) +
       (mo.disc ? " (" + App.fmtMoney(mo.disc) + " off: " + why + ")" : "") + (p.keyFob ? " · key fob " + p.keyFob + (C.fobFree ? " (free)" : "") : "") +
       (p.membership.items.length ? " · " + p.membership.items.map(function (x) { return x.name + " × " + x.qty + (x.free ? " (free)" : ""); }).join(", ") : "") +
-      " · sales rep " + App.firstName(App.byId(D.users, C.repId)));
+      " · sales rep " + App.firstName(App.byId(D.users, C.repId)) + (prem && C.repPtId !== C.repId ? " (PT line: " + App.firstName(App.byId(D.users, C.repPtId)) + ")" : ""));
     var pend = App.profilePending ? App.profilePending(p) : [];
     C.done = true;
     C.doneHtml = '<div class="state">' + icon("check") + "<h3>" + esc(p.name) + " is now a client (" + esc(clientNo) + ")</h3>" +

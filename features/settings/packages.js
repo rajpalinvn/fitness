@@ -1,14 +1,17 @@
-/* Settings → Packages: list (tabs All / Membership / PT / Add-on) + form drawer.
-   Decisions #20, #45–#47, #50–#52, #56. Prices incl. GST; GST worked out backwards from the tax master. */
+/* Settings → Packages: list (tabs All / Membership / PT / Premium PT / Add-on) + form drawer.
+   Decisions #20, #45–#47, #50–#52, #56, #92 (Premium PT: reference membership price per price entry; 2 lines at sale).
+   Prices incl. GST; GST worked out backwards from the tax master. */
 (function () {
   var D = window.DUMMY, esc = App.esc, A = window.Admin;
-  var CATS = ["Membership", "PT", "Add-on"];
+  var CATS = ["Membership", "PT", "Premium PT", "Add-on"];
   var LOCKED = ["category", "isTrial", "people", "days", "sessions"];
   var S = { cat: "all", q: "", branch: "", status: "" };
   var F = null, errors = {}, dr = null;
 
   function canEdit() { return App.access.editMasters(); }
-  function subTypes(cat) { return cat === "Membership" ? D.membershipSubTypes : cat === "PT" ? D.ptSubTypes : D.addOnKinds; }
+  function subTypes(cat) { return cat === "Membership" ? D.membershipSubTypes : cat === "PT" || cat === "Premium PT" ? D.ptSubTypes : D.addOnKinds; }
+  function isPrem() { return F.category === "Premium PT"; }
+  function hasSessions(cat) { return cat === "PT" || cat === "Premium PT"; }
   function lengthText(p) {
     if (p.category === "Add-on") return "—";
     return (p.sessions ? p.sessions + " sessions · " : "") + p.days + (p.days === 1 ? " day" : " days");
@@ -37,7 +40,8 @@
     return '<tr data-id="' + p.id + '"' + (p.active ? "" : ' class="row-muted"') + ">" +
       "<td><strong>" + esc(p.name) + '</strong><div class="cell-sub">' + esc(p.subType || "No sub-type") + "</div></td>" +
       "<td>" + esc(p.category) + "</td><td>" + esc(lengthText(p)) + "</td>" +
-      "<td><strong>" + (info.price ? App.fmtMoney(info.price) : "Free") + '</strong><div class="cell-sub">' + esc(tx ? tx.name + " · GST " + A.money(split.gst) : "No tax category") + "</div>" +
+      "<td><strong>" + (info.price ? App.fmtMoney(info.price) : "Free") + "</strong>" + (p.category === "Premium PT" && info.refPrice != null ? '<div class="cell-sub">incl. membership ' + App.fmtMoney(info.refPrice) + " · PT " + App.fmtMoney(info.price - info.refPrice) + "</div>" : "") +
+        '<div class="cell-sub">' + esc(tx ? tx.name + " · GST " + A.money(split.gst) : "No tax category") + "</div>" +
         (info.next ? '<div class="cell-sub"><span class="badge badge-warning">' + App.fmtMoney(info.next.price) + " from " + esc(App.fmtDate(info.next.from + "T00:00")) + "</span></div>" : "") + "</td>" +
       '<td><div class="stack">' + tags(p) + "</div></td>" +
       "<td>" + esc(A.branchNames(p.branchIds)) + "</td>" +
@@ -68,13 +72,13 @@
 
   // ---------- form ----------
   function blank(cat) {
-    return { id: null, name: "", category: cat || "Membership", subType: "", isTrial: false, people: 1, days: "", sessions: "", price: "", taxCategoryId: "tx1",
+    return { id: null, name: "", category: cat || "Membership", subType: "", isTrial: false, people: 1, days: "", sessions: "", price: "", refPrice: "", taxCategoryId: "tx1",
       priceFrom: App.todayIso(), requiresMembership: cat === "PT", branchIds: D.branches.map(function (b) { return b.id; }), audience: "Both",
       freeItems: [], active: true, soldCount: 0, priceHistory: [] };
   }
   function draftFrom(p, copy) {
     var f = JSON.parse(JSON.stringify(p));
-    f.price = App.priceInfo(p).price; f.priceFrom = App.todayIso(); f.subType = f.subType || "";
+    var pi = App.priceInfo(p); f.price = pi.price; f.refPrice = pi.refPrice != null ? pi.refPrice : ""; f.priceFrom = App.todayIso(); f.subType = f.subType || "";
     if (copy) { f.id = null; f.name = p.name + " (copy)"; f.soldCount = 0; f.priceHistory = []; f.copiedFrom = p.name; }
     return f;
   }
@@ -86,9 +90,11 @@
     var r = App.saleResult({ category: F.category, isTrial: F.isTrial, price: Number(F.price) || 0 });
     if (F.price === "" || F.price == null) return '<div class="next-step grey" data-result><div class="ns-label">Result</div>Enter a price to see the result.</div>';
     if (r.error) return '<div class="next-step red" data-result role="alert"><div class="ns-label">Result</div><strong>Not allowed</strong> · ' + esc(r.error) + "</div>";
-    var cls = r.saleType === "Trial" ? "amber" : "green";
-    return '<div class="next-step ' + cls + '" data-result><div class="ns-label">Result</div><strong>' + esc(r.text.split(" · ")[0]) + "</strong>" +
-      (r.text.indexOf(" · ") > -1 ? " · " + esc(r.text.split(" · ")[1]) : "") + "</div>";
+    var cls = r.saleType === "Trial" || r.saleType === "Trial Paid" ? "amber" : "green", parts = r.text.split(" · ");
+    var extra = isPrem() && Number(F.refPrice) > 0 && Number(F.refPrice) < Number(F.price)
+      ? '<div class="cell-sub">At sale: Membership (included) ' + App.fmtMoney(Number(F.refPrice)) + " + PT " + App.fmtMoney(Number(F.price) - Number(F.refPrice)) + "</div>" : "";
+    return '<div class="next-step ' + cls + '" data-result><div class="ns-label">Result</div><strong>' + esc(parts[0]) + "</strong>" +
+      (parts.length > 1 ? " · " + esc(parts.slice(1).join(" · ")) : "") + extra + "</div>";
   }
   function gstLine() {
     var pr = Number(F.price) || 0, s = App.gstSplit(pr, F.taxCategoryId);
@@ -98,13 +104,15 @@
     if (!F.id) return "";
     var orig = App.byId(D.packages, F.id), t = App.todayIso(), cur = App.priceInfo(orig);
     var h = orig.priceHistory.slice().sort(function (a, b) { return a.from < b.from ? 1 : -1; });
-    return '<div class="field"><label>Price history</label><table class="mini-table"><thead><tr><th>From</th><th>Price</th><th></th></tr></thead><tbody>' + h.map(function (x) {
+    var prem = orig.category === "Premium PT";
+    return '<div class="field"><label>Price history</label><table class="mini-table"><thead><tr><th>From</th><th>Price</th>' + (prem ? "<th>Ref. membership</th>" : "") + '<th></th></tr></thead><tbody>' + h.map(function (x) {
       var st = x.from > t ? '<span class="badge badge-warning">Upcoming</span>' : x.price === cur.price && x === h.filter(function (y) { return y.from <= t; })[0] ? '<span class="badge badge-success">Current</span>' : '<span class="muted">Past</span>';
-      return "<tr><td>" + esc(App.fmtDate(x.from + "T00:00")) + "</td><td>" + (x.price ? App.fmtMoney(x.price) : "Free") + "</td><td>" + st + "</td></tr>";
-    }).join("") + "</tbody></table></div>";
+      return "<tr><td>" + esc(App.fmtDate(x.from + "T00:00")) + "</td><td>" + (x.price ? App.fmtMoney(x.price) : "Free") + "</td>" + (prem ? "<td>" + (x.referenceMembershipPrice != null ? App.fmtMoney(x.referenceMembershipPrice) : "—") + "</td>" : "") + "<td>" + st + "</td></tr>";
+    }).join("") + "</tbody></table></div>" + (prem ? '<span class="hint">The reference membership price follows the price rule (#50): after the first sale it can\'t be edited in place; a new price entry carries a new reference price. Past sales keep theirs.</span>' : "");
   }
   function freeItemsHtml() {
     if (F.category === "Add-on") return "";
+    if (F.isTrial && !isPrem()) return '<div class="field"><label>Free items</label><span class="muted">Trials give nothing extra: no accessories, no free items, no FF ID, no key fob (decision #93).</span></div>';
     var acc = D.items.filter(function (i) { return i.kind === "Accessory" && i.active; });
     return '<div class="field"><label>Free items</label>' + (F.freeItems.length ? F.freeItems.map(function (f, i) {
       return '<div class="free-row" data-fi="' + i + '">' +
@@ -120,7 +128,7 @@
       A.err(errors, "freeItems") + "</div>";
   }
   function formHtml() {
-    var c = F.category, isAdd = c === "Add-on", isPT = c === "PT", taxes = D.taxCategories.filter(function (t) { return t.active || t.id === F.taxCategoryId; });
+    var c = F.category, isAdd = c === "Add-on", isPT = c === "PT", prem = c === "Premium PT", taxes = D.taxCategories.filter(function (t) { return t.active || t.id === F.taxCategoryId; });
     return (F.soldCount ? '<div class="callout callout-warn">' + App.icon("key") + "<span><strong>Sold " + F.soldCount + (F.soldCount === 1 ? " time" : " times") +
         ".</strong> Category, trial, people, days and sessions are locked. " + (canEdit() ? '<button type="button" class="link-btn" data-act="copy" data-id="' + F.id + '">Copy as new</button> to change them.' : "") + "</span></div>" : "") +
       (F.copiedFrom ? '<div class="callout">' + App.icon("copy") + "<span>Copy of " + esc(F.copiedFrom) + ". Nothing is saved until you click Save.</span></div>" : "") +
@@ -131,13 +139,16 @@
         '<div class="field"><label for="pkSub">' + (isAdd ? "Add-on kind" : "Sub-type") + (isAdd ? ' <span class="req">*</span>' : "") + '</label><select class="input" id="pkSub" data-f="subType"' + dis("") + ">" +
           (isAdd ? "" : '<option value="">Not set</option>') + subTypes(c).map(function (s) { return "<option" + (s === F.subType ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select>" +
           '<span class="hint">' + (isAdd ? "Add-on kinds are fixed in the app. First kind: Transfer." : "Optional. List managed by admin.") + "</span>" + A.err(errors, "subType") + "</div>" +
-        (isAdd ? "" : '<div class="field"><label>Trial <span class="req">*</span></label>' + A.chipSeg("isTrial", [["false", "No"], ["true", "Yes"]], String(F.isTrial), !canEdit() || locked("isTrial")) + lockHint("isTrial") + "</div>") +
+        (isAdd || prem ? "" : '<div class="field"><label>Trial <span class="req">*</span></label>' + A.chipSeg("isTrial", [["false", "No"], ["true", "Yes"]], String(F.isTrial), !canEdit() || locked("isTrial")) + lockHint("isTrial") + "</div>") +
+        (prem ? '<div class="field"><label>Trial</label><div class="input input-static">No <span class="muted">· Premium PT has no trial (#92)</span></div></div>' : "") +
         (isPT ? '<div class="field"><label>People <span class="req">*</span></label>' + A.chipSeg("people", [["1", "Single"], ["2", "Couple"]], String(F.people), !canEdit() || locked("people")) +
           '<span class="hint">Couple is PT only. Both people must be clients with an active membership.</span></div>' : "") +
-        (isAdd ? "" : '<div class="field"><label for="pkDays">Days <span class="req">*</span></label><input class="input input-num' + (errors.days ? " invalid" : "") + '" id="pkDays" type="number" min="1" data-f="days" value="' + esc(F.days) + '"' + dis("days") + ">" + lockHint("days") + A.err(errors, "days") + "</div>") +
-        (isPT ? '<div class="field"><label for="pkSess">Sessions <span class="req">*</span></label><input class="input input-num' + (errors.sessions ? " invalid" : "") + '" id="pkSess" type="number" min="1" data-f="sessions" value="' + esc(F.sessions) + '"' + dis("sessions") + ">" + lockHint("sessions") + A.err(errors, "sessions") + "</div>" : "") +
+        (isAdd ? "" : '<div class="field"><label for="pkDays">' + (prem ? "Membership days" : "Days") + ' <span class="req">*</span></label><input class="input input-num' + (errors.days ? " invalid" : "") + '" id="pkDays" type="number" min="1" data-f="days" value="' + esc(F.days) + '"' + dis("days") + ">" + lockHint("days") + A.err(errors, "days") + "</div>") +
+        (isPT || prem ? '<div class="field"><label for="pkSess">' + (prem ? "PT sessions" : "Sessions") + ' <span class="req">*</span></label><input class="input input-num' + (errors.sessions ? " invalid" : "") + '" id="pkSess" type="number" min="1" data-f="sessions" value="' + esc(F.sessions) + '"' + dis("sessions") + ">" + lockHint("sessions") + A.err(errors, "sessions") + "</div>" : "") +
         '<div class="field"><label for="pkPrice">Price incl. GST <span class="req">*</span></label><input class="input input-num' + (errors.price ? " invalid" : "") + '" id="pkPrice" type="number" min="0" data-f="price" value="' + esc(F.price) + '"' + dis("") + ">" +
           '<span class="hint" data-gst>' + esc(gstLine()) + "</span>" + A.err(errors, "price") + "</div>" +
+        (prem ? '<div class="field"><label for="pkRef">Reference membership price <span class="req">*</span></label><input class="input input-num' + (errors.refPrice ? " invalid" : "") + '" id="pkRef" type="number" min="1" data-f="refPrice" value="' + esc(F.refPrice) + '"' + dis("") + ">" +
+          '<span class="hint">Membership part of the price (incl. GST). At sale: Membership line = this, PT line = the rest. Part of each price entry.</span>' + A.err(errors, "refPrice") + "</div>" : "") +
         '<div class="field"><label for="pkTax">GST category <span class="req">*</span></label><select class="input" id="pkTax" data-f="taxCategoryId"' + dis("") + ">" + taxes.map(function (t) {
           return '<option value="' + t.id + '"' + (t.id === F.taxCategoryId ? " selected" : "") + ">" + esc(t.name) + " · " + t.rate + "%</option>"; }).join("") + "</select></div>" +
         '<div class="field"><label for="pkFrom">Price effective from <span class="req">*</span></label><input class="input' + (errors.priceFrom ? " invalid" : "") + '" id="pkFrom" type="date" data-f="priceFrom" min="' + (F.id ? App.todayIso() : "") + '" value="' + esc(F.priceFrom) + '"' + dis("") + ">" +
@@ -148,8 +159,8 @@
           var on = F.branchIds.indexOf(b.id) > -1;
           return '<button type="button" class="chip' + (on ? " selected" : "") + '" aria-pressed="' + on + '" data-pkbranch="' + b.id + '"' + dis("") + ">" + (on ? App.icon("check", "ico-xs") : "") + esc(b.name) + "</button>";
         }).join("") + "</div>" + A.err(errors, "branchIds") + "</div>" +
-        '<div class="field span-2"><label class="check"><input type="checkbox" data-f="requiresMembership"' + (F.requiresMembership ? " checked" : "") + dis("") + "> Requires an active membership</label>" +
-          '<span class="hint">' + (isPT ? "PT always needs an active paid membership." : "The client must have an active membership to buy this.") + "</span></div>" +
+        (prem ? "" : '<div class="field span-2"><label class="check"><input type="checkbox" data-f="requiresMembership"' + (F.requiresMembership ? " checked" : "") + dis("") + "> Requires an active membership</label>" +
+          '<span class="hint">' + (isPT ? "PT always needs an active paid membership." : "The client must have an active membership to buy this.") + "</span></div>") +
         '<div class="field span-2">' + freeItemsHtml() + "</div>" +
         '<div class="field span-2"><label class="check"><input type="checkbox" data-f="active"' + (F.active ? " checked" : "") + dis("") + "> Active (can be sold)</label></div>" +
         '<div class="field span-2">' + historyTable() + "</div>" +
@@ -173,31 +184,45 @@
     else if (D.packages.some(function (p) { return p.id !== F.id && p.name.toLowerCase() === name; })) e.name = "A package with this name already exists.";
     if (F.category === "Add-on" && !F.subType) e.subType = "Choose the Add-on kind.";
     if (F.category !== "Add-on" && !(Number(F.days) >= 1)) e.days = "Enter the number of days (1 or more).";
-    if (F.category === "PT" && !(Number(F.sessions) >= 1)) e.sessions = "Enter the number of sessions.";
+    if (hasSessions(F.category) && !(Number(F.sessions) >= 1)) e.sessions = "Enter the number of sessions.";
     if (F.price === "" || Number(F.price) < 0) e.price = "Enter a price (0 or more).";
     else if (r.error) e.price = r.error;
+    if (isPrem()) {
+      var rp = Number(F.refPrice);
+      if (F.refPrice === "" || !(rp > 0)) e.refPrice = "Enter the reference membership price (more than 0).";
+      else if (Math.floor(rp) !== rp) e.refPrice = "Whole rupees only.";
+      else if (!e.price && rp >= Number(F.price)) e.refPrice = "Must be less than the package price (" + App.fmtMoney(Number(F.price)) + ").";
+    }
     if (!F.priceFrom) e.priceFrom = "Pick the date the price applies from.";
-    else if (F.id && F.priceFrom < App.todayIso() && Number(F.price) !== App.priceInfo(App.byId(D.packages, F.id)).price) e.priceFrom = "A new price can't start in the past.";
+    else if (F.id && F.priceFrom < App.todayIso() && priceChanged()) e.priceFrom = "A new price can't start in the past.";
     if (!F.branchIds.length) e.branchIds = "Choose at least one branch.";
     var ids = F.freeItems.map(function (f) { return f.itemId; });
     if (ids.some(function (x, i) { return ids.indexOf(x) !== i; })) e.freeItems = "Each free item can be added once.";
     if (F.freeItems.some(function (f) { return !(Number(f.qty) >= 1); })) e.freeItems = "Quantity must be 1 or more.";
     return e;
   }
+  // Premium PT: a changed reference price counts as a price change (new price entry, #50 rule).
+  function priceChanged() {
+    if (!F.id) return true;
+    var pi = App.priceInfo(App.byId(D.packages, F.id));
+    return Number(F.price) !== pi.price || (isPrem() && Number(F.refPrice) !== pi.refPrice);
+  }
   function save() {
     errors = validate();
     if (Object.keys(errors).length) { renderForm(); var first = dr.body.querySelector(".invalid") || dr.body.querySelector(".error"); if (first) first.scrollIntoView({ block: "center" }); return; }
     var price = Number(F.price), isNew = !F.id, p = isNew ? { id: "pk" + (Date.now() % 100000), soldCount: 0, priceHistory: [] } : App.byId(D.packages, F.id);
-    var oldPrice = isNew ? null : App.priceInfo(p).price, changed = [];
+    var oldPrice = isNew ? null : App.priceInfo(p).price, changed = [], newEntry = isNew || priceChanged();
     ["name", "subType", "taxCategoryId", "audience", "requiresMembership", "active"].forEach(function (k) { if (!isNew && String(p[k] || "") !== String(F[k] || "")) changed.push(k); });
-    Object.assign(p, { name: F.name.trim(), category: F.category, subType: F.subType || null, isTrial: F.category !== "Add-on" && F.isTrial,
+    var prem = F.category === "Premium PT", trial = F.category !== "Add-on" && !prem && F.isTrial;
+    Object.assign(p, { name: F.name.trim(), category: F.category, subType: F.subType || null, isTrial: trial,
       people: F.category === "PT" ? Number(F.people) : (p.people || 1), days: F.category === "Add-on" ? null : Number(F.days),
-      sessions: F.category === "PT" ? Number(F.sessions) : null, taxCategoryId: F.taxCategoryId, requiresMembership: F.category === "PT" ? true : F.requiresMembership,
+      sessions: hasSessions(F.category) ? Number(F.sessions) : null, taxCategoryId: F.taxCategoryId, requiresMembership: F.category === "PT" ? true : prem ? false : F.requiresMembership,
       branchIds: F.branchIds.slice(), audience: F.audience, active: F.active,
-      freeItems: F.category === "Add-on" ? [] : F.freeItems.map(function (f) { return { itemId: f.itemId, qty: Number(f.qty), rule: f.rule }; }) });
-    if (isNew || price !== oldPrice) {
+      freeItems: F.category === "Add-on" || trial ? [] : F.freeItems.map(function (f) { return { itemId: f.itemId, qty: Number(f.qty), rule: f.rule }; }) });
+    if (newEntry) {
       p.priceHistory = p.priceHistory.filter(function (x) { return x.from !== F.priceFrom; });
-      p.priceHistory.push({ price: price, from: F.priceFrom });
+      var entry = { price: price, from: F.priceFrom }; if (prem) entry.referenceMembershipPrice = Number(F.refPrice);
+      p.priceHistory.push(entry);
     }
     App.derivePackage(p);
     if (isNew) D.packages.push(p);
@@ -224,7 +249,8 @@
     if ((t = e.target.closest("[data-seg]")) && !t.disabled) {
       var k = t.dataset.seg, v = t.dataset.val;
       F[k] = k === "isTrial" ? v === "true" : k === "people" ? Number(v) : v;
-      if (k === "category") { F.subType = v === "Add-on" ? D.addOnKinds[0] : ""; if (v === "PT") F.requiresMembership = true; if (v !== "PT" && F.people === 2) F.people = 1; if (v === "Add-on") F.isTrial = false; }
+      if (k === "category") { F.subType = v === "Add-on" ? D.addOnKinds[0] : ""; if (v === "PT") F.requiresMembership = true; if (v === "Premium PT") F.requiresMembership = false; if (v !== "PT" && F.people === 2) F.people = 1; if (v === "Add-on" || v === "Premium PT") F.isTrial = false; }
+      if (k === "isTrial") { renderForm(); return; }
       renderForm(); return;
     }
     if ((t = e.target.closest("[data-pkbranch]"))) { var i = F.branchIds.indexOf(t.dataset.pkbranch); if (i > -1) F.branchIds.splice(i, 1); else F.branchIds.push(t.dataset.pkbranch); renderForm(); return; }
@@ -241,7 +267,7 @@
     if (t.dataset.fiK) { F.freeItems[Number(t.dataset.fiI)][t.dataset.fiK] = t.value; return; }
     var k = t.dataset.f; if (!k) return;
     F[k] = t.type === "checkbox" ? t.checked : t.value;
-    if (k === "price" || k === "taxCategoryId") {
+    if (k === "price" || k === "taxCategoryId" || k === "refPrice") {
       var g = dr.body.querySelector("[data-gst]"); if (g) g.textContent = gstLine();
       var r = dr.body.querySelector("[data-result]"); if (r) r.outerHTML = resultBox();
     }
