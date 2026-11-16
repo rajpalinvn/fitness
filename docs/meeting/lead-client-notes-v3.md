@@ -27,10 +27,10 @@
 - Lead = membership trials only. Active client = PT trials (package checkbox "Requires an active membership"). Expired client = no trial. Lost lead = "Re-open the lead first".
 - Free trial **limits** are settings (default 2 per person, 1 per branch). Paid trials unlimited, count shown.
 - Trial ends: stage stays Trial, status **"Trial ended"**, follow-up for the owner.
-- Convert during a running paid trial: adjust checkbox **ticked and locked**; membership start = trial start date.
+- Convert during a running paid trial: adjust checkbox **ticked and locked**; membership start = trial start date (**system-set**; staff can never back-date, #41).
 
 ### Ownership
-- **One staff = one role. Roles are fixed** (SE, SM, CM, RM, CEO, Trainer, MXM, SuperAdmin).
+- **One staff = one role. Roles are fixed** (9: SE, SM, CM, RM, CEO, Trainer, MXM, Finance, SuperAdmin).
 - One owner per lead, or Unassigned. **No pool for now.**
 - Each branch has a Region.
 - New leads from Meta / Excel: Unassigned, manual assign (round-robin later).
@@ -80,10 +80,10 @@
 | Leads | While moving, pick the follow-up person in the new branch directly | — | — | Branch | Branch | All |
 | Trials | Book trial | Own | Branch | Branch | Branch | All |
 | Trials | Edit free-trial limit settings (per person total, per branch) | — | — | ✓ | ✓ | ✓ |
-| Trials | Can be picked as trial approver (approve / reject) | — | Branch | Branch | Branch | All |
+| Trials | Can be picked as trial approver (approve / reject) | — | Branch | Branch | Branch | — |
 | Trials | Paid trial adjust after it ended (7-day buffer) | — | — | Branch | — | All |
 | Sales | Convert to Client / Sell | Own | Branch | Branch | Branch | All |
-| Sales | Max discount % (#77) | 10% | 20% | 30% | 30% | No limit |
+| Sales | Max discount % (#77) | 10% | 20% | 30% | 50% | 50% |
 | Clients | View clients | Branch | Branch | Branch | Branch | All |
 | Clients | Collect payment | Branch | Branch | Branch | Branch | All |
 | Clients | Waive pending item (#67) | — | Branch | Branch | Branch | All |
@@ -92,8 +92,8 @@
 | Settings | Edit inactivity release days | — | — | ✓ | ✓ | ✓ |
 | Settings | Roles & permissions | — | — | — | — | ✓ |
 
-Trainer, MXM, Finance: no lead / sales access by default (PT and payment rows come later). SuperAdmin: everything.
-Discount % numbers are placeholders (as in #77) until admin sets them.
+Trainer, MXM, Finance: no lead / sales access by default (PT and payment rows come later). SuperAdmin: everything. CEO is not a trial approver by default (dropdown = SM, CM, RM of the branch, L1b); CEO can add themselves via the grid.
+Discount % numbers follow #77 (SuperAdmin 100%; "no limit" never shows), placeholders until admin sets them.
 
 ### Locked (cannot be changed in the grid)
 - SuperAdmin has every permission.
@@ -114,7 +114,7 @@ Discount % numbers are placeholders (as in #77) until admin sets them.
 | Max discount % per role (#77) | see grid | CEO |
 
 ### What this closes
-O-R3, O-R5, O-R6, T-R7 (who approves), old B1 / C2 / C3, and **Q8** (permission matrix) everywhere the mockup says "Placeholder".
+O-R3, O-R5, O-R6, T-R7 (who approves), and **Q8** (permission matrix) everywhere the mockup says "Placeholder".
 
 ---
 
@@ -172,6 +172,7 @@ The mockup's grid (section 2) is the source; the build will sync to it. Please c
 4. The API checks permissions server-side on every action (not only hiding buttons): already the case?
 5. Settings values (section 2, numbers) as key → value rows, editable by permission: OK?
 6. Permission and setting changes go to an audit log (who, when, old → new): exists already?
+7. API accepts a system-set past start date (paid trial adjust only)?
 
 ## 7. Answers log
 | ID | Answer | Date |

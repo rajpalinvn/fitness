@@ -150,7 +150,7 @@
     allowed for now). No overlapping membership and no overlapping PT for the
     same client on the same date. Expiry is by calendar days with the start
     day included (7 days from Mon ends Sun).
-    Changed by #94: paid trial adjust during a running trial sets the membership start = the trial's start date (system-set, in the past).
+    Changed by #94: staff can never back-date; only the system sets a past start date, only for the running paid trial adjust (membership start = trial start).
 42. PT longer than the membership: allowed with a warning; the seller must
     tick an acknowledge checkbox.
 43. Couple PT: both people must be clients with an active membership.
@@ -314,7 +314,7 @@
     Manager 50%, CEO 50%, SuperAdmin 100% (Trainer / MXM 0%). Sell mode uses
     the current role's limit; "no limit" never shows. The discount applies
     to the PACKAGE only, never accessories or the key fob deposit.
-    Changed by #96: max discount % per role is a grid row (defaults in the notes: SE 10, SM 20, CM 30, RM 30, CEO no limit; still placeholders).
+    Changed by #96: max discount % per role is a row in the Roles & permissions grid; the #77 numbers stay (SE 10, SM 20, CM 30, RM 50, CEO 50, SuperAdmin 100).
 78. GST: calculated per line with its own tax category (prices incl. GST),
     always shown with 2 decimals, and broken down by rate in the bill
     ("GST 5% ₹1,142.86 · GST 18% ₹53.24").
@@ -413,10 +413,12 @@
     trial limit reached" (L1). Paid trials unlimited, count shown. Trial
     approval = a pending reference, not a block (L1b): every booking needs
     a comment + "Approval asked from" (SM / CM / RM of the branch, per the
+    grid; CEO not an approver by default, can add themselves via the
     grid); booked at once, status Pending; approver marks Approved /
     Rejected + remark; Rejected is only recorded. Paid trial adjust:
     running trial → the adjust checkbox is ticked and locked, full trial
-    price subtracted (L4), membership start = trial start date; trial
+    price subtracted (L4), membership start = trial start date (set by
+    the system; staff can never back-date, #41 stays for staff); trial
     ended → 7-day buffer, only for roles with the grid permission (L2),
     start = today, full price subtracted (L3). Closes Q12.
 95. Roles (notes §2a): fixed, seeded, locked `roles` table with keys
@@ -450,8 +452,11 @@
     adjust buffer 7 days (CEO); inactivity release after 7 days + warn 1
     day before (grid row "Edit inactivity release days"); new-lead
     assignment Manual (round-robin later, CEO); max discount % per role
-    (#77, CEO). Replaces every "Placeholder" visibility rule (#15, #56,
-    #62, #63, #91). Closes Q7, Q8, Q11.
+    = the #77 numbers (SE 10, SM 20, CM 30, RM 50, CEO 50, SuperAdmin
+    100; "no limit" never shows; CEO edits). Replaces every "Placeholder"
+    visibility rule (#15, #56, #62, #63, #91). Closes Q7 (no separate
+    Front desk role: front desk work = Sales Executive and Sales
+    Manager, #62), Q8, Q11.
 97. Follow-up assigned to a non-owner, any branch (notes L8–L11, L9b).
     The assignee sees the lead while they have an open follow-up on it;
     when it is Done / Cancelled / Closed by system the lead leaves their
