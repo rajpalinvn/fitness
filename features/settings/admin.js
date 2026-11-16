@@ -23,7 +23,7 @@
   // Placeholder access (decision #56) — shown as words, never colour alone.
   Admin.banner = function (el, mode, what) {
     el.hidden = mode === "edit";
-    if (mode === "view") el.innerHTML = '<div class="callout">' + App.icon("eye") + "<span><strong>View only.</strong> Only SuperAdmin and CEO can create or edit " + esc(what) +
+    if (mode === "view") el.innerHTML = '<div class="callout">' + App.icon("eye") + "<span><strong>View only.</strong> Only the CEO can create or edit " + esc(what) +
       '. <span class="badge badge-demo">Placeholder</span> until the permission matrix.</span></div>';
   };
   Admin.noAccess = function (what) {

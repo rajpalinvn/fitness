@@ -1,0 +1,194 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+var ROOT = "../../", RP = ROOT + "features/settings/roles.html", SET = ROOT + "features/settings/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb, w) { fr.style.width = (w || 1280) + "px"; fr.onload = function () { setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function key(k, el) { (el || Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function D() { return W().DUMMY; } function P() { return W().App.Perm; }
+function chip(short, k) { return q('[data-cellbox="' + short + "|" + k + '"] .perm-chip'); }
+function pickScope(short, k, v) { click(chip(short, k)); click(q('.perm-pop [data-pick="' + v + '"]')); }
+
+// Expected defaults, copied from docs/permissions.md (role order CEO RM CM SM SE MXM TR FIN; CEO = everything, #102)
+var DOC = {
+  "leads.view": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "leads.viewUnassigned": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
+  "leads.take": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
+  "leads.viewLost": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "leads.create": [true, true, true, true, true, false, false, false],
+  "leads.assign": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
+  "leads.assignFollowUp": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "leads.markLost": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "leads.reopen": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "leads.move": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "leads.movePickPerson": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
+  "trials.book": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "trials.editLimits": [true, true, true, false, false, false, false, false],
+  "trials.approve": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
+  "trials.adjustAfterEnd": ["All", "None", "Branch", "None", "None", "None", "None", "None"],
+  "sales.convert": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "sales.discountMax": [100, 50, 30, 20, 10, 0, 0, 0],
+  "clients.view": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
+  "clients.collectPayment": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
+  "clients.waive": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
+  "settings.packages": [true, false, false, false, false, false, false, false],
+  "settings.stock": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
+  "settings.editInactivity": [true, true, true, false, false, false, false, false],
+  "settings.rolesPermissions": [true, false, false, false, false, false, false, false]
+};
+var SHORTS = ["CEO", "RM", "CM", "SM", "SE", "MXM", "TR", "FIN"];
+
+load(SET, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  ["mock.perms", "mock.settings", "mock.trainerTypes", "mock.audit"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  load(SET, function () {
+    step("settings card", function () {
+      var card = Array.prototype.filter.call(qa("#soon a.soon-card"), function (a) { return /Roles & permissions/.test(a.textContent); })[0];
+      ok("Club setup has a live Roles & permissions card", !!card && /roles\.html$/.test(card.getAttribute("href")));
+      ok("View as lists the 8 tenant roles incl. Finance, no SuperAdmin", qa("[data-role]").length === 8 && !!q('[data-role="Finance"]') && !q('[data-role="SuperAdmin"]'), qa("[data-role]").length);
+      ok("default View as = CEO", D().currentRole === "CEO");
+    });
+    load(RP, function () {
+      step("defaults = docs/permissions.md", function () {
+        var bad = [];
+        Object.keys(DOC).forEach(function (k) { SHORTS.forEach(function (s, i) { if (P().get(s, k) !== DOC[k][i]) bad.push(s + "." + k + "=" + P().get(s, k)); }); });
+        ok("24 permission keys, 8 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 24 && D().roles.length === 8 && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
+        ok("tenant: one tenant, tenantId on branches, users, people, packages", D().tenants.length === 1 && D().branches.every(function (b) { return b.tenantId === "t1"; }) && D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.tenantId === "t1"; }) && D().people.every(function (p) { return p.tenantId === "t1"; }) && D().packages.every(function (p) { return p.tenantId === "t1"; }));
+        ok("every default matches docs/permissions.md", !bad.length, bad.join(" "));
+        ok("App.can for CEO: rolesPermissions true, leads.view All, discount 100", W().App.can("settings.rolesPermissions") === true && W().App.can("leads.view") === "All" && W().App.can("sales.discountMax") === 100);
+        ok("App.setting defaults", W().App.setting("freeTrialsPerPerson") === 2 && W().App.setting("inactivityReleaseDays") === 7 && W().App.setting("newLeadAssignment") === "Manual");
+        ok("users: every tenant user has roleKey + branchIds; trainers have trainerTypeId", D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.roleKey && u.branchIds && u.branchIds.length && (u.roleKey !== "TRAINER" || u.trainerTypeId); }));
+        ok("Finance user + 2 trainers", D().users.some(function (u) { return u.roleKey === "FINANCE"; }) && D().users.filter(function (u) { return u.roleKey === "TRAINER"; }).length === 2);
+        ok("trainer types GT, PT, GT-PT", D().trainerTypes.map(function (t) { return t.short; }).join() === "GT,PT,GT-PT");
+      });
+      step("grid", function () {
+        ok("5 tabs, Permissions active", qa("#rpTabs .tab").length === 5 && /Permissions/.test(text("#rpTabs .tab.active")));
+        ok("8 role columns in order, no SA", Array.prototype.map.call(qa("#permTable thead th.perm-col"), function (t) { return t.textContent; }).join() === SHORTS.join());
+        ok("5 module groups, 24 rows", qa("#permTable .perm-group").length === 5 && qa("#permTable tr[data-perm]").length === 24);
+        ok("chip shows value, not an open dropdown", /Branch/.test(chip("SM", "leads.view").textContent) && !q(".perm-pop") && !qa("#permTable select").length);
+        ok("CEO column locked with reason", SHORTS.length === 8 && Object.keys(DOC).every(function (k) { return chip("CEO", k).classList.contains("locked"); }) && /every permission/.test(chip("CEO", "leads.view").dataset.tip));
+        ok("Roles & permissions row locked for every role", SHORTS.every(function (s) { return chip(s, "settings.rolesPermissions").classList.contains("locked"); }));
+        ok("CEO discount 100 locked", chip("CEO", "sales.discountMax").classList.contains("locked") && /100%/.test(chip("CEO", "sales.discountMax").textContent));
+        click(chip("CEO", "leads.view")); ok("locked cell does not open the popover", !q(".perm-pop"));
+        ok("no save bar at start", q("#saveBar").hidden);
+      });
+      step("edit a cell", function () {
+        click(chip("SE", "leads.viewUnassigned")); ok("click opens the popover with 4 scopes", !!q(".perm-pop") && qa(".perm-pop [data-pick]").length === 4);
+        key("Escape"); ok("Esc closes the popover", !q(".perm-pop"));
+        key("Enter", chip("SE", "leads.viewUnassigned")); ok("Enter opens it", !!q(".perm-pop"));
+        click(q('.perm-pop [data-pick="Branch"]'));
+        ok("changed cell highlighted + save bar '1 change'", chip("SE", "leads.viewUnassigned").classList.contains("changed") && !q("#saveBar").hidden && /1 change/.test(text("#saveCount")));
+        ok("not saved yet: App.Perm.get still default", P().get("SE", "leads.viewUnassigned") === "None");
+        click(chip("SE", "leads.view")); ok("owner floor: None disabled for SE on leads.view", q('.perm-pop [data-pick="None"]').disabled && !q('.perm-pop [data-pick="Branch"]').disabled); key("Escape");
+        pickScope("SE", "leads.viewUnassigned", "None"); ok("back to the stored value removes the change", !chip("SE", "leads.viewUnassigned").classList.contains("changed") && q("#saveBar").hidden);
+      });
+      step("validation: at least one role keeps Assign", function () {
+        ["RM", "CM", "SM"].forEach(function (s) { pickScope(s, "leads.assign", "None"); });
+        ok("error shown and Save disabled", /Assign/.test(text("#saveErr")) && q('#saveBar [data-rp="save"]').disabled);
+        pickScope("SM", "leads.assign", "Branch");
+        ok("fixed when one role keeps it", !text("#saveErr") && !q('#saveBar [data-rp="save"]').disabled && /2 changes/.test(text("#saveCount")));
+        click(q('#saveBar [data-rp="discard"]')); ok("Discard clears all", q("#saveBar").hidden && !qa(".perm-chip.changed").length);
+      });
+      step("discount number", function () {
+        click(chip("SE", "sales.discountMax")); type("#popNum", "150"); click(q('.perm-pop [data-pick="num"]'));
+        ok("150 rejected inline", /between 0 and 100/.test(text("#popErr")) && !!q(".perm-pop"));
+        type("#popNum", "12.5"); click(q('.perm-pop [data-pick="num"]')); ok("12.5 rejected (whole number)", !!q(".perm-pop"));
+        type("#popNum", "15"); click(q('.perm-pop [data-pick="num"]')); ok("15 accepted", !q(".perm-pop") && /15%/.test(chip("SE", "sales.discountMax").textContent));
+      });
+      step("save with confirm + audit", function () {
+        pickScope("SE", "leads.viewUnassigned", "Branch");
+        click(q('#saveBar [data-rp="save"]'));
+        ok("confirm lists each change role · action · old → new", q("#rpConfirm").classList.contains("open") && qa("#rpConfirm tbody tr").length === 2 && /Sales Executive/.test(text("#rpConfirm")) && /10%/.test(text("#rpConfirm")) && /15%/.test(text("#rpConfirm")));
+        click(q('#rpConfirm [data-rp="confirmSave"]'));
+        ok("saving state", /Saving/.test(text('#saveBar [data-rp="save"]')));
+      });
+      setTimeout(function () {
+        step("after save", function () {
+          ok("saved: App.Perm.get updated, chips plain", P().get("SE", "sales.discountMax") === 15 && P().get("SE", "leads.viewUnassigned") === "Branch" && !qa(".perm-chip.changed").length && q("#saveBar").hidden);
+          ok("App.can for Sales Executive reads the saved value", (W().App.setRole("Sales Executive"), W().App.can("sales.discountMax") === 15 && W().App.can("leads.viewUnassigned") === "Branch"));
+          ok("Sales Executive: no access to the page", /don't have access/.test(text("#panel")));
+          W().App.setRole("CEO");
+          var log = P().auditLog();
+          ok("audit: 2 entries, newest first, who = Anita Kapoor", log.length === 2 && log[0].by === "Anita Kapoor" && log.every(function (e) { return e.tab === "Permissions" && e.from && e.to; }), JSON.stringify(log));
+          click(q('[data-rtab="audit"]')); ok("Audit tab lists them", qa("#auditTable tbody tr").length === 2 && /10% → 15%|10%/.test(text("#auditTable")));
+          ok("survives reload (session storage)", !!W().sessionStorage.getItem("mock.perms"));
+          ok("no bad text", !badText(), badText());
+        });
+        step("search + collapse", function () {
+          click(q('[data-rtab="permissions"]'));
+          type("#rpSearch", "discount"); ok("search filters rows", qa("#permTable tr[data-perm]").length === 1 && qa("#permTable .perm-group").length === 1);
+          type("#rpSearch", "zzz"); ok("no match state", /No actions match/.test(text("#permTable")));
+          type("#rpSearch", "");
+          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 13); click(q('[data-module="Leads"]'));
+        });
+        step("settings values", function () {
+          click(q('[data-rtab="values"]'));
+          ok("6 fields with default + Changed by", qa(".set-row").length === 6 && /Default 2 trials · Changed by: CEO, Regional Manager, Club Manager/.test(text("#panel")) && /Changed by: CEO/.test(text("#panel")));
+          ok("Round-robin disabled 'Later'", !!q('[data-setopt="newLeadAssignment"][data-val="Round-robin"]:disabled') && /Later/.test(text('[data-setopt="newLeadAssignment"][data-val="Round-robin"]')));
+          type("#set-freeTrialsPerBranch", "5"); ok("per branch > per person error", /more than per person/.test(text("#panel")) && q('#saveBar [data-rp="save"]').disabled);
+          type("#set-freeTrialsPerBranch", "1");
+          type("#set-releaseWarnDaysBefore", "7"); ok("warning >= inactivity error", /less than the inactivity days/.test(text("#panel")));
+          type("#set-releaseWarnDaysBefore", "2.5"); ok("whole number error", /whole number/.test(text("#panel")));
+          type("#set-inactivityReleaseDays", "200"); ok("range error", /between 1 and 90/.test(text("#panel")));
+          type("#set-inactivityReleaseDays", "10"); type("#set-releaseWarnDaysBefore", "2");
+          ok("valid: 2 changes, Save enabled", /2 changes/.test(text("#saveCount")) && !q('#saveBar [data-rp="save"]').disabled);
+          click(q('#saveBar [data-rp="save"]')); ok("confirm lists settings", /Inactivity release after/.test(text("#rpConfirm")) && /7/.test(text("#rpConfirm")) && /10/.test(text("#rpConfirm")));
+          click(q('#rpConfirm [data-rp="confirmSave"]'));
+        });
+        setTimeout(function () {
+          step("settings saved", function () {
+            ok("App.setting updated + audit entry", W().App.setting("inactivityReleaseDays") === 10 && W().App.setting("releaseWarnDaysBefore") === 2 && P().auditLog()[0].tab === "Settings values");
+          });
+          step("trainer types", function () {
+            click(q('[data-rtab="trainers"]'));
+            ok("3 types; PT and GT-PT in use have no Delete, GT unused has Delete", qa("#ttTable tr[data-tt]").length === 3 && !q('[data-tt="tt2"] [data-tt-act="delete"]') && !!q('[data-tt="tt1"] [data-tt-act="delete"]'));
+            click(q('[data-rp="ttAdd"]')); ok("form drawer opens", q("#ttDrawer").classList.contains("open"));
+            click(q('[data-rp="ttSave"]')); ok("name + short required", /Enter a name/.test(text("#ttDrawer")) && /Enter a short code/.test(text("#ttDrawer")));
+            q("#ttName").value = "Personal Trainer"; q("#ttShort").value = "pt"; click(q('[data-rp="ttSave"]')); ok("duplicate name / short rejected", /already exists/.test(text("#ttDrawer")));
+            q("#ttName").value = "Yoga Trainer"; q("#ttShort").value = "YT"; click(q('[data-rp="ttSave"]'));
+            ok("added + audit", qa("#ttTable tr[data-tt]").length === 4 && /Yoga Trainer/.test(text("#ttTable")) && /Trainer type added/.test(P().auditLog()[0].what) && P().auditLog()[0].tab === "Trainer types");
+            click(q('[data-tt="tt2"] [data-tt-act="toggle"]')); ok("deactivate a type in use", /Inactive/.test(text('[data-tt="tt2"]')));
+            click(q('[data-tt="tt2"] [data-tt-act="toggle"]'));
+          });
+          step("roles + audit filter", function () {
+            click(q('[data-rtab="roles"]')); ok("8 fixed tenant roles with reports-to and staff count", qa("#rolesTable tbody tr").length === 8 && /platform role/.test(text("#panel")) && /Roles are fixed/.test(text("#panel")) && /Sales Manager/.test(text('[data-role-row="SALES_EXECUTIVE"]')) && /\b4\b/.test(text('[data-role-row="SALES_EXECUTIVE"] td:last-child')));
+            click(q('[data-rtab="audit"]')); type("#auditFilter", "Trainer types"); ok("audit filter by tab", qa("#auditTable tbody tr").length >= 3 && Array.prototype.every.call(qa("#auditTable tbody tr td:nth-child(3)"), function (td) { return td.textContent === "Trainer types"; }));
+            ok("no bad text", !badText(), badText());
+          });
+          step("reset all", function () {
+            click(q('[data-rtab="permissions"]')); click(q('[data-rp="reset"]')); click(q('[data-rp="confirmReset"]'));
+            ok("reset → defaults, audit entry", P().get("SE", "sales.discountMax") === 10 && /default/.test(P().auditLog()[0].to));
+          });
+          load(RP + "?debug", function () {
+            step("debug states", function () {
+              ok("debug bar visible", !q("#debugBar").hidden);
+              click(q('#debugBar [data-state="loading"]')); ok("loading skeleton", !!q("#panel .skeleton"));
+              click(q('#debugBar [data-state="error"]')); ok("error + retry", /Couldn't load/.test(text("#panel")) && !!q("[data-state-retry]"));
+              click(q("[data-state-retry]")); ok("retry restores the grid", !!q("#permTable"));
+            });
+            load(RP, function () {
+              ok("debug bar hidden without ?debug", q("#debugBar").hidden);
+              W().App.setRole("Trainer"); ok("Trainer: no access note", /don't have access/.test(text("#panel")));
+              W().App.setRole("Regional Manager"); ok("Regional Manager: no access either (CEO only)", /don't have access/.test(text("#panel")));
+              W().App.setRole("CEO");
+              load(RP, function () {
+                ok("900px: grid scrolls in its own box, no page scroll", Dc().documentElement.scrollWidth <= W().innerWidth + 1 && q(".perm-wrap").scrollWidth > q(".perm-wrap").clientWidth);
+                document.getElementById("out").textContent = out.join("\n");
+              }, 900);
+            });
+          });
+        }, 900);
+      }, 900);
+    });
+  });
+});
+</script></body></html>

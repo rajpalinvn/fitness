@@ -785,3 +785,49 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .date-text.is-empty { color: var(--color-text-muted); }
 .filter-bar .date-field, .more-filters .date-field { min-width: 150px; }
 .min-pay { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+
+/* ---------- Settings → Roles & permissions (decisions #95, #96) ---------- */
+.perm-wrap { max-height: calc(100vh - 300px); min-height: 320px; overflow: auto; }
+.perm-table { min-width: 960px; }
+.perm-table thead th { position: sticky; top: 0; z-index: 2; }
+.perm-table th.perm-action, .perm-table td.perm-action { position: sticky; left: 0; z-index: 1; width: 300px; min-width: 300px; max-width: 300px; white-space: normal;
+  background: var(--color-surface); border-right: 1px solid var(--color-border); }
+.perm-table thead th.perm-action { z-index: 3; background: var(--color-surface-alt); }
+.perm-table th.perm-col { text-align: center; min-width: 72px; }
+.perm-table th.perm-col abbr { text-decoration: none; }
+.perm-table td.perm-cell { text-align: center; padding: var(--space-1) var(--space-1); }
+.perm-table tbody tr { cursor: default; }
+.perm-table tbody tr:hover td.perm-action { background: var(--color-surface-alt); }
+.perm-group td { background: var(--color-surface-alt); padding: var(--space-1) var(--space-2); position: sticky; left: 0; }
+.perm-toggle { display: inline-flex; align-items: center; gap: var(--space-2); border: none; background: none; font: inherit; color: var(--color-text); cursor: pointer; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+.perm-toggle:hover { background: var(--color-nav-hover); }
+.perm-chip { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 60px; padding: 3px 8px; border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border); background: var(--color-surface); font: inherit; font-size: var(--font-size-sm); color: var(--color-text); cursor: pointer; }
+.perm-chip:hover { border-color: var(--color-primary); }
+.perm-chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.perm-chip.none { color: var(--color-text-muted); background: var(--color-surface-alt); }
+.perm-chip.changed { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary); font-weight: var(--font-weight-medium); }
+.perm-chip.locked { cursor: not-allowed; border-style: dashed; position: relative; }
+.perm-chip.locked .ico { color: var(--color-text-muted); }
+.perm-chip.locked:hover::after, .perm-chip.locked:focus-visible::after {
+  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap;
+  background: var(--color-text); color: var(--color-text-inverse); font-size: var(--font-size-xs); font-weight: var(--font-weight-normal);
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); z-index: var(--z-dropdown); pointer-events: none; }
+.perm-pop { position: fixed; min-width: 240px; max-width: 320px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); padding: var(--space-2); z-index: var(--z-dropdown); }
+.perm-pop-title { display: flex; flex-direction: column; padding: var(--space-1) var(--space-2) var(--space-2); font-weight: var(--font-weight-medium); border-bottom: 1px solid var(--color-border); margin-bottom: var(--space-1); }
+.perm-pop .dd-item .cell-sub { display: block; }
+.perm-pop .field { margin: var(--space-2); }
+.save-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-4); padding: var(--space-3) var(--space-4);
+  background: var(--color-surface); border: 1px solid var(--color-primary); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); z-index: var(--z-sticky); }
+.save-bar .grow { flex: 1; }
+.save-bar .error { font-size: var(--font-size-sm); color: var(--color-danger); }
+.input-xs { width: 90px; }
+.set-card { padding: 0 var(--space-4); }
+.set-row { align-items: flex-start; }
+.set-row > div:last-child { min-width: 260px; }
+.set-row .seg { margin: 0; }
+@media (max-width: 1024px) {
+  .perm-table th.perm-action, .perm-table td.perm-action { width: 220px; min-width: 220px; max-width: 220px; }
+  .set-row > div:last-child { min-width: 0; }
+}

@@ -74,7 +74,10 @@
     tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
     box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
     percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
-    alert: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'
+    alert: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/><path d="M12 7v5l3 2"/>'
   };
   App.icon = function (name, cls) {
     return '<svg class="ico ' + (cls || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" ' +
@@ -230,7 +233,7 @@
             '<div class="dd-user"><span class="avatar avatar-lg">' + esc(App.initials(u.name)) + '</span><span><strong>' + esc(u.name) +
               '</strong><span class="sb-user-role">' + esc(u.role) + "</span></span></div>" +
             '<div class="dd-label dd-demo">View as (demo)</div>' +
-            DUMMY.roles.map(function (r) { return menuItem('data-role="' + esc(r) + '"', esc(r), r === role); }).join("") +
+            DUMMY.roles.map(function (r) { return menuItem('data-role="' + esc(r.name) + '"', esc(r.name), r.name === role); }).join("") +
             '<div class="dd-sep"></div>' +
             menuItem('data-toast="My profile comes later" data-toast-kind=""', "My profile", null, "user") +
             menuItem('data-toast="Sign out is not part of the mockup" data-toast-kind=""', "Sign out", null, "logout") +

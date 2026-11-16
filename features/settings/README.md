@@ -5,7 +5,7 @@
 |---|---|---|
 | Settings page | `index.html` + `settings.js` | Sidebar → Settings. Display preferences (live) and Club setup. |
 | Display | (in page) | Per-user preferences. Applied by `shared/shell.js` on every page (decision #35). |
-| Club setup cards | (in page) | **Live:** Packages, Items & stock, Key fobs, Tax categories (links). **Coming soon:** Lead sources, Follow-up types, Lost reasons, Lead stages. |
+| Club setup cards | (in page) | **Live:** Packages, Items & stock, Key fobs, Tax categories, Sales rules, Payment methods, Roles & permissions (links). **Coming soon:** Lead sources, Follow-up types, Lost reasons, Lead stages. |
 | Packages | `packages.html` + `packages.js` | See "Packages" below. |
 | Items & stock | `items.html` + `items.js` (`?tab=items`, `stock`, `fobs`, `tax`) | See "Items & stock" below. |
 | Shared admin helpers | `admin.js` | Form drawer, access banner, debug states. |
@@ -202,3 +202,76 @@ Normal; view only; no access; `?debug` loading / empty / error (same bar as othe
 
 ## 5. Status
 Ready for review
+
+---
+
+# Settings → Roles & permissions (`roles.html`)
+Decisions #95, #96, #102. Source of every row, default and rule: `docs/meeting/lead-client-notes-v3.md` §2a / §2; key list: `docs/permissions.md`.
+Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone else sees "You don't have access".
+
+## 1. Screens
+| Screen / part | File | Purpose |
+|---|---|---|
+| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 24 actions grouped by module (Leads, Trials, Sales, Clients, Settings) × 8 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN). |
+| Settings values tab | `?tab=values` | 6 numbers / choices (free-trial limits, adjust buffer, inactivity days, warning days, new-lead assignment). |
+| Roles tab | `?tab=roles` | Read-only: the 8 fixed tenant roles, short, key, reports to, single / multi branch, staff count. |
+| Trainer types tab | `?tab=trainers` | Admin master list (GT, PT, GT-PT); add / edit in the shared form drawer. |
+| Audit log tab | `?tab=audit` | Every saved change: who, when, tab, what, old → new; newest first; filter by tab. |
+| Shared helpers | `shared/app.js` → `App.Perm`, `App.can(key)`, `App.setting(key)` | Defaults from `DUMMY.permissionDefs` / `settingDefs` + session-storage overrides (`mock.perms`, `mock.settings`, `mock.trainerTypes`, `mock.audit`), same pattern as Display prefs. |
+
+## 2. Flow
+- Settings → card **Roles & permissions** → Permissions tab.
+- **Cell** = compact chip with the current value ("Branch", "✓ Yes", "20%", "—" for None / No). Click, Enter or Space opens a small popover
+  (scope list, Yes / No, or a number input + OK); Esc or outside click closes it. Changed cells are highlighted; a sticky bar shows
+  "N changes · Discard · Save". **Save** opens a confirm listing role · action · old → new, then a short "Saving…" state, toast, audit entries.
+- **Locked cells** (lock icon + tooltip, cannot change): the whole CEO column ("CEO has every permission"); the row "Roles & permissions"
+  for every role ("Only CEO can edit"); in `leads.view` the option None is disabled for CEO / RM / CM / SM / SE ("an owner can always
+  see and log follow-ups on their own leads"). CEO max discount 100% is locked with the column (placeholder, Q31).
+- **Validation**: at least one role besides CEO keeps `leads.assign` (inline error in the bar, Save disabled); discount = whole number 0–100.
+- **Reset all to defaults** (confirm) clears the session overrides and logs each reverted cell.
+- **Settings values**: each field shows "Default N · Changed by: <roles that have the grid row>" (values with no grid row: "CEO").
+  Validation on input: whole numbers; per person 0–10; per branch 0–10 and ≤ per person; adjust buffer 0–30 days; inactivity 1–90 days;
+  warning 0–89 and < inactivity days. Round-robin is shown disabled "Later" (Q10). Same save bar / confirm / audit as the grid.
+- **Trainer types**: + Trainer type / Edit open the shared form drawer (name*, short code*, can take PT sessions, active). Name and short
+  are unique. A type in use (a trainer has it) has no Delete, only Deactivate / Activate; an unused type can be deleted (confirm).
+- **Audit log** records Permissions, Settings values and Trainer types changes. "Who" = the View-as demo user; session only.
+- Existing screens are NOT rewired to `App.can` yet (roadmap: Lead flow update). Hard-coded role checks still live in:
+  `shared/app.js` (`App.access.*`, `App.canSee`), `shared/profile.js` (`canWaive`), `features/today/today.js` (`pendingRole`),
+  `features/leads/leads.js` (Trainer / MXM check), `features/clients/clients.js` (`noLeadsRole`), `features/settings/sales.js` /
+  `packages.js` / `items.js` (via `App.access`), plus `DUMMY.discountLimits` on the Sales rules page (duplicate of `sales.discountMax`).
+
+## 3. Field table
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Permission cell (scope) | chip → popover: None / Own / Branch / All | Yes | — | docs/permissions.md | CEO locked All; `leads.view` floor Own for lead-owning roles. |
+| Permission cell (tick) | chip → Yes / No | Yes | — | docs/permissions.md | CEO locked Yes; `settings.rolesPermissions` locked for all. |
+| Max discount % | chip → number 0–100 | Yes | — | CEO 100, RM 50, CM 30, SM 20, SE 10, others 0 | "Enter a whole number between 0 and 100." |
+| Search actions | text | No | — | empty | Filters rows by label or key. |
+| Free trials per person | number 0–10 | Yes | — | 2 | Whole number. |
+| Free trials per branch | number 0–10 | Yes | — | 1 | ≤ per person: "Per branch can't be more than per person (N)." |
+| Paid trial adjust buffer | number 0–30 days | Yes | — | 7 | Changed by CEO. |
+| Inactivity release after | number 1–90 days | Yes | — | 7 | Changed by roles with `settings.editInactivity`. |
+| Warn the owner before release | number 0–89 days | Yes | — | 1 | < inactivity days: "Must be less than the inactivity days (N)." |
+| New-lead assignment | Manual / Round-robin | Yes | — | Manual | Round-robin disabled "Later" (Q10). |
+| Trainer type name | text | Yes | Yes (case-insensitive) | — | "Enter a name." / "This name already exists." |
+| Trainer type short code | text ≤ 8 | Yes | Yes | — | Stored upper-case. |
+| Can take PT sessions | switch | — | — | On | Type only changes the payout (#95). |
+| Active | switch | — | — | On | In-use types can only be deactivated. |
+
+## 4. States
+- Normal; **no access** (every role but CEO); `?debug` → loading skeleton, error + Retry.
+- Saving ("Saving…" in the bar) → saved toast "Saved · N changes"; validation errors inline (bar + field); no results for the action search;
+  empty audit log "No changes yet"; empty trainer types.
+- Tablet (900px): the grid scrolls inside its own box (sticky first column + header); the page has no sideways scroll.
+
+### Dummy edge cases
+| Case | Shows |
+|---|---|
+| CEO column | Every cell locked, All / Yes / 100%. |
+| Finance (Nisha Bhatia, Sec 65) | Column of "—" (None), editable; appears in View as. |
+| Trainer types in use | PT (Deepak), GT-PT (Sanjay): no Delete. GT unused: Delete allowed. |
+| Audit "who" | Anita Kapoor (CEO) when viewing as CEO. |
+
+## 5. Status
+Ready for review
+

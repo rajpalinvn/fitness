@@ -30,7 +30,7 @@
 - Convert during a running paid trial: adjust checkbox **ticked and locked**; membership start = trial start date (**system-set**; staff can never back-date, #41).
 
 ### Ownership
-- **One staff = one role. Roles are fixed** (9: SE, SM, CM, RM, CEO, Trainer, MXM, Finance, SuperAdmin).
+- **One staff = one role. Roles are fixed** (8 tenant roles: SE, SM, CM, RM, CEO, Trainer, MXM, Finance). SuperAdmin is a **platform** role (creates tenants + the first CEO account), not a tenant role (#102).
 - One owner per lead, or Unassigned. **No pool for now.**
 - Each branch has a Region.
 - New leads from Meta / Excel: Unassigned, manual assign (round-robin later).
@@ -41,8 +41,7 @@
 
 | Key | Name | Short | Branches | Reports to |
 |---|---|---|---|---|
-| SUPER_ADMIN | SuperAdmin | SA | All | — |
-| CEO | CEO | CEO | Multi | SuperAdmin |
+| CEO | CEO | CEO | Multi | — (top role in the tenant) |
 | REGIONAL_MANAGER | Regional Manager | RM | Multi | CEO |
 | CLUB_MANAGER | Club Manager | CM | Single | RM |
 | SALES_MANAGER | Sales Manager | SM | Single | CM |
@@ -51,6 +50,7 @@
 | TRAINER | Trainer | TR | Single | MXM |
 | FINANCE | Finance | FIN | Single | CM |
 
+- **Platform role (#102):** SUPER_ADMIN (SA) is not a tenant role. It creates tenants and the tenant's first CEO account, has no tenant and no branches, and is not in the grid or "View as". Tenant data carries `tenantId`.
 - **Storage:** DB table `roles`, seeded by migration, rows locked (no add / delete / rename from the UI). Code uses the stable `key` (enum mirror for type safety), never the row id. Permission grid rows reference the role key.
 - **Trainer type is not a role, and not a fixed enum:** one role TRAINER + a **Trainer types master list** (DB table, admin-managed): name, short code, active, "Can take PT sessions" (default Yes). Seeded: **General Trainer (GT), Personal Trainer (PT), General + Personal (GT-PT)**. New types are added from Settings, no code change.
 - Each trainer has exactly **one** `trainerTypeId`.
@@ -61,7 +61,7 @@
 
 ## 2. Roles & permissions (Settings grid)
 
-**How it works:** fixed roles; each cell is a tick or a scope (**None / Own / Branch / All**; "Branch" = the staff's own branch, or all their branches for multi-branch roles like RM) or a number (discount %). Defaults ship pre-set. Only **CEO and SuperAdmin** can edit; every change is logged (who, when, what). No per-user permissions, no custom roles, no conditions inside cells.
+**How it works:** fixed roles; each cell is a tick or a scope (**None / Own / Branch / All**; "Branch" = the staff's own branch, or all their branches for multi-branch roles like RM) or a number (discount %). Defaults ship pre-set. **CEO has every permission (locked)** and is the only editor; every change is logged (who, when, what). No per-user permissions, no custom roles, no conditions inside cells.
 
 ### Default grid
 
@@ -80,10 +80,10 @@
 | Leads | While moving, pick the follow-up person in the new branch directly | — | — | Branch | Branch | All |
 | Trials | Book trial | Own | Branch | Branch | Branch | All |
 | Trials | Edit free-trial limit settings (per person total, per branch) | — | — | ✓ | ✓ | ✓ |
-| Trials | Can be picked as trial approver (approve / reject) | — | Branch | Branch | Branch | — |
+| Trials | Can be picked as trial approver (approve / reject) | — | Branch | Branch | Branch | All (locked, #102) |
 | Trials | Paid trial adjust after it ended (7-day buffer) | — | — | Branch | — | All |
 | Sales | Convert to Client / Sell | Own | Branch | Branch | Branch | All |
-| Sales | Max discount % (#77) | 10% | 20% | 30% | 50% | 50% |
+| Sales | Max discount % (#77) | 10% | 20% | 30% | 50% | 100% (placeholder, Q31) |
 | Clients | View clients | Branch | Branch | Branch | Branch | All |
 | Clients | Collect payment | Branch | Branch | Branch | Branch | All |
 | Clients | Waive pending item (#67) | — | Branch | Branch | Branch | All |
@@ -92,12 +92,12 @@
 | Settings | Edit inactivity release days | — | — | ✓ | ✓ | ✓ |
 | Settings | Roles & permissions | — | — | — | — | ✓ |
 
-Trainer, MXM, Finance: no lead / sales access by default (PT and payment rows come later). SuperAdmin: everything. CEO is not a trial approver by default (dropdown = SM, CM, RM of the branch, L1b); CEO can add themselves via the grid.
-Discount % numbers follow #77 (SuperAdmin 100%; "no limit" never shows), placeholders until admin sets them.
+Trainer, MXM, Finance: no lead / sales access by default (PT and payment rows come later). CEO: everything, locked (#102). The trial approver dropdown = SM, CM, RM of the branch (L1b); the CEO also has the permission because the CEO column is locked.
+Discount % numbers follow #77 (CEO 100% = placeholder Q31; "no limit" never shows), placeholders until admin sets them.
 
 ### Locked (cannot be changed in the grid)
-- SuperAdmin has every permission.
-- Only CEO / SuperAdmin can edit Roles & permissions.
+- CEO has every permission (top tenant role, #102).
+- Only the CEO can edit Roles & permissions.
 - At least one role must keep "Assign / reassign".
 - An owner can always see and log follow-ups on their own leads.
 

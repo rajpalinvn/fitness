@@ -20,7 +20,7 @@
     panel.innerHTML = S.tab === "limits" ? limits() : methods();
   }
   function limits() {
-    var roles = D.roles;
+    var roles = D.roles.map(function (r) { return r.name; });
     var mp = App.minFirstPayPct(), mpd = D.salesRuleDefaults.minFirstPayPct;
     return '<div class="card mb-3 min-pay"><div><div class="pref-title" id="mpT">Minimum first payment on packages</div><div class="cell-sub">At conversion at least this % of the package after discount ' +
         "must be paid, plus accessories and the key fob deposit in full. Later installments (Collect payment) can be any amount up to the balance.</div></div>" +

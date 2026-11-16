@@ -80,7 +80,7 @@ load(LEADS, function () {
       ok("no Final price box at the bottom", !q(".cv-total") && !q("[data-final]"));
       ok("price locked shown", /₹24,000/.test(mtext()) && /locked/.test(mtext()));
       ok("sales rep defaults to lead owner (Priya)", q("#cvRep").value === "u6");
-      ok("discount limit from Sales rules (CEO 50%), default marked", /Your limit \(CEO\): 50%/.test(mtext()) && /Default, can change/.test(mtext()) && !/no limit/i.test(mtext()));
+      ok("discount limit from Sales rules (CEO 100%, placeholder Q31), default marked", /Your limit \(CEO\): 100%/.test(mtext()) && /Default, can change/.test(mtext()) && !/no limit/i.test(mtext()));
       ok("discount is for the package only (note)", /applies to the package only/.test(mtext()));
       type("#cvDisc", "15");
       ok("bill total live with discount", /₹20,400/.test(text("[data-total]")) && /− ₹3,600/.test(text(".cv-bill")) && /Reason needed/.test(text(".cv-bill")), text("[data-total]"));

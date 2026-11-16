@@ -210,6 +210,96 @@
     return per > 0 ? Math.min(sessions, Math.floor(paid / per + 1e-9)) : sessions;
   };
   App.fobDeposit = function () { var k = DUMMY.items.filter(function (i) { return i.kind === "Key fob"; })[0]; return k ? k.sellingPrice : 0; };
+  // ---------- Roles & permissions (decisions #95, #96) ----------
+  // Defaults come from DUMMY.permissionDefs / settingDefs; changes made on Settings → Roles & permissions are
+  // kept in session storage (same pattern as Display prefs) so they survive reloads in this browser session.
+  // App.can(key) -> the stored value for the "View as" role: "None" | "Own" | "Branch" | "All", true / false, or a number.
+  // App.setting(key) -> the current settings value. Existing screens are NOT rewired yet (still App.access / role names).
+  var Perm = {};
+  function pdef(key) { return DUMMY.permissionDefs.filter(function (d) { return d.key === key; })[0] || null; }
+  function sdef(key) { return DUMMY.settingDefs.filter(function (d) { return d.key === key; })[0] || null; }
+  function jget(k, fb) { try { return JSON.parse(sessionGet(k) || "null") || fb; } catch (e) { return fb; } }
+  function jset(k, v) { sessionSet(k, JSON.stringify(v)); }
+  Perm.roleByName = function (name) { return DUMMY.roles.filter(function (r) { return r.name === name; })[0] || null; };
+  Perm.roleByShort = function (s) { return DUMMY.roles.filter(function (r) { return r.short === s; })[0] || null; };
+  Perm.roleByKey = function (k) { return DUMMY.roles.filter(function (r) { return r.key === k; })[0] || null; };
+  // Default for a role (short) × permission def: CEO = everything (top tenant role, #102); others from defs; else None / false / 0.
+  Perm.defaultOf = function (short, d) {
+    if (short === "CEO") return d.type === "scope" ? "All" : d.type === "tick" ? true : (d.defaults.CEO != null ? d.defaults.CEO : 100);
+    var v = d.defaults[short];
+    if (v !== undefined) return v;
+    return d.type === "scope" ? "None" : d.type === "tick" ? false : 0;
+  };
+  Perm.overrides = function () { return jget("perms", {}); };
+  Perm.get = function (short, key) {
+    var d = pdef(key); if (!d) return null;
+    var o = Perm.overrides(); if (o[short] && o[short][key] !== undefined) return o[short][key];
+    return Perm.defaultOf(short, d);
+  };
+  Perm.isDefault = function (short, key) { return Perm.get(short, key) === Perm.defaultOf(short, pdef(key)); };
+  // Locked cells (#96 "locked" rules). Returns the reason text or "".
+  Perm.lockReason = function (short, key) {
+    var d = pdef(key); if (!d) return "";
+    if (short === "CEO") return "CEO has every permission (top role in the tenant).";
+    if (d.lock === "all") return "Only CEO can edit Roles & permissions.";
+    return "";
+  };
+  // "Own" is the floor for roles that own leads: an owner can always see and log follow-ups on their own leads.
+  Perm.minOwn = function (short, key) { var d = pdef(key); return !!(d && d.minOwn && d.minOwn.indexOf(short) > -1); };
+  // changes: [{ short, key, value }]. Writes overrides + audit entries. Returns the entries written.
+  Perm.save = function (changes, tab) {
+    var o = Perm.overrides(), log = [];
+    changes.forEach(function (c) {
+      var d = pdef(c.key), old = Perm.get(c.short, c.key);
+      if (!d || old === c.value) return;
+      o[c.short] = o[c.short] || {}; o[c.short][c.key] = c.value;
+      log.push({ tab: tab || "Permissions", what: Perm.roleByShort(c.short).name + " · " + d.label, from: Perm.text(old, d), to: Perm.text(c.value, d) });
+    });
+    jset("perms", o); Perm.audit(log); return log;
+  };
+  Perm.resetAll = function () {
+    var o = Perm.overrides(), log = [];
+    Object.keys(o).forEach(function (s) { Object.keys(o[s]).forEach(function (k) {
+      var d = pdef(k); if (d && o[s][k] !== Perm.defaultOf(s, d)) log.push({ tab: "Permissions", what: Perm.roleByShort(s).name + " · " + d.label, from: Perm.text(o[s][k], d), to: Perm.text(Perm.defaultOf(s, d), d) + " (default)" });
+    }); });
+    jset("perms", {}); Perm.audit(log); return log;
+  };
+  Perm.text = function (v, d) { return d.type === "tick" ? (v ? "Yes" : "No") : d.type === "number" ? v + "%" : String(v); };
+  // Settings values
+  Perm.settings = function () { var s = {}; DUMMY.settingDefs.forEach(function (d) { s[d.key] = d.def; }); return Object.assign(s, jget("settings", {})); };
+  Perm.saveSettings = function (values) {
+    var cur = Perm.settings(), o = jget("settings", {}), log = [];
+    Object.keys(values).forEach(function (k) {
+      var d = sdef(k); if (!d || cur[k] === values[k]) return;
+      o[k] = values[k]; log.push({ tab: "Settings values", what: d.label, from: String(cur[k]), to: String(values[k]) });
+    });
+    jset("settings", o); Perm.audit(log); return log;
+  };
+  Perm.resetSettings = function () {
+    var cur = Perm.settings(), log = [];
+    DUMMY.settingDefs.forEach(function (d) { if (cur[d.key] !== d.def) log.push({ tab: "Settings values", what: d.label, from: String(cur[d.key]), to: String(d.def) + " (default)" }); });
+    jset("settings", {}); Perm.audit(log); return log;
+  };
+  // Roles (names) that may change a setting: the roles with its grid row, or "CEO" when the notes say so.
+  Perm.settingEditors = function (d) {
+    if (d.by === "CEO") return ["CEO"];
+    return DUMMY.roles.filter(function (r) { var v = Perm.get(r.short, d.by); return v === true || (typeof v === "string" && v !== "None"); }).map(function (r) { return r.name; });
+  };
+  // Trainer types (session copy so edits survive reloads)
+  Perm.trainerTypes = function () { return jget("trainerTypes", null) || DUMMY.trainerTypes.map(function (t) { return Object.assign({}, t); }); };
+  Perm.saveTrainerTypes = function (list, entry) { jset("trainerTypes", list); if (entry) Perm.audit([Object.assign({ tab: "Trainer types" }, entry)]); };
+  // Audit log: who (View-as demo user), when, tab, what, old -> new. Newest first. Session only (mockup).
+  Perm.auditLog = function () { return jget("audit", []); };
+  Perm.audit = function (entries) {
+    if (!entries || !entries.length) return;
+    var log = Perm.auditLog(), me = App.me();
+    entries.forEach(function (e) { log.unshift(Object.assign({ at: new Date().toISOString(), byUserId: me.id, by: me.name }, e)); });
+    jset("audit", log);
+  };
+  App.Perm = Perm;
+  App.can = function (key) { var r = Perm.roleByName(App.state.role); return r ? Perm.get(r.short, key) : null; };
+  App.setting = function (key) { return Perm.settings()[key]; };
+
   // PLACEHOLDER access until the permission matrix (decision #56).
   App.access = {
     salesRules: function () { return ["SuperAdmin", "CEO"].indexOf(App.state.role) > -1; },

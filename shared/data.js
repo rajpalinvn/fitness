@@ -12,27 +12,100 @@
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
 
+  // Multi-tenant (decision #102): one tenant = one gym business with its branches. The mockup shows ONE tenant.
+  // Every tenant-owned record (branches, users, people, packages) carries tenantId.
+  var tenants = [{ id: "t1", name: "Innovana Fitness Labs", createdByUserId: "u1" }];
+
   var branches = [
-    { id: "b1", name: "Sec 31" },
-    { id: "b2", name: "Sec 65" },
-    { id: "b3", name: "Golf Course" }
+    { id: "b1", name: "Sec 31", tenantId: "t1" },
+    { id: "b2", name: "Sec 65", tenantId: "t1" },
+    { id: "b3", name: "Golf Course", tenantId: "t1" }
   ];
 
-  var roles = ["SuperAdmin", "CEO", "Regional Manager", "Club Manager",
-    "Sales Manager", "Sales Executive", "Trainer", "MXM"];
+  // Roles are FIXED (decisions #95, #102; notes v3 §2a): seeded, locked rows. Code uses `key`, never a row id.
+  // `name` is the label used everywhere on screen (and in users[].role); `short` is the grid column header.
+  // 8 TENANT roles; CEO is the top role inside a tenant. SuperAdmin is a PLATFORM role (platformRoles below):
+  // it creates tenants and their first CEO account, has no tenant, does no gym work, and is not in the grid or "View as".
+  var platformRoles = [
+    { key: "SUPER_ADMIN", name: "SuperAdmin", short: "SA", reportsTo: null, multiBranch: true, platform: true }
+  ];
+  var roles = [
+    { key: "CEO",              name: "CEO",              short: "CEO", reportsTo: null,               multiBranch: true  },
+    { key: "REGIONAL_MANAGER", name: "Regional Manager", short: "RM",  reportsTo: "CEO",              multiBranch: true  },
+    { key: "CLUB_MANAGER",     name: "Club Manager",     short: "CM",  reportsTo: "REGIONAL_MANAGER", multiBranch: false },
+    { key: "SALES_MANAGER",    name: "Sales Manager",    short: "SM",  reportsTo: "CLUB_MANAGER",     multiBranch: false },
+    { key: "SALES_EXECUTIVE",  name: "Sales Executive",  short: "SE",  reportsTo: "SALES_MANAGER",    multiBranch: false },
+    { key: "MXM",              name: "MXM",              short: "MXM", reportsTo: "CLUB_MANAGER",     multiBranch: false },
+    { key: "TRAINER",          name: "Trainer",          short: "TR",  reportsTo: "MXM",              multiBranch: false },
+    { key: "FINANCE",          name: "Finance",          short: "FIN", reportsTo: "CLUB_MANAGER",     multiBranch: false }
+  ];
 
+  // Trainer types: admin master list, not a role (decision #95). Any type can take PT sessions; the type only changes the payout.
+  var trainerTypes = [
+    { id: "tt1", name: "General Trainer",    short: "GT",    active: true, canTakePT: true },
+    { id: "tt2", name: "Personal Trainer",   short: "PT",    active: true, canTakePT: true },
+    { id: "tt3", name: "General + Personal", short: "GT-PT", active: true, canTakePT: true }
+  ];
+
+  // Staff: exactly one roleKey + branchIds (exactly 1 for single-branch roles); trainers get a trainerTypeId (#95).
+  // `role` (name) and `branches` stay for the screens built before #95; they always equal roleKey / branchIds.
   var users = [
-    { id: "u1", name: "Rohan Mehta",    role: "SuperAdmin",       branches: ["b1", "b2", "b3"] },
-    { id: "u2", name: "Anita Kapoor",   role: "CEO",              branches: ["b1", "b2", "b3"] },
-    { id: "u3", name: "Vikram Rao",     role: "Regional Manager", branches: ["b1", "b2"] },
-    { id: "u4", name: "Sunita Iyer",    role: "Club Manager",     branches: ["b1"] },
-    { id: "u5", name: "Karan Malhotra", role: "Sales Manager",    branches: ["b1"] },
-    { id: "u6", name: "Priya Sharma",   role: "Sales Executive",  branches: ["b1"] },
-    { id: "u7", name: "Arjun Nair",     role: "Sales Executive",  branches: ["b2"] },
-    { id: "u8", name: "Deepak Verma",   role: "Trainer",          branches: ["b1"] },
-    { id: "u9", name: "Meera Joshi",    role: "MXM",              branches: ["b3"] },
-    { id: "u10", name: "Rahul Gupta",   role: "Sales Executive",  branches: ["b3"] },
-    { id: "u11", name: "Pooja Khanna",  role: "Sales Executive",  branches: ["b3"] }
+    // Platform user (SuperAdmin): no tenant, no branches. Kept only as "who created the tenant / opening stock".
+    { id: "u1", name: "Rohan Mehta",    role: "SuperAdmin",       roleKey: "SUPER_ADMIN",      branches: [], branchIds: [], tenantId: null, platform: true },
+    { id: "u2", name: "Anita Kapoor",   role: "CEO",              roleKey: "CEO",              branches: ["b1", "b2", "b3"], branchIds: ["b1", "b2", "b3"] },
+    { id: "u3", name: "Vikram Rao",     role: "Regional Manager", roleKey: "REGIONAL_MANAGER", branches: ["b1", "b2"],       branchIds: ["b1", "b2"] },
+    { id: "u4", name: "Sunita Iyer",    role: "Club Manager",     roleKey: "CLUB_MANAGER",     branches: ["b1"],             branchIds: ["b1"] },
+    { id: "u5", name: "Karan Malhotra", role: "Sales Manager",    roleKey: "SALES_MANAGER",    branches: ["b1"],             branchIds: ["b1"] },
+    { id: "u6", name: "Priya Sharma",   role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b1"],             branchIds: ["b1"] },
+    { id: "u7", name: "Arjun Nair",     role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b2"],             branchIds: ["b2"] },
+    { id: "u8", name: "Deepak Verma",   role: "Trainer",          roleKey: "TRAINER",          branches: ["b1"],             branchIds: ["b1"], trainerTypeId: "tt2" },
+    { id: "u9", name: "Meera Joshi",    role: "MXM",              roleKey: "MXM",              branches: ["b3"],             branchIds: ["b3"] },
+    { id: "u10", name: "Rahul Gupta",   role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"] },
+    { id: "u11", name: "Pooja Khanna",  role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"] },
+    { id: "u12", name: "Nisha Bhatia",  role: "Finance",          roleKey: "FINANCE",          branches: ["b2"],             branchIds: ["b2"] },
+    { id: "u13", name: "Sanjay Pillai", role: "Trainer",          roleKey: "TRAINER",          branches: ["b3"],             branchIds: ["b3"], trainerTypeId: "tt3" }
+  ];
+
+  users.forEach(function (u) { if (u.tenantId === undefined) u.tenantId = "t1"; });
+
+  // ---------- Roles & permissions grid (decisions #96, #102, notes v3 §2). Same list as docs/permissions.md. ----------
+  // type: "scope" (None / Own / Branch / All), "tick" (true / false), "number" (0–100 %).
+  // defaults: per role short name. CEO = everything (locked, top tenant role); TR / MXM / FIN = nothing by default (editable).
+  // lock: "all" = every cell locked; minOwn: roles that can never go below Own ("owner always sees own leads").
+  var permissionDefs = [
+    { key: "leads.view",            module: "Leads",    label: "View leads",                                            type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" }, minOwn: ["SE", "SM", "CM", "RM", "CEO"] },
+    { key: "leads.viewUnassigned",  module: "Leads",    label: "View unassigned leads (the \"pool\")",                  type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.take",            module: "Leads",    label: "Take an unassigned lead (\"Take this lead\")",           type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.viewLost",        module: "Leads",    label: "View lost leads",                                       type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.create",          module: "Leads",    label: "Create lead",                                           type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
+    { key: "leads.assign",          module: "Leads",    label: "Assign / reassign / change owner (single + bulk)",      type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" }, atLeastOne: true },
+    { key: "leads.assignFollowUp",  module: "Leads",    label: "Assign a follow-up to another staff (any branch)",      type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.markLost",        module: "Leads",    label: "Mark lost",                                             type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.reopen",          module: "Leads",    label: "Re-open lost lead",                                     type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.move",            module: "Leads",    label: "Move lead to another branch",                           type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.movePickPerson",  module: "Leads",    label: "While moving, pick the follow-up person in the new branch directly", type: "scope", defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "trials.book",           module: "Trials",   label: "Book trial",                                            type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "trials.editLimits",     module: "Trials",   label: "Edit free-trial limit settings (per person, per branch)", type: "tick", defaults: { CM: true, RM: true, CEO: true } },
+    { key: "trials.approve",        module: "Trials",   label: "Can be picked as trial approver (approve / reject)",    type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "trials.adjustAfterEnd", module: "Trials",   label: "Paid trial adjust after it ended (7-day buffer)",       type: "scope",  defaults: { CM: "Branch", CEO: "All" } },
+    { key: "sales.convert",         module: "Sales",    label: "Convert to Client / Sell",                              type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "sales.discountMax",     module: "Sales",    label: "Max discount % (#77)",                                  type: "number", defaults: { SE: 10, SM: 20, CM: 30, RM: 50, CEO: 100 } },   // CEO 100% = placeholder (Q31)
+    { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "clients.collectPayment", module: "Clients", label: "Collect payment",                                       type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "clients.waive",         module: "Clients",  label: "Waive pending item (#67)",                              type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.packages",     module: "Settings", label: "Packages",                                              type: "tick",   defaults: { CEO: true } },
+    { key: "settings.stock",        module: "Settings", label: "Accessory / key fob stock (#56)",                       type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.editInactivity", module: "Settings", label: "Edit inactivity release days",                        type: "tick",   defaults: { CM: true, RM: true, CEO: true } },
+    { key: "settings.rolesPermissions", module: "Settings", label: "Roles & permissions",                               type: "tick",   defaults: { CEO: true }, lock: "all" }
+  ];
+  // Settings values (decision #96, notes "Settings values"). Who can change: a grid row (permission key) or CEO.
+  var settingDefs = [
+    { key: "freeTrialsPerPerson",      label: "Free trials per person (all branches)", def: 2, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Counted by mobile number across all branches (#94)." },
+    { key: "freeTrialsPerBranch",      label: "Free trials per branch",                 def: 1, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Must be the same or fewer than per person." },
+    { key: "paidTrialAdjustBufferDays", label: "Paid trial adjust buffer after it ends", def: 7, min: 0, max: 30, unit: "days", by: "CEO", hint: "Within this many days after a paid trial ended, the adjust is still offered (to roles with the grid row)." },
+    { key: "inactivityReleaseDays",    label: "Inactivity release after",               def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
+    { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
+    { key: "newLeadAssignment",        label: "New-lead assignment",                    def: "Manual", options: ["Manual", "Round-robin"], by: "CEO", hint: "Round-robin comes later (Q10)." }
   ];
 
   var lists = {
@@ -391,8 +464,8 @@
   keyFobs.forEach(function (k) { if (!k.history) k.history = [{ at: day(-90), text: "Added to stock", by: "u1" }]; if (!k.deposit) k.deposit = null; });
 
   // Demo person shown for each "View as" role (placeholder until the permission matrix).
-  var roleDemoUser = { "SuperAdmin": "u1", "CEO": "u2", "Regional Manager": "u3", "Club Manager": "u4",
-    "Sales Manager": "u5", "Sales Executive": "u6", "Trainer": "u8", "MXM": "u9" };
+  var roleDemoUser = { "CEO": "u2", "Regional Manager": "u3", "Club Manager": "u4",
+    "Sales Manager": "u5", "Sales Executive": "u6", "Trainer": "u8", "MXM": "u9", "Finance": "u12" };
 
   var notifications = [
     { id: "n1", text: "New lead from Meta: Fatima Shaikh · Golf Course", at: day(0, 8, 15), unread: true },
@@ -402,13 +475,15 @@
 
   window.DUMMY = {
     roleDemoUser: roleDemoUser, notifications: notifications,
-    branches: branches, roles: roles, users: users, lists: lists, people: people,
+    tenants: tenants, branches: branches, roles: roles, platformRoles: platformRoles, users: users, lists: lists, people: people,
+    trainerTypes: trainerTypes, permissionDefs: permissionDefs, settingDefs: settingDefs,
     followUps: followUps, workTasks: workTasks, timeline: timeline, packages: packages,
     keyFobs: keyFobs, taxCategories: taxCategories, items: items, itemStock: itemStock, stockMoves: stockMoves,
     membershipSubTypes: membershipSubTypes, ptSubTypes: ptSubTypes, addOnKinds: addOnKinds,
     // Max discount % by role (decision #77). Default, can change in Settings → Sales rules. Every role has a number; never "no limit".
-    discountLimits: { "SuperAdmin": 100, "CEO": 50, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0 },
-    discountLimitDefaults: { "SuperAdmin": 100, "CEO": 50, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0 },
+    // CEO 100% is a placeholder (Q31, decision #102); the rest per #77.
+    discountLimits: { "CEO": 100, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0, "Finance": 0 },
+    discountLimitDefaults: { "CEO": 100, "Regional Manager": 50, "Club Manager": 30, "Sales Manager": 20, "Sales Executive": 10, "Trainer": 0, "MXM": 0, "Finance": 0 },
     // Minimum first payment on packages (decision #85). Default, can change (Settings → Sales rules).
     salesRules: { minFirstPayPct: 30 }, salesRuleDefaults: { minFirstPayPct: 30 },
     // Payment methods (decision #80). Default, can change. needsRef: reference / transaction no. required.
@@ -425,6 +500,9 @@
     nextClientNo: 1003, duplicateMobileAttempts: duplicateMobileAttempts,
     docs: [{ personId: "p7", type: "ID proof", name: "Aadhaar copy (placeholder).pdf", at: day(-100), by: "u6" }],
     docTypes: ["ID proof", "Waiver/consent form", "Medical form", "Photo", "Other"],
-    currentUserId: "u6", currentRole: "Sales Executive", currentBranchId: "b1"
+    currentUserId: "u2", currentRole: "CEO", currentBranchId: "all"
   };
+  // Every person and package belongs to the one dummy tenant (#102).
+  people.forEach(function (p) { p.tenantId = "t1"; });
+  packages.forEach(function (p) { p.tenantId = "t1"; });
 })();

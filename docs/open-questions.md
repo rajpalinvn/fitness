@@ -24,3 +24,6 @@ Every question we have not decided yet. When one is decided, move it to
 | Q27 | **Paid trial adjust and GST** | The paid trial price is subtracted on conversion (#94). Does the accountant treat it as a discount or as an adjustment / credit on the invoice? | Accountant | Not built (Book trial / adjust come with the lead flow update). |
 | Q28 | **Sales credit when a released lead is converted by someone else** | Priya owned the lead, it was released for inactivity (#100), Aman took it and converted. Credit only Aman's? | Management (incentive scheme) | Sales rep of the sale line gets the credit (#36). |
 | Q29 | **Max unassigned leads one SE can take** | Only if the client asks: a limit on how many Unassigned leads one Sales Executive can take (#100). | Sales head | No limit. |
+| Q30 | **What SuperAdmin sets up for a new tenant** | SuperAdmin creates the tenant and its first CEO account (#102). Also branches / packages / settings, or does the CEO do all of that? | Product owner | CEO login only; the CEO sets up branches, packages and the grid. |
+| Q31 | **CEO max discount** | With #102 the CEO column is locked to "everything", so the CEO's max discount is 100% (was 50% in #77). Confirm, or give the CEO a real limit? | Management | 100% (placeholder). |
+

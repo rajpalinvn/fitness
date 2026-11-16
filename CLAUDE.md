@@ -53,7 +53,8 @@
 ## Dummy data
 - Use ONLY shared/data.js so names and numbers match on every screen.
 - Indian names, fake mobiles in +91 format (e.g. +91 90000 01234), fake
-  emails at example.com. 3 branches, 8 roles (see docs/app-brief.md).
+  emails at example.com. 3 branches, one tenant, 8 tenant roles + platform SuperAdmin
+  (see docs/app-brief.md).
 - Include edge cases: overdue lead, lead with no follow-up, lost lead,
   re-opened lead, free trial lead, paid trial client, paid member, duplicate
   mobile attempt, lead synced from Meta.

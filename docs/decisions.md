@@ -41,6 +41,7 @@
     placeholders (Sales Executive = own leads; managers = their branches).
     Mockups include a "View as role" switcher.
     Changed by #95, #96: roles are fixed (9 keys incl. Finance) and permissions come from the Settings grid; placeholders end.
+    Changed by #102: SuperAdmin is a platform role, not a tenant role; the 8 tenant roles are CEO, RM, CM, SM, SE, MXM, Trainer, Finance.
 16. Multiple branches: a branch switcher in the top bar and a branch filter
     on lists.
 17. Extensibility: every lead has a Source and an optional external ID, so
@@ -216,6 +217,7 @@
     SuperAdmin/CEO only. Accessory stock and key fobs = Club Manager and
     above, for their own branches. Others see "You don't have access".
     Changed by #96: access comes from the Roles & permissions grid (Packages = CEO; stock = CM / RM Branch, CEO All).
+    Changed by #102: masters / selling prices / stock edit = CEO (grid), not "SuperAdmin / CEO".
 57. Packages offered when converting a lead: active, sold at the lead's
     branch, audience New or Both, not Add-ons; PT stays disabled (#20).
     Changed by #93: Convert offers Membership and Premium PT packages only; trial packages move to Book trial.
@@ -315,6 +317,7 @@
     the current role's limit; "no limit" never shows. The discount applies
     to the PACKAGE only, never accessories or the key fob deposit.
     Changed by #96: max discount % per role is a row in the Roles & permissions grid; the #77 numbers stay (SE 10, SM 20, CM 30, RM 50, CEO 50, SuperAdmin 100).
+    Changed by #102: CEO max 100% (placeholder, Q31); SuperAdmin has no discount limit (platform role, sells nothing); edited by CEO only.
 78. GST: calculated per line with its own tax category (prices incl. GST),
     always shown with 2 decimals, and broken down by rate in the bill
     ("GST 5% ₹1,142.86 · GST 18% ₹53.24").
@@ -350,6 +353,7 @@
     first, then the fob deposit, then the package): "Paid in full" only when
     covered, else "Paid ₹X · Balance ₹Y". Later installments (Collect
     payment) have no minimum: any amount up to the balance.
+    Changed by #102: the minimum first payment % is edited by CEO only.
 86. Dates show as "12 Nov 2026" everywhere a full date is shown, including
     date fields (no mm/dd/yyyy); stored as ISO. Follow-up due dates keep the
     short human form ("today", "Tue, 10 Nov, 5:00 pm") from #24 (decided, #90).
@@ -381,6 +385,7 @@
     managers their branches, CEO / SuperAdmin top-bar branch, Trainer / MXM
     hidden. Ex-client (Q25) and paid trial ended (Q26) are open.
     Changed by #92, #96: the "Paid trial" card goes (paid trial = lead; the paid-trial dummy client becomes a lead), visibility follows the grid row "View clients". Q26 closed.
+    Changed by #102: "CEO / SuperAdmin top-bar branch" becomes CEO only; visibility follows the grid row "View clients".
 92. Client definition and package categories (notes v3 §1, A1–A8;
     docs/meeting/lead-client-notes-v3.md). Client = a person who bought a
     Membership or a Premium PT; free and paid trial = Lead. 4 package
@@ -436,6 +441,7 @@
     `trainerTypeId`; any type can take PT sessions; the type only changes
     the payout (rate per type in the incentive scheme); every PT session /
     sale line stores the trainer type at that time (snapshot).
+    Changed by #102: SUPER_ADMIN is a platform role (platformRoles, flag platform: true), not in the tenant roles table; CEO reports to nobody inside the tenant; 8 tenant roles.
 96. Roles & permissions grid + Settings values (notes §2). Settings →
     Roles & permissions: fixed roles × actions; each cell is a tick, a
     scope (None / Own / Branch / All; Branch = the staff's branch(es)) or a
@@ -457,6 +463,7 @@
     visibility rule (#15, #56, #62, #63, #91). Closes Q7 (no separate
     Front desk role: front desk work = Sales Executive and Sales
     Manager, #62), Q8, Q11.
+    Changed by #102: no SuperAdmin column; CEO has every permission (locked), only CEO edits the grid and the Settings values; CEO max discount 100% (Q31).
 97. Follow-up assigned to a non-owner, any branch (notes L8–L11, L9b).
     The assignee sees the lead while they have an open follow-up on it;
     when it is Done / Cancelled / Closed by system the lead leaves their
@@ -510,3 +517,15 @@
     number / not interested are Lost reasons, not stages. Re-open returns
     to the stage before Lost (#29); if that was Trial and no trial is
     running, it returns to Negotiation.
+102. Multi-tenant. One tenant = one gym business with its branches; all
+    tenant data (branches, users, people, packages, sales, settings,
+    permissions) carries a `tenantId`. SuperAdmin is a PLATFORM role, not a
+    tenant role: it creates tenants and the tenant's first CEO account,
+    nothing else for now (Q30); it has no tenant and does no gym work. CEO
+    is the top role inside a tenant: every permission, locked; only the CEO
+    edits Roles & permissions and the Settings values. 8 tenant roles: CEO,
+    Regional Manager, Club Manager, Sales Manager, Sales Executive, MXM,
+    Trainer, Finance. The grid, the Roles tab and "View as" show tenant
+    roles only (View as defaults to CEO). CEO max discount 100% is a
+    placeholder (Q31). The mockup shows one tenant ("Innovana Fitness
+    Labs"): no tenant switcher, no SuperAdmin screens.
