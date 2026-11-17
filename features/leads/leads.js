@@ -170,12 +170,9 @@
     if (p.reopenedAt) html += '<span class="badge badge-info">Re-opened</span>';
     html += "</div>";
     if (p.stage === "Lost") html += '<div class="cell-sub">Reason: ' + esc(App.empty(p.lostReason)) + "</div>";
-    if (p.freeTrial) {
-      var left = daysBetween(new Date(), p.freeTrial.to);
-      html += '<div class="cell-sub">Free trial · ' + (left > 0 ? "ends in " + left + (left === 1 ? " day" : " days") : "ended") + "</div>";
-    }
-    var pts = App.paidTrialStatus(p);
-    if (pts) html += '<div class="cell-sub">' + (pts.ended ? '<span class="badge badge-warning">Trial ended</span>' : esc(pts.text)) + "</div>";
+    App.Trial.lines(p).forEach(function (l) {
+      html += '<div class="cell-sub">' + (l.running ? esc(l.text) + (l.t.approval !== "Approved" ? " · " + esc(l.t.approval) : "") : '<span class="badge badge-warning">Trial ended</span>') + "</div>";
+    });
     return html;
   }
   function ownerCell(p) {

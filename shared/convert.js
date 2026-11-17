@@ -67,12 +67,33 @@
   function extraLine(x) { var it = App.byId(D.items, x.itemId); return { it: it, amount: x.free ? 0 : it.sellingPrice * x.qty }; }
   function extrasPaid() { return C.extras.reduce(function (s, x) { return s + extraLine(x).amount; }, 0); }
   function endDate() { var k = pkg(); return k ? plus(C.start, k.days - 1) : null; }   // start day included (decision #39)
+  // Paid trial adjust (#94): membership paid trial for any package; PT paid trial only when buying Premium PT.
+  //   running  -> ticked + LOCKED, membership start = trial start (set by system)
+  //   ended within the buffer (Settings value) + grid row trials.adjustAfterEnd -> optional, start = today
+  //   else -> no adjust, one info line. Free trials never.
+  function adjustInfo(type) {
+    var p = person(), k = pkg(); if (!k || (type === "PT" && !isPrem())) return null;
+    var st = App.paidTrialStatus(p, type); if (!st) return null;
+    if (!st.ended) return { type: type, t: st.t, locked: true, on: true, amount: st.t.paid, why: "Running paid " + App.Trial.label(type) + " trial · adjusted (locked) · membership start = trial start, set by system" };
+    var days = -st.left, buffer = App.setting("paidTrialAdjustBufferDays"), allowed = App.scopeAllows("trials.adjustAfterEnd", p);
+    if (days <= buffer && allowed) return { type: type, t: st.t, locked: false, on: type === "PT" ? !!C.adjustPt : !!C.adjustMem, amount: st.t.paid, why: "Paid " + App.Trial.label(type) + " trial ended " + days + (days === 1 ? " day" : " days") + " ago · within the " + buffer + "-day buffer · start = today if adjusted" };
+    return { type: type, t: st.t, none: true, why: days > buffer ? "Paid " + App.Trial.label(type) + " trial ended " + days + " days ago · past the " + buffer + "-day buffer, no adjust" : "Paid " + App.Trial.label(type) + " trial ended " + days + (days === 1 ? " day" : " days") + " ago · only roles with \"Paid trial adjust after it ended\" (" + App.state.role + ": no) can adjust" };
+  }
+  function adjusts() { return [adjustInfo("Membership"), adjustInfo("PT")].filter(function (a) { return a && !a.none && a.on; }); }
+  function adjAmount(type) { return adjusts().filter(function (a) { return a.type === type; }).reduce(function (s, a) { return s + a.amount; }, 0); }
+  function startLocked() { var a = adjustInfo("Membership"); return !!(a && a.locked); }
+  function syncAdjustDefaults() {
+    var a = adjustInfo("Membership"), b = adjustInfo("PT");
+    if (a && a.locked) { C.adjustMem = true; C.start = isoDay(a.t.from); } else if (a && a.none) C.adjustMem = false;
+    if (b && b.locked) C.adjustPt = true; else if (!b || b.none) C.adjustPt = false;
+    if (!(a && a.locked) && C.start < isoDay(new Date())) C.start = isoDay(new Date());
+  }
 
   // ---------- open ----------
   function open(pid) {
     var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
-      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: p.ownerUserId || App.me().id, repPtId: p.ownerUserId || App.me().id, start: isoDay(new Date()),
+      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: p.ownerUserId || App.me().id, repPtId: p.ownerUserId || App.me().id, start: isoDay(new Date()), adjustMem: false, adjustPt: false,
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
       pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "" };
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
@@ -177,7 +198,7 @@
     return Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).map(function (r) { return { rate: r, gst: by[r] }; });
   }
   function payTotals() {
-    var mo = money(), acc = extrasPaid(), dep = depositDue(), total = mo.final + acc + dep;
+    var mo = money(), acc = extrasPaid(), dep = depositDue(), total = mo.final - adjAmount("Membership") - adjAmount("PT") + acc + dep;
     var paid = Math.round(C.pay.rows.reduce(function (s, r) { return s + (Number(r.amount) || 0); }, 0) * 100) / 100;
     return { total: total, must: acc + dep, paid: paid, balance: Math.max(0, Math.round((total - paid) * 100) / 100), towardsPkg: Math.max(0, paid - acc - dep) };
   }
@@ -185,7 +206,7 @@
   function minPay() {
     var t = payTotals(), pct = App.minFirstPayPct();
     if (!partialOk()) return { amount: t.total, full: true };
-    return { amount: Math.round((t.must + Math.ceil(money().final * pct / 100)) * 100) / 100, pct: pct };
+    return { amount: Math.round((t.must + Math.ceil((money().final - adjAmount("Membership") - adjAmount("PT")) * pct / 100)) * 100) / 100, pct: pct };
   }
   function minMsg() {
     var mi = minPay(), acc = extrasPaid(), dep = depositDue(), parts = [];
@@ -200,8 +221,9 @@
   function alloc() {
     var t = payTotals(), acc = extrasPaid(), dep = depositDue(), mo = money(), left = t.paid;
     var a = Math.min(left, acc); left -= a; var d = Math.min(left, dep); left -= d;
-    var mem = Math.min(left, mo.memFinal); left -= mem; var pt = Math.min(left, mo.ptFinal);
-    return { acc: a, dep: d, pkg: mem + pt, mem: mem, pt: pt };
+    var memDue = mo.memFinal - adjAmount("Membership"), ptDue = mo.ptFinal - adjAmount("PT");
+    var mem = Math.min(left, memDue); left -= mem; var pt = Math.min(left, ptDue);
+    return { acc: a, dep: d, pkg: mem + pt, mem: mem, pt: pt, memDue: memDue, ptDue: ptDue };
   }
   function paidSub(paid, due, prefix) {
     return (prefix || "") + (paid + 1e-9 >= due ? "Paid in full" : "Paid " + App.fmtMoney(paid) + " · Balance " + App.fmtMoney(Math.round((due - paid) * 100) / 100));
@@ -210,17 +232,17 @@
   function ptLine(t) {
     var k = pkg(); if (!k || k.type !== "Premium PT" || !k.sessions) return "";
     var mo = money(), paidPt = C.step === 6 ? alloc().pt : mo.ptFinal;
-    var un = App.ptUnlocked(mo.pt, mo.ptDisc, k.sessions, paidPt);
+    var un = App.ptUnlocked(mo.pt - adjAmount("PT"), mo.ptDisc, k.sessions, paidPt);
     return "PT sessions unlocked " + un + " of " + k.sessions;
   }
   function totalsHtml() {
     var mo = money(), dep = depositDue(), acc = extrasPaid(), rates = gstByRate(), t = payTotals();
     var gst = Math.round(rates.reduce(function (s, r) { return s + r.gst; }, 0) * 100) / 100;
     var pay6 = C.step === 6, al = pay6 ? alloc() : null;
-    var h = '<div class="bill-group">';
-    if (isPrem()) h += bline("Membership (included) after discount", App.fmtMoney(mo.memFinal), pay6 && mo.memFinal ? paidSub(al.mem, mo.memFinal) : "", "", ' data-bl="mem"') +
-      bline("PT after discount", App.fmtMoney(mo.ptFinal), pay6 && mo.ptFinal ? paidSub(al.pt, mo.ptFinal) : "Paid after the membership line", "", ' data-bl="ptl"');
-    else h += bline("Package after discount", App.fmtMoney(mo.final), pay6 && mo.final ? paidSub(al.pkg, mo.final) : "", "", ' data-bl="pkg"');
+    var h = '<div class="bill-group">', am = adjAmount("Membership"), ap = adjAmount("PT");
+    if (isPrem()) h += bline("Membership (included) after discount" + (am ? " · trial adjusted" : ""), App.fmtMoney(mo.memFinal - am), pay6 && mo.memFinal - am ? paidSub(al.mem, mo.memFinal - am) : "", "", ' data-bl="mem"') +
+      bline("PT after discount" + (ap ? " · trial adjusted" : ""), App.fmtMoney(mo.ptFinal - ap), pay6 && mo.ptFinal - ap ? paidSub(al.pt, mo.ptFinal - ap) : "Paid after the membership line", "", ' data-bl="ptl"');
+    else h += bline("Package after discount" + (am ? " · trial adjusted" : ""), App.fmtMoney(mo.final - am), pay6 && mo.final - am ? paidSub(al.pkg, mo.final - am) : "", "", ' data-bl="pkg"');
     if (acc) h += bline("Accessories", App.fmtMoney(acc), pay6 ? paidSub(al.acc, acc) : "Paid first, in full", "", ' data-bl="acc"');
     if (dep) h += bline("Key fob deposit", App.fmtMoney(dep), pay6 ? paidSub(al.dep, dep, "Refundable · ") : "Refundable · paid first, in full", "", ' data-bl="dep"');
     h += "</div>";
@@ -248,6 +270,10 @@
       if (mo.disc) html += bline("Discount", "− " + App.fmtMoney(mo.disc), reasonText() ? esc(reasonText()) : '<span class="warn-text">Reason needed</span>');
       html += "</div>";
     }
+    var adj = adjusts();
+    if (adj.length) html += '<div class="bill-group"><div class="bill-group-label">Paid trial adjusted (#94)</div>' + adj.map(function (a) {
+      return bline("Paid " + App.Trial.label(a.type) + " trial · " + esc(a.t.package), "− " + App.fmtMoney(a.amount), (a.locked ? "Running · adjusted, locked" : "Ended · adjusted by " + esc(App.state.role)) + " · full trial price", "", ' data-adj="' + a.type + '"');
+    }).join("") + "</div>";
     var fl = freeLines(p, k);
     if (fl.length) html += '<div class="bill-group"><div class="bill-group-label">Free with the package</div>' + fl.map(freeLineHtml).join("") + "</div>";
     html += '<div class="bill-group"><div class="bill-group-label">Accessories</div>' + C.extras.map(function (x, i) { return extraHtml(x, i, p); }).join("");
@@ -404,18 +430,27 @@
     if (k.type === "Premium PT") return '<div class="next-step green"><div class="ns-label">Sale type · automatic</div><strong>Paid</strong> · becomes a Client with membership + PT<div class="cell-sub">Two lines at sale (membership = reference price, PT = the rest). Next: Corporate entry (FF ID required, key fob can be pending).</div></div>';
     return '<div class="next-step green"><div class="ns-label">Sale type · automatic</div><strong>Paid</strong> · becomes a Client<div class="cell-sub">Next: Corporate entry. FF ID is required; the key fob can stay pending.</div></div>';
   }
+  function adjustBox() {
+    var infos = [adjustInfo("Membership"), adjustInfo("PT")].filter(Boolean); if (!infos.length) return "";
+    return sec("Paid trial adjust", infos.map(function (a) {
+      var key = a.type === "PT" ? "adjustPt" : "adjustMem";
+      if (a.none) return '<p class="cell-sub" data-adj-info="' + a.type + '">' + icon("info", "ico-sm") + " " + esc(a.why) + "</p>";
+      return '<label class="switch" data-adj-row="' + a.type + '"><input type="checkbox" data-adjust="' + key + '"' + (a.on ? " checked" : "") + (a.locked ? " disabled" : "") + "><span>Paid " + App.Trial.label(a.type) + " trial " + App.fmtMoney(a.amount) + " adjusted" +
+        (a.locked ? ' <span class="badge badge-info">Locked</span>' : "") + '</span></label><div class="cell-sub">' + esc(a.why) + (a.locked ? " · the trial ends at conversion" : "") + "</div>";
+    }).join(""));
+  }
   function s3(p) {
-    var k = pkg(), today = isoDay(new Date()), max = isoDay(plus(today, 30)), e = endDate();
-    return sec("Sale type", saleBox(k)) + sec("Dates",
+    var k = pkg(), today = isoDay(new Date()), max = isoDay(plus(today, 30)), e = endDate(), locked = startLocked();
+    return sec("Sale type", saleBox(k)) + adjustBox() + sec("Dates",
       '<div class="form-grid"><div class="field"><label for="cvStart">Start date <span class="req">*</span></label>' +
-        '<input class="input' + inv("start") + '" id="cvStart" data-k="start" type="date" min="' + today + '" max="' + max + '" value="' + esc(C.start) + '">' +
-        (C.errors.start ? err("start") : '<span class="hint">Today up to 30 days ahead. No back dates.</span>') + "</div>" +
+        '<input class="input' + inv("start") + '" id="cvStart" data-k="start" type="date" min="' + (locked ? C.start : today) + '" max="' + max + '" value="' + esc(C.start) + '"' + (locked ? " disabled" : "") + ">" +
+        (C.errors.start ? err("start") : locked ? '<span class="hint" data-start-locked>Set by system = the paid trial\'s start date (' + esc(App.fmtIsoDate(C.start)) + "). Staff can never back-date (#41).</span>" : '<span class="hint">Today up to 30 days ahead. No back dates.</span>') + "</div>" +
       '<div class="field"><label>Ends</label><div class="input input-static" data-end>' + (e ? esc(App.fmtDate(e.toISOString())) + ' <span class="muted">· ' + k.days + (k.days === 1 ? " day" : " days") + ", start day included</span>" : "—") + "</div></div></div>");
   }
   function check3() {
     var e = {}, today = isoDay(new Date()), max = isoDay(plus(today, 30));
     if (!C.start) e.start = "Pick a start date.";
-    else if (C.start < today) e.start = "Back dates are not allowed.";
+    else if (C.start < today && !startLocked()) e.start = "Back dates are not allowed.";
     else if (C.start > max) e.start = "Start can be at most 30 days ahead.";
     return e;
   }
@@ -454,6 +489,7 @@
     rows.push([prem ? "Sales rep · Membership line" : "Sales rep", App.userName(C.repId)]);
     if (prem) rows.push(["Sales rep · PT line", App.userName(C.repPtId)]);
     if (mo.disc) rows.push(["Discount reason", reasonText()]);
+    adjusts().forEach(function (a) { rows.push(["Paid " + App.Trial.label(a.type) + " trial adjusted", "− " + App.fmtMoney(a.amount) + " · " + a.t.package + (a.locked ? " · start = trial start (set by system)" : " · start = today")]); });
     rows.push([CORP, "FF ID: " + C.ffId.trim() + " · Key fob: " + (C.fob ? C.fob + (C.fobFree ? " (free)" : "") : "Pending")]);
     if (!p.ownerUserId) rows.push(["Owner", App.me().name + " (you, lead was unassigned)"]);
     var open = App.Followup.openFollowUps(p.id).length;
@@ -540,7 +576,7 @@
     if (t.dataset.payDel) { C.pay.rows.splice(+t.dataset.payDel, 1); C.errors = {}; render(); return; }
     if (t.dataset.paySlip) { var r = C.pay.rows[+t.dataset.paySlip]; r.slip = r.slip ? "" : "payment-slip-" + (+t.dataset.paySlip + 1) + ".jpg (placeholder)"; render(); return; }
     if (t.dataset.xDel) { C.extras.splice(+t.dataset.xDel, 1); C.errors = {}; updateBill(); return; }
-    if (t.dataset.pkg) { C.pkgId = t.dataset.pkg; delete C.errors.pkg; if (pkg().price === 0) { C.disc = ""; C.reason = ""; C.reasonOther = ""; } }
+    if (t.dataset.pkg) { C.pkgId = t.dataset.pkg; delete C.errors.pkg; if (pkg().price === 0) { C.disc = ""; C.reason = ""; C.reasonOther = ""; } syncAdjustDefaults(); }
     if (t.dataset.disc) { C.mode = t.dataset.disc; }
     if (t.hasAttribute("data-fob")) { C.fob = t.dataset.fob; if (!C.fob) { C.fobFree = false; C.fobFreeWhy = ""; } }
     render();
@@ -565,6 +601,7 @@
       }
       updateTotals(); return;
     }
+    if (e.target.dataset.adjust) { C[e.target.dataset.adjust] = e.target.checked; render(); return; }
     if (e.target.hasAttribute("data-fobfree")) { C.fobFree = e.target.checked; if (!C.fobFree) C.fobFreeWhy = ""; render(); var fw = m.body.querySelector("#cvFobWhy"); if (fw) fw.focus(); return; }
     var k = d.k; if (!k) return;
     C[k] = e.target.value;
@@ -603,8 +640,10 @@
     }
     p.kind = "Client"; p.stage = "Converted"; p.clientNo = clientNo; p.homeBranchId = p.branchId; p.joinedAt = now; p.photo = null;
     // Premium PT (#92, #93): membership line = reference price, PT line = the rest; discount split proportionally; one rep per line.
+    var adjM = adjAmount("Membership"), adjP = adjAmount("PT"), adjList = adjusts();
     p.membership = { packageId: k.id, package: prem ? k.name + " · Membership (included)" : k.name, saleType: k.saleType, start: startIso, end: endIso, price: mo.mem,
-      discount: mo.memDisc, discountReason: mo.disc ? why : null, finalPrice: mo.memFinal, salesRepUserId: C.repId, premium: prem || undefined,
+      discount: mo.memDisc, discountReason: mo.disc ? why : null, finalPrice: mo.memFinal - adjM, salesRepUserId: C.repId, premium: prem || undefined,
+      trialAdjust: adjM ? { trialId: adjustInfo("Membership").t.id, amount: adjM } : undefined,
       freeItems: freeLines(p, k).map(function (f) { return { itemId: f.itemId, name: f.name, qty: f.qty, status: f.status }; }),
       items: C.extras.map(function (x) { var l = extraLine(x); return { itemId: x.itemId, name: l.it.name, qty: x.qty, price: l.amount, free: x.free, reason: x.free ? x.why.trim() : null }; }) };
     p.membership.freeItems.forEach(function (f) {
@@ -626,17 +665,19 @@
     var rows = C.pay.rows.map(function (r) { return { method: r.method, amount: Math.round(Number(r.amount) * 100) / 100, ref: r.ref.trim() || null, slip: r.slip || null }; });
     var receipt = { no: receiptNo, at: now, by: me.id, rows: rows };
     // Allocation: accessories → fob deposit → membership line → PT line (#93). The membership line carries accessories + deposit.
-    p.membership.payment = { total: T.total - mo.ptFinal, paid: T.paid - al.pt, dueDate: T.balance && (T.total - mo.ptFinal) > (T.paid - al.pt) ? C.payDue : null, receipts: [receipt] };
+    p.membership.payment = { total: T.total - al.ptDue, paid: T.paid - al.pt, dueDate: T.balance && (T.total - al.ptDue) > (T.paid - al.pt) ? C.payDue : null, receipts: [receipt] };
     if (prem) {
-      p.pt = { packageId: k.id, package: k.name + " · PT (included)", premium: true, price: mo.pt, discount: mo.ptDisc, finalPrice: mo.ptFinal, sessions: k.sessions,
-        start: startIso, end: endIso, salesRepUserId: C.repPtId,
-        payment: { total: mo.ptFinal, paid: al.pt, dueDate: mo.ptFinal > al.pt ? C.payDue : null, receipts: [receipt] } };
+      p.pt = { packageId: k.id, package: k.name + " · PT (included)", premium: true, price: mo.pt, discount: mo.ptDisc, finalPrice: mo.ptFinal - adjP, sessions: k.sessions,
+        start: startIso, end: endIso, salesRepUserId: C.repPtId, trialAdjust: adjP ? { trialId: adjustInfo("PT").t.id, amount: adjP } : undefined,
+        payment: { total: al.ptDue, paid: al.pt, dueDate: al.ptDue > al.pt ? C.payDue : null, receipts: [receipt] } };
     }
+    // The adjusted trial ends at conversion (#94); other running trials keep running until their end date.
+    adjList.forEach(function (a) { a.t.adjustedAt = now; a.t.adjustedInto = a.type === "PT" ? "pt" : "membership"; App.addTimeline(p.id, "milestone", "Paid " + App.Trial.label(a.type) + " trial " + App.fmtMoney(a.amount) + " adjusted into " + k.name + (a.locked ? " · trial ended at conversion" : "")); });
     var closed = App.Followup.closeBySystem(p.id, "Client converted");
     App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(T.paid) + " received · " + rows.map(function (r) { return r.method + " " + App.fmtMoney(r.amount); }).join(" + ") +
       " · receipt " + receiptNo + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + App.fmtIsoDate(C.payDue) : " · paid in full"));
     if (T.balance) App.Followup.create(p.id, { type: "Payment expected", dueDate: C.payDue, dueTime: null, note: "Balance " + App.fmtMoney(T.balance) + " · receipt " + receiptNo });
-    App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + (prem ? " (membership " + App.fmtMoney(mo.memFinal) + " + PT " + App.fmtMoney(mo.ptFinal) + ", " + k.sessions + " sessions)" : "") + " · " + App.fmtMoney(mo.final) +
+    App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + (prem ? " (membership " + App.fmtMoney(mo.memFinal - adjM) + " + PT " + App.fmtMoney(mo.ptFinal - adjP) + ", " + k.sessions + " sessions)" : "") + " · " + App.fmtMoney(mo.final - adjM - adjP) +
       (mo.disc ? " (" + App.fmtMoney(mo.disc) + " off: " + why + ")" : "") + (p.keyFob ? " · key fob " + p.keyFob + (C.fobFree ? " (free)" : "") : "") +
       (p.membership.items.length ? " · " + p.membership.items.map(function (x) { return x.name + " × " + x.qty + (x.free ? " (free)" : ""); }).join(", ") : "") +
       " · sales rep " + App.firstName(App.byId(D.users, C.repId)) + (prem && C.repPtId !== C.repId ? " (PT line: " + App.firstName(App.byId(D.users, C.repPtId)) + ")" : ""));

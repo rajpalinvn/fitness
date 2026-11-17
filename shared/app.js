@@ -190,12 +190,111 @@
     pk.saleType = r.saleType || "Paid"; pk.type = r.type || pk.category;
     return pk;
   };
-  // Lead on a paid trial (#92): running / ended, for badges and NEXT STEP (the trial flow itself comes with Book trial).
-  App.paidTrialStatus = function (p) {
-    if (!p || !p.paidTrial) return null;
-    var left = App.daysFromToday(p.paidTrial.to);
-    return left < 0 ? { ended: true, left: left, text: "Trial ended" } : { ended: false, left: left, text: "Paid trial · " + (left === 0 ? "ends today" : "ends in " + left + (left === 1 ? " day" : " days")) };
+  // ---------- Trials (decision #94): p.trials[] = { id, type: Membership | PT, kind: free | paid, packageId, package, from, to, price, paid,
+  // receiptNo, branchId, bookedByUserId, bookedAt, comment, approverUserId, approval: Pending | Approved | Rejected | "No approver available",
+  // approvalRemark, approvedAt, endedFollowUpId, adjustedAt }. Limits are counted SEPARATELY per type, by mobile across all branches. ----------
+  var Trial = {};
+  Trial.label = function (type) { return type === "PT" ? "PT" : "membership"; };
+  Trial.typeOf = function (pk) { return pk.category === "PT" ? "PT" : "Membership"; };
+  Trial.list = function (p) { return (p && p.trials) || []; };
+  Trial.isRunning = function (t) { return App.daysFromToday(t.from) <= 0 && App.daysFromToday(t.to) >= 0 && !t.adjustedAt; };
+  Trial.isEnded = function (t) { return !!t.adjustedAt || App.daysFromToday(t.to) < 0; };
+  Trial.running = function (p, type) { return Trial.list(p).filter(function (t) { return Trial.isRunning(t) && (!type || t.type === type); }); };
+  Trial.anyRunning = function (p) { return Trial.running(p).length > 0; };
+  Trial.lastEnded = function (p, type) {
+    var l = Trial.list(p).filter(function (t) { return Trial.isEnded(t) && (!type || t.type === type); });
+    l.sort(function (a, b) { return new Date(b.to) - new Date(a.to); }); return l[0] || null;
   };
+  // Same person = same mobile (#11), across every record and branch.
+  Trial.samePerson = function (p) { var d = App.mobileDigits(p.cc + p.mobile); return DUMMY.people.filter(function (o) { return App.mobileDigits(o.cc + o.mobile) === d; }); };
+  Trial.freeUsed = function (p, type, branchId) {
+    var n = 0; Trial.samePerson(p).forEach(function (o) { Trial.list(o).forEach(function (t) { if (t.kind === "free" && t.type === type && (!branchId || t.branchId === branchId)) n++; }); });
+    return n;
+  };
+  Trial.countOfType = function (p, type) { var n = 0; Trial.samePerson(p).forEach(function (o) { Trial.list(o).forEach(function (t) { if (t.type === type) n++; }); }); return n; };
+  // One running trial per type; free limits per type (settings); paid unlimited.
+  Trial.cardState = function (p, pk) {
+    var type = Trial.typeOf(pk), price = pk.price, perPerson = App.setting("freeTrialsPerPerson"), perBranch = App.setting("freeTrialsPerBranch");
+    if (Trial.running(p, type).length) return { disabled: true, why: "A " + App.Trial.label(type) + " trial is already running" };
+    if (price > 0) return { disabled: false, count: Trial.countOfType(p, type) };
+    var used = Trial.freeUsed(p, type), atBranch = Trial.freeUsed(p, type, p.branchId);
+    if (used >= perPerson) return { disabled: true, why: used + " of " + perPerson + " free " + App.Trial.label(type) + " trials used" };
+    if (atBranch >= perBranch) return { disabled: true, why: atBranch + " free " + App.Trial.label(type) + " trial" + (atBranch === 1 ? "" : "s") + " already at " + App.branchName(p.branchId) };
+    return { disabled: false, used: used, perPerson: perPerson, count: Trial.countOfType(p, type) };
+  };
+  // Who may book: trials.book scope + the person's state (#94). Returns { show, disabled, why }.
+  Trial.canBook = function (p) {
+    if (!p || !App.scopeAllows("trials.book", p)) return { show: false };
+    if (p.kind === "Client") { var ms = App.membershipStatus(p.membership); return ms && ms.cls !== "red" ? { show: true, disabled: false } : { show: false }; }
+    if (p.stage === "Lost") return { show: true, disabled: true, why: "Re-open the lead first" };
+    if (p.stage === "Converted") return { show: false };
+    return { show: true, disabled: false };
+  };
+  // Trial packages for this person: lead = Membership trials + PT trials with "Requires an active membership" OFF; active client = PT trials (ON or OFF).
+  Trial.packagesFor = function (p) {
+    return DUMMY.packages.filter(function (x) {
+      if (!x.active || !x.isTrial || x.category === "Add-on" || x.category === "Premium PT" || x.branchIds.indexOf(p.branchId) < 0) return false;
+      if (p.kind === "Client") return x.category === "PT";
+      return x.audience !== "Renewal" && (x.category === "Membership" || (x.category === "PT" && !x.requiresMembership));
+    });
+  };
+  // Approvers (L1b): SM / CM / RM of the person's branch whose role has trials.approve; never the CEO.
+  Trial.approvers = function (p) {
+    return DUMMY.users.filter(function (u) {
+      var r = App.Perm.roleByName(u.role);
+      return r && ["SALES_MANAGER", "CLUB_MANAGER", "REGIONAL_MANAGER"].indexOf(r.key) > -1 && u.branchIds.indexOf(p.branchId) > -1 && App.Perm.get(r.short, "trials.approve") !== "None";
+    });
+  };
+  Trial.byId = function (id) { for (var i = 0; i < DUMMY.people.length; i++) { var t = App.byId(Trial.list(DUMMY.people[i]), id); if (t) return { p: DUMMY.people[i], t: t }; } return null; };
+  // Pending approvals for the View-as user: asked from me, or every pending one for the CEO (incl. "No approver available").
+  Trial.pendingApprovals = function () {
+    var me = App.demoUser(), ceo = App.state.role === "CEO", out = [];
+    if (!me || App.can("trials.approve") === "None") return out;
+    DUMMY.people.forEach(function (p) { Trial.list(p).forEach(function (t) {
+      if (t.approval !== "Pending" && t.approval !== "No approver available") return;
+      if (ceo || t.approverUserId === me.id) out.push({ p: p, t: t });
+    }); });
+    out.sort(function (a, b) { return new Date(b.t.bookedAt) - new Date(a.t.bookedAt); });
+    return out;
+  };
+  // Human lines for badges / NEXT STEP: one per running trial, else the last ended one.
+  Trial.lines = function (p) {
+    var run = Trial.running(p);
+    if (run.length) return run.map(function (t) {
+      var left = App.daysFromToday(t.to);
+      return { t: t, running: true, text: (t.kind === "free" ? "Free " : "Paid ") + App.Trial.label(t.type) + " trial · " + (left === 0 ? "ends today" : "ends in " + left + (left === 1 ? " day" : " days")) };
+    });
+    var last = Trial.lastEnded(p);
+    return last ? [{ t: last, running: false, text: "Trial ended " + (-App.daysFromToday(last.to)) + (App.daysFromToday(last.to) === -1 ? " day" : " days") + " ago · " + last.package }] : [];
+  };
+  Trial.approvalBadge = function (t) {
+    var a = t.approval;
+    return a === "Approved" ? '<span class="badge badge-success">Approved</span>' : a === "Rejected" ? '<span class="badge badge-danger">Rejected</span>'
+      : a === "No approver available" ? '<span class="badge badge-warning">No approver available</span>' : '<span class="badge badge-warning">Approval pending</span>';
+  };
+  // Trial ended (#94): the system creates "Trial ended · discuss plans" for the owner on the end date, once per trial,
+  // unless an open follow-up already exists on / after that date. MOCKUP: done on page load (no server).
+  Trial.ensureEndedFollowUps = function () {
+    var made = 0;
+    DUMMY.people.forEach(function (p) { Trial.list(p).forEach(function (t) {
+      if (!Trial.isEnded(t) || t.endedFollowUpId || t.adjustedAt) return;
+      var endDate = String(t.to).slice(0, 10), open = DUMMY.followUps.filter(function (f) { return f.personId === p.id && f.status === "Open" && f.dueDate >= endDate; })[0];
+      if (open) { t.endedFollowUpId = open.id; return; }
+      var f = { id: "f" + Date.now() + made, personId: p.id, type: "Call", dueDate: endDate, dueTime: null, ownerUserId: p.ownerUserId, status: "Open", outcome: null, note: "Trial ended · discuss plans", bySystem: true };
+      DUMMY.followUps.push(f); t.endedFollowUpId = f.id; made++;
+      DUMMY.timeline.push({ personId: p.id, at: t.to, kind: "milestone", text: (t.kind === "free" ? "Free " : "Paid ") + App.Trial.label(t.type) + " trial ended · " + t.package + " · follow-up set for " + App.firstName(App.byId(DUMMY.users, p.ownerUserId)), by: null });
+    }); });
+    return made;
+  };
+  App.Trial = Trial;
+  // Paid MEMBERSHIP trial for the Convert adjust (#94): running, or ended within the buffer.
+  App.paidTrialStatus = function (p, type) {
+    var run = Trial.running(p, type || "Membership").filter(function (t) { return t.kind === "paid"; })[0];
+    if (run) return { t: run, ended: false, left: App.daysFromToday(run.to), text: "Paid " + App.Trial.label(run.type) + " trial · " + (App.daysFromToday(run.to) === 0 ? "ends today" : "ends in " + App.daysFromToday(run.to) + " days") };
+    var last = Trial.lastEnded(p, type || "Membership"); if (!last || last.kind !== "paid" || last.adjustedAt) return null;
+    return { t: last, ended: true, left: App.daysFromToday(last.to), text: "Trial ended" };
+  };
+  document.addEventListener("DOMContentLoaded", function () { if (Trial.ensureEndedFollowUps()) document.dispatchEvent(new CustomEvent("mock:data")); });
   (DUMMY.packages || []).forEach(App.derivePackage);
   App.tax = function (id) { return App.byId(DUMMY.taxCategories, id); };
   // Price is incl. GST: GST = price × rate / (100 + rate).

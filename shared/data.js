@@ -102,8 +102,8 @@
   ];
   // Settings values (decision #96, notes "Settings values"). Who can change: a grid row (permission key) or CEO.
   var settingDefs = [
-    { key: "freeTrialsPerPerson",      label: "Free trials per person (all branches)", def: 2, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Counted by mobile number across all branches (#94)." },
-    { key: "freeTrialsPerBranch",      label: "Free trials per branch",                 def: 1, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Must be the same or fewer than per person." },
+    { key: "freeTrialsPerPerson",      label: "Free trials per person (each trial type)", def: 2, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Counted by mobile number across all branches, separately for Membership trials and PT trials (#94)." },
+    { key: "freeTrialsPerBranch",      label: "Free trials per branch (each trial type)", def: 1, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Must be the same or fewer than per person." },
     { key: "paidTrialAdjustBufferDays", label: "Paid trial adjust buffer after it ends", def: 7, min: 0, max: 30, unit: "days", by: "CEO", hint: "Within this many days after a paid trial ended, the adjust is still offered (to roles with the grid row)." },
     { key: "inactivityReleaseDays",    label: "Inactivity release after",               def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
@@ -119,7 +119,8 @@
       "Location issue", "Timing issue", "Health issue", "Already a member elsewhere",
       "Shifted location", "Other"],
     temperatures: ["Hot", "Warm", "Cold"],                       // fixed
-    stages: ["New", "Contacted", "Trial", "Negotiation"],        // configurable
+    stages: ["New", "Contacted", "Trial", "Negotiation"],        // the 5 stages with Lost (#101); Trial is automatic
+    stageChoices: ["New", "Contacted", "Negotiation"],           // what staff may pick by hand (#94, L5); locked while a trial runs
     systemStages: ["Converted", "Lost"],                         // fixed
     taskStatuses: ["Open", "Done", "Cancelled"],                 // WorkTask
     followUpStatuses: ["Open", "Done", "Cancelled", "Closed by system"],
@@ -155,15 +156,23 @@
     { id: "p5", kind: "Lead", name: "Ishaan Singh", cc: "+91", mobile: "90000 01238", email: "ishaan.singh@example.com",
       gender: "Male", birthDate: "2001-07-04", ffId: null, source: "Website", temperature: "Hot", stage: "Trial",
       inquiryType: "Walk-in", campaign: "Diwali Fit 2026", ownerUserId: "u6", branchId: "b1", remarks: null,
-      externalId: null, createdAt: day(-4), lastActivityAt: day(-1), freeTrial: { from: day(-1), to: day(2) }, freeTrialCount: 2, freeItemsReceived: ["it2"],
-      note: "EDGE: free trial lead (stays a Lead); got a free T-shirt before -> Annual shows 'T-shirt (already received)'" },
+      externalId: null, createdAt: day(-4), lastActivityAt: day(-1), freeItemsReceived: ["it2"],
+      // 2nd membership free trial running (1st was Rejected by the approver, trial ran anyway); got a free T-shirt before.
+      trials: [
+        { id: "tr1", type: "Membership", kind: "free", packageId: "pk1", package: "Free Trial", from: day(-40), to: day(-40), price: 0, paid: 0, branchId: "b1", bookedByUserId: "u6", bookedAt: day(-40),
+          comment: "Walk-in, wants to try the floor", approverUserId: "u5", approval: "Rejected", approvalRemark: "Second visit without a plan", approvedAt: day(-39), endedFollowUpId: "f3old" },
+        { id: "tr2", type: "Membership", kind: "free", packageId: "pk1", package: "Free Trial", from: day(-1), to: day(2), price: 0, paid: 0, branchId: "b1", bookedByUserId: "u6", bookedAt: day(-1),
+          comment: "Came back after the Diwali offer", approverUserId: "u5", approval: "Pending" }
+      ],
+      note: "EDGE: free trial lead (stays a Lead), 2nd free membership trial = at the limit; got a free T-shirt before -> Annual shows 'T-shirt (already received)'" },
     { id: "p6", kind: "Lead", name: "Ananya Desai", cc: "+91", mobile: "90000 01239", email: "ananya.desai@example.com",
       gender: "Female", birthDate: "1993-11-15", ffId: null, source: "Facebook", temperature: "Hot", stage: "Trial",
       inquiryType: "Call", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
       createdAt: day(-15), lastActivityAt: day(-2),
       // Paid trial = still a Lead (decision #92); paid in full at once (#93). Booked through "Book trial" (c3).
-      paidTrial: { packageId: "pk2", package: "Trial Paid 7 Days", from: day(-2), to: day(4), price: 800, paid: 800, receiptNo: "S65-000041", salesRepUserId: "u7" },
-      note: "EDGE: lead on a RUNNING paid trial (stage Trial) — for the paid trial adjust in c3" },
+      trials: [{ id: "tr3", type: "Membership", kind: "paid", packageId: "pk2", package: "Trial Paid 7 Days", from: day(-2), to: day(4), price: 800, paid: 800, receiptNo: "S65-000041",
+        branchId: "b2", bookedByUserId: "u7", bookedAt: day(-2), comment: "Wants to try before the Quarterly", approverUserId: "u3", approval: "Pending" }],
+      note: "EDGE: lead on a RUNNING paid membership trial (stage Trial) -> Convert shows the adjust ticked and locked" },
     { id: "p7", kind: "Client", name: "Vivaan Joshi", cc: "+91", mobile: "90000 01240", email: "vivaan.joshi@example.com",
       gender: "Male", birthDate: "1990-02-08", ffId: "FF-19877", source: "Referral", temperature: "Hot", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
@@ -236,7 +245,11 @@
       createdAt: day(-29), lastActivityAt: day(-27), clientNo: "CL-0919", homeBranchId: "b1", joinedAt: day(-27), keyFob: "KF-S31-0021", photo: null,
       membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-27), end: day(3), price: 3000,
         discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
-      note: "EDGE (Clients): Renewal due · 3 days left" },
+      trials: [
+        { id: "tr5", type: "Membership", kind: "free", packageId: "pk1", package: "Free Trial", from: day(-60), to: day(-60), price: 0, paid: 0, branchId: "b1", bookedByUserId: "u6", bookedAt: day(-60), comment: "First visit", approverUserId: "u5", approval: "Approved", approvedAt: day(-59), endedFollowUpId: "x" },
+        { id: "tr6", type: "Membership", kind: "free", packageId: "pk1", package: "Free Trial", from: day(-35), to: day(-35), price: 0, paid: 0, branchId: "b2", bookedByUserId: "u7", bookedAt: day(-35), comment: "Tried Sec 65 near her office", approverUserId: "u3", approval: "Approved", approvedAt: day(-34), endedFollowUpId: "x" }
+      ],
+      note: "EDGE (Clients): Renewal due · 3 days left; used 2 membership free trials as a lead -> can still book a free PT trial (limits per type)" },
     { id: "p20", kind: "Client", name: "Sameer Khan", cc: "+91", mobile: "90000 01253", email: "sameer.k@example.com",
       gender: null, birthDate: null, ffId: "FF-20702", source: "Walk-in", temperature: "Warm", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
@@ -262,8 +275,9 @@
       gender: null, birthDate: null, ffId: null, source: "Walk-in", temperature: "Warm", stage: "Trial",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u7", branchId: "b2", remarks: null, externalId: null,
       createdAt: day(-12), lastActivityAt: day(-4),
-      paidTrial: { packageId: "pk2", package: "Trial Paid 7 Days", from: day(-10), to: day(-4), price: 800, paid: 800, receiptNo: "S65-000051", salesRepUserId: "u7" },
-      note: "EDGE: lead whose paid trial ENDED 4 days ago (badge Trial ended) — for the 7-day buffer adjust in c3" },
+      trials: [{ id: "tr4", type: "Membership", kind: "paid", packageId: "pk2", package: "Trial Paid 7 Days", from: day(-10), to: day(-4), price: 800, paid: 800, receiptNo: "S65-000051",
+        branchId: "b2", bookedByUserId: "u7", bookedAt: day(-10), comment: "Referred by Sameer", approverUserId: "u3", approval: "Approved", approvedAt: day(-9), endedFollowUpId: "f11c" }],
+      note: "EDGE: lead whose paid trial ENDED 4 days ago (Trial ended) -> within the 7-day buffer: adjust optional for CM / CEO" },
     { id: "p24", kind: "Client", name: "Zoya Siddiqui", cc: "+91", mobile: "90000 01257", email: "zoya.s@example.com",
       gender: null, birthDate: null, ffId: "FF-20705", source: "Walk-in", temperature: "Warm", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u11", branchId: "b3", remarks: null, externalId: null,
@@ -271,6 +285,31 @@
       membership: { packageId: "pk7", package: "Annual Membership", saleType: "Paid", start: day(-40), end: day(324), price: 24000,
         discount: 0, discountReason: null, finalPrice: 24000, salesRepUserId: "u11", freeItems: [] },
       note: "EDGE (Clients): PT 24 sessions with a balance, Golf Course" }
+  ,  { id: "p25", kind: "Lead", name: "Kunal Bose", cc: "+91", mobile: "90000 01258", email: "kunal.bose@example.com",
+      gender: "Male", birthDate: null, ffId: null, source: "Instagram", temperature: "Hot", stage: "Trial",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
+      createdAt: day(-3), lastActivityAt: day(-1),
+      trials: [
+        { id: "tr7", type: "Membership", kind: "free", packageId: "pk1", package: "Free Trial", from: day(0), to: day(0), price: 0, paid: 0, branchId: "b1", bookedByUserId: "u6", bookedAt: day(-1), comment: "Wants the floor + a PT taste", approverUserId: "u5", approval: "Pending" },
+        { id: "tr8", type: "PT", kind: "free", packageId: "pk19", package: "PT Trial Session", from: day(0), to: day(1), price: 0, paid: 0, branchId: "b1", bookedByUserId: "u6", bookedAt: day(-1), comment: "PT taste with Deepak", approverUserId: "u5", approval: "Approved", approvedAt: day(-1) }
+      ],
+      note: "EDGE (trials): a membership trial AND a PT trial running together (one running trial per type)" },
+    { id: "p26", kind: "Lead", name: "Ritika Sen", cc: "+91", mobile: "90000 01259", email: null,
+      gender: "Female", birthDate: null, ffId: null, source: "Referral", temperature: "Warm", stage: "Negotiation",
+      inquiryType: "Call", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: "Asks about PT", externalId: null,
+      createdAt: day(-70), lastActivityAt: day(-2),
+      trials: [
+        { id: "tr9", type: "Membership", kind: "free", packageId: "pk1", package: "Free Trial", from: day(-65), to: day(-65), price: 0, paid: 0, branchId: "b1", bookedByUserId: "u6", bookedAt: day(-66), comment: "Referral from Vivaan", approverUserId: "u5", approval: "Approved", approvedAt: day(-65), endedFollowUpId: "x" },
+        { id: "tr10", type: "Membership", kind: "free", packageId: "pk1", package: "Free Trial", from: day(-20), to: day(-20), price: 0, paid: 0, branchId: "b2", bookedByUserId: "u7", bookedAt: day(-21), comment: "Tried Sec 65 too", approverUserId: "u3", approval: "Approved", approvedAt: day(-20), endedFollowUpId: "x" }
+      ],
+      note: "EDGE (trials): at the membership free-trial limit (2 of 2, incl. 1 at Sec 31) -> free membership trials disabled, free PT trial still allowed" },
+    { id: "p27", kind: "Lead", name: "Mohit Jain", cc: "+91", mobile: "90000 01260", email: "mohit.jain@example.com",
+      gender: "Male", birthDate: null, ffId: null, source: "Walk-in", temperature: "Warm", stage: "Trial",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u10", branchId: "b3", remarks: null, externalId: null,
+      createdAt: day(-6), lastActivityAt: day(-3),
+      trials: [{ id: "tr11", type: "Membership", kind: "paid", packageId: "pk3", package: "Trial Paid 15 Days", from: day(-3), to: day(11), price: 1500, paid: 1500, receiptNo: "GC-000030",
+        branchId: "b3", bookedByUserId: "u10", bookedAt: day(-3), comment: "Paid 15 days, deciding between Quarterly and Annual", approverUserId: null, approval: "No approver available" }],
+      note: "EDGE (trials): Golf Course has no SM / CM / RM -> approval 'No approver available', shows in the CEO's pending list" }
   );
 
   // ---------- Payments (decisions #79–#84). payment = { total, paid, dueDate, receipts: [{ no, at, by, rows: [{ method, amount, ref, slip }] }] }
@@ -305,7 +344,7 @@
   people.forEach(function (p) {
     if (!("createdByUserId" in p)) p.createdByUserId = p.synced ? null : p.ownerUserId;  // Meta sync: created by the system
     if (!p.ownerHistory) p.ownerHistory = [];
-    if (p.freeTrialCount == null) p.freeTrialCount = 0;
+    if (!p.trials) p.trials = [];
   });
 
   // Used by the quick lead modal to demo the live duplicate check.
@@ -333,6 +372,9 @@
     { id: "f11", personId: "p6", type: "Free trial planned", dueDate: dd(-4), dueTime: "10:00", ownerUserId: "u7", status: "Done", outcome: "Interested", note: "Liked the trainers", doneAt: day(-4, 10, 30) },
     { id: "f11b", personId: "p6", type: "Visit planned", dueDate: dd(3), dueTime: "18:00", ownerUserId: "u7", status: "Open", outcome: null, note: "Last trial day · talk about Quarterly" },
     { id: "f11c", personId: "p23", type: "Call", dueDate: dd(-3), dueTime: null, ownerUserId: "u7", status: "Open", outcome: null, note: "Trial ended · ask about joining" },
+    { id: "f25", personId: "p25", type: "Visit planned", dueDate: dd(1), dueTime: "19:00", ownerUserId: "u6", status: "Open", outcome: null, note: "After the PT trial · talk packages" },
+    { id: "f26", personId: "p26", type: "Call", dueDate: dd(2), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "Offer a PT trial session" },
+    { id: "f27", personId: "p27", type: "Visit planned", dueDate: dd(11), dueTime: "18:00", ownerUserId: "u10", status: "Open", outcome: null, note: "Last day of the paid trial" },
     { id: "f13", personId: "p15", type: "Call", dueDate: dd(-1), dueTime: "12:00", ownerUserId: "u7", status: "Open", outcome: null, note: "Wants weekend batch" },
     { id: "f14", personId: "p16", type: "Visit planned", dueDate: dd(-4), dueTime: "18:00", ownerUserId: "u10", status: "Open", outcome: null, note: null },
     { id: "f15", personId: "p17", type: "WhatsApp", dueDate: dd(-1), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "Send couple PT details" },
@@ -359,7 +401,13 @@
     { personId: "p4", at: day(-30), kind: "milestone", text: "Marked as Lost · Timing issue", by: "u6" },
     { personId: "p4", at: day(-1), kind: "milestone", text: "Re-opened by Priya Sharma", by: "u6" },
     { personId: "p4", at: day(-1, 12), kind: "note", text: "Priya noted: exams over, wants evening batch", by: "u6" },
-    { personId: "p5", at: day(-1), kind: "milestone", text: "Free trial started · 3 days", by: "u6" },
+    { personId: "p5", at: day(-40), kind: "milestone", text: "Free membership trial booked · Free Trial · approval asked from Karan", by: "u6" },
+    { personId: "p5", at: day(-39), kind: "milestone", text: "Trial approval · Rejected by Karan · Second visit without a plan", by: "u5" },
+    { personId: "p5", at: day(-1), kind: "milestone", text: "Free membership trial booked · Free Trial · 2nd trial · approval asked from Karan", by: "u6" },
+    { personId: "p25", at: day(-1), kind: "milestone", text: "Free membership trial booked · Free Trial · approval asked from Karan", by: "u6" },
+    { personId: "p25", at: day(-1), kind: "milestone", text: "Free PT trial booked · PT Trial Session · approval asked from Karan", by: "u6" },
+    { personId: "p25", at: day(-1), kind: "milestone", text: "Trial approval · Approved by Karan", by: "u5" },
+    { personId: "p27", at: day(-3), kind: "milestone", text: "Paid membership trial booked · Trial Paid 15 Days · ₹1,500 paid in full · no approver available at Golf Course", by: "u10" },
     { personId: "p6", at: day(-2), kind: "milestone", text: "Paid trial booked · Trial Paid 7 Days · ₹800 paid in full (UPI)", by: "u7" },
     { personId: "p23", at: day(-10), kind: "milestone", text: "Paid trial booked · Trial Paid 7 Days · ₹800 paid in full (UPI)", by: "u7" },
     { personId: "p23", at: day(-4), kind: "milestone", text: "Paid trial ended · no membership yet", by: null },
@@ -425,6 +473,9 @@
     pk("pk1",  "Free Trial",                "Membership", { isTrial: true, days: 1, priceHistory: [{ price: 0, from: dd(-365) }], soldCount: 9 }),
     pk("pk2",  "Trial Paid 7 Days",         "Membership", { isTrial: true, days: 7, priceHistory: [{ price: 800, from: dd(-365) }], soldCount: 3 }),
     pk("pk3",  "Trial Paid 15 Days",        "Membership", { isTrial: true, days: 15, priceHistory: [{ price: 1500, from: dd(-365) }] }),
+    // PT trials (#94, change of 16 Nov): "Requires an active membership" OFF = leads and clients; ON = clients only.
+    pk("pk19", "PT Trial Session",          "PT", { isTrial: true, subType: "One-on-one", days: 1, sessions: 1, requiresMembership: false, priceHistory: [{ price: 0, from: dd(-200) }], soldCount: 4 }),
+    pk("pk20", "PT Trial · 3 Sessions",     "PT", { isTrial: true, subType: "One-on-one", days: 7, sessions: 3, requiresMembership: true, priceHistory: [{ price: 1500, from: dd(-200) }], soldCount: 1 }),   // EDGE: clients only
     pk("pk4",  "Monthly Membership",        "Membership", { subType: "Regular", days: 30, soldCount: 12,
       priceHistory: [{ price: 2800, from: dd(-400) }, { price: 3000, from: dd(-120) }, { price: 3300, from: dd(20) }] }),   // EDGE: future price change
     pk("pk5",  "Quarterly Membership",      "Membership", { subType: "Regular", days: 90, priceHistory: [{ price: 8000, from: dd(-365) }], soldCount: 5 }),
@@ -475,7 +526,9 @@
   var notifications = [
     { id: "n1", text: "New lead from Meta: Fatima Shaikh · Golf Course", at: day(0, 8, 15), unread: true },
     { id: "n2", text: "Aarav Patel's follow-up is overdue", at: day(-2, 17), unread: true },
-    { id: "n3", text: "Task due today: Prepare Diwali offer flyer", at: day(0, 9), unread: true }
+    { id: "n3", text: "Task due today: Prepare Diwali offer flyer", at: day(0, 9), unread: true },
+    { id: "n4", text: "Trial approval asked from you: Ishaan Singh · Free Trial (Priya)", at: day(-1, 11), unread: true, forUserId: "u5", trialId: "tr2" },
+    { id: "n5", text: "Trial approval asked from you: Ananya Desai · Trial Paid 7 Days (Arjun)", at: day(-2, 12), unread: true, forUserId: "u3", trialId: "tr3" }
   ];
 
   window.DUMMY = {

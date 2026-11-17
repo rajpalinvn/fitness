@@ -238,11 +238,13 @@
     var p = person(personId); if (!p || p.stage !== "Lost") return;
     var m = App.makeModal("reopenModal");
     m.title.textContent = "Re-open " + p.name + "?";
-    m.body.innerHTML = "<p>The lead goes back to <strong>" + esc(p.stageBeforeLost || "Contacted") + "</strong>. The old lost reason (" +
+    // L24: back to the stage before Lost; Trial with no running trial -> Negotiation.
+    var backTo = p.stageBeforeLost || "Contacted"; if (backTo === "Trial" && !App.Trial.anyRunning(p)) backTo = "Negotiation";
+    m.body.innerHTML = "<p>The lead goes back to <strong>" + esc(backTo) + "</strong>. The old lost reason (" +
       esc(App.empty(p.lostReason)) + ") will be cleared.</p><p class=\"muted\">Next, you will set a follow-up so the lead is not forgotten.</p>";
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Re-open lead</button>';
     m.foot.querySelector("[data-save]").onclick = function () {
-      p.stage = p.stageBeforeLost || "Contacted"; p.lostReason = null; p.lostAt = null; p.reopenedAt = new Date().toISOString();
+      p.stage = backTo; p.lostReason = null; p.lostAt = null; p.reopenedAt = new Date().toISOString();
       App.addTimeline(p.id, "milestone", "Re-opened by " + App.me().name);
       App.close(m.el); App.dataChanged();
       openAdd(p.id, { title: "Set next follow-up", intro: p.name + " is open again. Set the next follow-up.", cancelText: "Later" });

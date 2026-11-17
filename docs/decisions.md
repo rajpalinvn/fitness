@@ -395,7 +395,8 @@
     reference price, PT line = the rest; client status, renewal, session
     unlock and incentives reuse the existing rules; the incentive split is
     set in the incentive scheme, not on the package (A7); no trial for
-    Premium PT (A4). The "Premium" membership sub-type label and the dummy
+    Premium PT (A4; changed 16 Nov: a LEAD may also book PT trials, see
+    #94). The "Premium" membership sub-type label and the dummy
     "Annual + PT Premium Combo" package are removed. Membership = access to
     all branches; PT = home branch only (A8). Closes Q5 and Q26 (a paid
     trial is a lead; "Trial ended" is a lead badge, #101).
@@ -415,25 +416,51 @@
     → key fob deposit → membership line → PT line (PT sessions unlock from
     what reaches the PT line, #83). Built in c2.
 94. Trials (notes §1, L1–L7, L1b, L1c). Book trial shows trial packages
-    only. Who gets which: lead = membership trials; active client = PT
-    trials (package "Requires an active membership"); expired client = no
-    trial (button hidden); lost lead = "Re-open the lead first" (#26).
+    only, in two groups "Membership trials" and "PT trials". Who gets
+    which (changed 16 Nov): open lead = membership trials + PT trials
+    whose package has "Requires an active membership" OFF; active client
+    = PT trials only (ON and OFF); expired client = no button; lost lead =
+    "Re-open the lead first" (#26). PT trial packages default to OFF
+    (form hint: "ON = clients only; OFF = leads and clients"). Premium PT
+    has no trial. A lead's PT trial sets stage = Trial like a membership
+    trial. Permission: trials.book.
     Trial stage is automatic (stage dropdown: New, Contacted, Negotiation;
     locked while a trial runs, unlocks after it ends, L5). Trial ends: stage
     stays Trial, status "Trial ended" (L7), follow-up for the owner.
     Free-trial limits are settings (default 2 per person counted by mobile
-    across all branches, L6; 1 per branch), the same for every role (L1c),
-    no per-booking override; over the limit the button is disabled "Free
-    trial limit reached" (L1). Paid trials unlimited, count shown. Trial
+    across all branches, L6; 1 per branch), COUNTED SEPARATELY PER TRIAL
+    TYPE (membership trials 2 / 1, PT trials 2 / 1, same numbers; one type
+    never blocks the other), the same for every role (L1c), no per-booking
+    override; over the limit the package card is disabled with the reason
+    ("2 of 2 free membership trials used" / "1 free membership trial
+    already at Sec 31"). Paid trials unlimited, count shown. From the 2nd
+    trial of the SAME type (free + paid together) a warning shows with the
+    trial history. ONE RUNNING TRIAL PER TYPE: a membership trial and a PT
+    trial may run together; a second of the same type is blocked. Trial
     approval = a pending reference, not a block (L1b): every booking needs
     a comment + "Approval asked from"; booked at once, status Pending;
     the approver marks Approved /
-    Rejected + remark; Rejected is only recorded. Paid trial adjust:
+    Rejected + remark (remark required to reject); Rejected is only
+    recorded, the trial keeps running. If the branch has no SM / CM / RM
+    with trials.approve, booking is NOT blocked: status "No approver
+    available", shown in the CEO's "Trial approvals pending". Approvers
+    (asked person; CEO for all) see pending trials in the bell and in the
+    Today section "Trial approvals pending". Trial ended: the system
+    creates "Trial ended · discuss plans" for the owner on the end date
+    (due any time) unless an open follow-up exists on / after that date;
+    the Stage dropdown offers New / Contacted / Negotiation, is locked
+    while ANY trial runs (free or paid, membership or PT) and unlocks
+    after. Paid trial adjust:
     running trial → the adjust checkbox is ticked and locked, full trial
     price subtracted (L4), membership start = trial start date (set by
     the system; staff can never back-date, #41 stays for staff); trial
     ended → 7-day buffer, only for roles with the grid permission (L2),
-    start = today, full price subtracted (L3). Closes Q12.
+    start = today, full price subtracted (L3); beyond the buffer or
+    without the permission: no adjust, one info line why; free trials
+    never. A running paid PT trial is adjusted only when the lead buys
+    Premium PT (same rules, into the PT line). Data: p.trials[] with type,
+    kind, dates, price / paid, approval fields, endedFollowUpId,
+    adjustedAt (docs/data-model.md). Built in c3. Closes Q12.
     Approver rule vs permission: `trials.approve` = who CAN approve /
     reject a pending trial (CEO = All, locked, #102). The "Approval asked
     from" dropdown (L1b) is a separate rule, not the permission: it lists

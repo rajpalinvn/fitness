@@ -59,7 +59,7 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 | Category | Membership / PT / Premium PT / Add-on | Yes | No | current tab (Membership) | Locked after the first sale. Premium PT (#92) = membership + PT in one package, 2 lines at sale. |
 | Sub-type / Add-on kind | select | Add-on only | No | Not set (Add-on: Transfer) | Membership: Regular, Student, Corporate; PT and Premium PT: One-on-one, Group (admin lists). Add-on kinds fixed in code. |
 | Name | text | Yes | Yes | — | "A package with this name already exists." |
-| Trial | Yes / No | Yes (Membership, PT) | No | No | Locked after the first sale. Not shown for Premium PT (no trial, #92) or Add-on. Trial = Yes hides Free items ("Trials give nothing extra", #93) and the result reads "Free trial · stays a Lead" / "Paid trial · stays a Lead · paid in full". |
+| Trial | Yes / No | Yes (Membership, PT) | No | No | Locked after the first sale. Not shown for Premium PT (no trial, #92) or Add-on. PT trial: "Requires an active membership" becomes editable, default OFF ("ON = clients only; OFF = leads and clients", #94). Trial = Yes hides Free items ("Trials give nothing extra", #93) and the result reads "Free trial · stays a Lead" / "Paid trial · stays a Lead · paid in full". |
 | People | Single / Couple | PT | No | Single | Couple PT: both must be clients with an active membership (#43). Locked after the first sale. |
 | Days | number ≥ 1 | Yes (not Add-on) | No | — | Locked after the first sale. |
 | Sessions (Premium PT: "PT sessions"; Days = "Membership days") | number ≥ 1 | PT, Premium PT | No | — | Locked after the first sale. |

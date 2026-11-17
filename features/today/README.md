@@ -17,6 +17,7 @@ The first screen staff see every day (decisions #22, #24, #61–#63).
 | **Due today** | By time, "Any time" last | Name · type · note · owner (managers) · amber time | **Log outcome** | Leads `?follow=Due today` |
 | **My open tasks** | Overdue first, then priority, then due | Title · person · due · Overdue + priority badges | **Mark done** | Toast: Tasks screen comes next |
 | **Unassigned new leads** (managers only) | Newest first | Name (+ Meta) · source · branch · received | **Assign** | Leads `?owner=none` |
+| **Trial approvals pending** (users with `trials.approve`; CEO all) | Newest booking first | Name · package · type · paid / free · start · branch · booked by · comment · status badge · asked from | **Review** (modal Approve / Reject + remark) | — |
 | **Clients with pending items** | Oldest sale first | Name · client no · package · branch · joined · "Corporate entry: FF ID & key fob" + its badges, then free-item badges (decision #67), then "Payment due · ₹X by <date>" (#82) | First item: **Add FF ID** / **Assign fob** / **Issue item** / **Collect payment** | Clients `?view=attention` |
 
 - Row click (not the button) opens the profile drawer (tasks → Tasks tab, pending → Membership tab), with ‹ › through that section.
@@ -64,6 +65,7 @@ Roles with no `leads.view` (Trainer / MXM / Finance by default) see the note "Le
 | Fatima (Meta, Golf Course), Neha (walk-in, Sec 31) | Unassigned new leads. |
 | Rohit Verma (Sec 31) | FF ID pending + Key fob pending + Pending issue · T-shirt (Sec 31 stock 0). |
 | Harsh Vardhan (Sec 65) | Only FF ID pending (has a fob). |
+| Ishaan, Kunal (asked from Karan), Ananya (Vikram), Mohit (no approver) | Trial approvals pending (CEO sees all; Karan only his). |
 
 ## 5. Status
 Ready for review

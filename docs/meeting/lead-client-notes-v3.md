@@ -24,8 +24,8 @@
 
 ### Trial
 - Trial stage is **automatic** (Book trial). Stage dropdown: New, Contacted, Negotiation.
-- Lead = membership trials only. Active client = PT trials (package checkbox "Requires an active membership"). Expired client = no trial. Lost lead = "Re-open the lead first".
-- Free trial **limits** are settings (default 2 per person, 1 per branch). Paid trials unlimited, count shown.
+- (Changed 16 Nov, #94) Book trial shows two groups, **Membership trials** and **PT trials**. Open lead = membership trials + PT trials whose package has "Requires an active membership" **OFF**. Active client = PT trials only (ON and OFF). Expired client = no button. Lost lead = "Re-open the lead first". PT trial packages default to OFF ("ON = clients only; OFF = leads and clients"). Premium PT has no trial. A lead's PT trial sets stage = Trial.
+- Free trial **limits** are settings (default 2 per person, 1 per branch), **counted separately per trial type** (membership 2 / 1, PT 2 / 1; one type never blocks the other). **One running trial per type** (a membership trial and a PT trial may run together). Paid trials unlimited, count shown.
 - Trial ends: stage stays Trial, status **"Trial ended"**, follow-up for the owner.
 - Convert during a running paid trial: adjust checkbox **ticked and locked**; membership start = trial start date (**system-set**; staff can never back-date, #41).
 
@@ -124,7 +124,7 @@ O-R3, O-R5, O-R6, T-R7 (who approves), and **Q8** (permission matrix) everywhere
 
 | ID | Decision |
 |---|---|
-| L1 | **No per-booking override.** Free-trial limits are **settings** (default: 2 per person, 1 per branch). Within the limit anyone allowed to book gives the free trial. Over the limit the button is disabled: "Free trial limit reached". To give more, a role with the permission changes the setting (even CEO does it through the setting). |
+| L1 | **No per-booking override.** Free-trial limits are **settings** (default: 2 per person, 1 per branch, **per trial type**: membership trials and PT trials each have their own count; one running trial per type). Within the limit anyone allowed to book gives the free trial. Over the limit the button is disabled: "Free trial limit reached". To give more, a role with the permission changes the setting (even CEO does it through the setting). |
 | L1b | **Trial approval = a pending reference, not a block.** Every trial booking needs a comment + "Approval asked from". The dropdown is a **rule, not the permission**: it lists only the SM, CM and RM of the lead's branch who have `trials.approve`. The CEO never appears in it, but can approve / reject any pending trial (e.g. from a pending approvals list), since `trials.approve` = All for CEO (locked, #102). Trial is booked at once; status Pending. The approver can mark Approved / Rejected + remark; Rejected is only recorded (trial keeps running). |
 | L1c | Free-trial limits are the **same for every role** (a rule about the person, not the staff). More trials only by changing the setting. |
 | L2 | **7-day buffer adjust:** whoever has the permission does the conversion; the adjust checkbox appears for them only, within 7 days after the trial ended. |
@@ -180,7 +180,7 @@ The mockup's grid (section 2) is the source; the build will sync to it. Please c
 | ID | Answer | Date |
 |---|---|---|
 | A1 | Premium PT buyer becomes a Client. A2, A3 auto-Yes (Convert to Client; renewal like a membership). | 16 Nov 2026 |
-| A4 | Premium PT has no trial. Lead = membership trials; PT trials = active clients. | 16 Nov 2026 |
+| A4 | Premium PT has no trial. Lead = membership trials; PT trials = active clients. **Changed later on 16 Nov:** a lead may also book PT trials whose package has "Requires an active membership" OFF; clients book PT trials only. Limits per trial type. (#94) | 16 Nov 2026 |
 | A5–A6 | 4 categories incl. Premium PT; splits into 2 lines; "Premium" sub-type label removed. | 16 Nov 2026 |
 | A7 | Incentive split set in the incentive scheme. | 16 Nov 2026 |
 | A8 | Membership = all branches; PT = home branch. | 16 Nov 2026 |

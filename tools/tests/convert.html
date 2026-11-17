@@ -201,9 +201,9 @@ load(LEADS, function () {
       ok("no Free trial / Paid trial groups, no Book free trial", !q('[data-acc="Trial"]') && !q('[data-acc="Trial Paid"]') && !/Book free trial/.test(mtext()));
       key("Escape");
       var a = person("p6"), ira = person("p23");
-      ok("Ananya is a LEAD on a running paid trial (stage Trial)", a.kind === "Lead" && a.stage === "Trial" && !!a.paidTrial && a.paidTrial.paid === 800 && W().App.paidTrialStatus(a).ended === false);
+      ok("Ananya is a LEAD on a running paid trial (stage Trial)", a.kind === "Lead" && a.stage === "Trial" && a.trials.length === 1 && a.trials[0].paid === 800 && W().App.paidTrialStatus(a).ended === false);
       ok("Ira is a LEAD whose paid trial ended", ira.kind === "Lead" && ira.stage === "Trial" && W().App.paidTrialStatus(ira).ended === true);
-      W().App.openProfile("p6", { state: "normal" }); ok("NEXT STEP: Paid trial · ends in N days", /Paid trial · ends in \d+ days/.test(text(".next-step")));
+      W().App.openProfile("p6", { state: "normal" }); ok("NEXT STEP: Paid membership trial · ends in N days", /Paid membership trial · ends in \d+ days/.test(text(".next-step")));
       W().App.openProfile("p23", { state: "normal" }); ok("badge Trial ended", /Trial ended/.test(text(".pd-badges")));
       key("Escape");
     });

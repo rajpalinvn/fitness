@@ -154,7 +154,7 @@
             '<span class="badge badge-' + p.temperature.toLowerCase() + '">' + esc(p.temperature) + "</span>") +
         (p.synced ? '<span class="badge badge-info" title="Synced from Meta">Meta</span>' : '<span class="badge">' + esc(p.source) + "</span>") +
         (p.reopenedAt ? '<span class="badge badge-info">Re-opened</span>' : "") +
-        (!client && App.paidTrialStatus(p) && App.paidTrialStatus(p).ended ? '<span class="badge badge-warning">Trial ended</span>' : "") +
+        trialBadges(p) +
       "</div>" +
       '<div class="pd-actions">' +
         qa("call", "phone", "Call", false) + qa("wa", "message", "WhatsApp", false) +
@@ -173,6 +173,17 @@
       '<div class="pd-bottom">' + bottomActions(p) + "</div>"
     );
   }
+  // Trials (#94): one badge per running trial (+ approval), or "Trial ended" after the last one.
+  function trialBadges(p) {
+    var run = App.Trial.running(p), h = "";
+    run.forEach(function (t) { h += '<span class="badge badge-info">' + esc(t.type) + " trial</span>" + (t.approval !== "Approved" ? App.Trial.approvalBadge(t) : ""); });
+    if (!run.length) { var last = App.Trial.lastEnded(p); if (last && !last.adjustedAt && p.kind === "Lead") h += '<span class="badge badge-warning">Trial ended</span>'; }
+    return h;
+  }
+  function trialButton(p) {
+    var cb = App.Trial.canBook(p); if (!cb.show) return "";
+    return '<button class="btn btn-block" data-pd="trial"' + (cb.disabled ? ' disabled title="' + esc(cb.why) + '"' : "") + ">" + icon("clock") + "Book trial" + (cb.disabled ? ' <span class="cell-sub">· ' + esc(cb.why) + "</span>" : "") + "</button>";
+  }
   function memberBadge(p) {
     var ms = App.membershipStatus(p.membership); if (!ms) return "";
     var label = ms.cls === "red" ? "Expired" : ms.cls === "amber" ? "Renewal due" : "Active";
@@ -183,9 +194,9 @@
       icon(ic) + '<span class="qa-label">' + label + "</span></button>";
   }
   function bottomActions(p) {
-    if (isClient(p)) return "";
-    if (isLost(p)) return '<button class="btn btn-primary btn-block" data-pd="reopen">' + icon("refresh") + "Re-open lead</button>";
-    return '<button class="btn btn-primary btn-block" data-pd="convert">Convert to Client</button>' +
+    if (isClient(p)) return trialButton(p);
+    if (isLost(p)) return '<button class="btn btn-primary btn-block" data-pd="reopen">' + icon("refresh") + "Re-open lead</button>" + trialButton(p);
+    return '<button class="btn btn-primary btn-block" data-pd="convert">Convert to Client</button>' + trialButton(p) +
       '<div class="dd"><button class="btn btn-block" data-dd="pdmore" aria-haspopup="menu" aria-expanded="false">' + icon("more") + "More</button>" +
       '<div class="dd-menu dd-up" data-dd-menu="pdmore" role="menu" hidden>' +
         '<button class="dd-item" role="menuitem" tabindex="-1" data-pd="lost"><span class="dd-check">' + icon("flag") + "</span><span>Mark as lost</span></button>" +
@@ -207,16 +218,16 @@
           : ms.cls === "amber" ? "<strong>Renewal due soon</strong> · " + ms.left + (ms.left === 1 ? " day" : " days") + " left"
           : "<strong>Membership active</strong> · " + ms.left + " days left";
         out = '<div class="next-step ' + ms.cls + '"><div class="ns-label">Next step</div>' + txt +
-          '<div class="cell-sub">' + esc(p.membership.package) + " · ends " + esc(App.fmtDate(p.membership.end)) + "</div>" + pendingItems(p) +
+          '<div class="cell-sub">' + esc(p.membership.package) + " · ends " + esc(App.fmtDate(p.membership.end)) + "</div>" +
+          App.Trial.running(p).map(function (t) { return '<div class="cell-sub" data-trial-line>' + esc(t.type) + " trial · " + esc(t.package) + " · ends " + esc(App.fmtShortWhen(t.to)) + " · " + esc(t.approval) + "</div>"; }).join("") + pendingItems(p) +
           (f ? '<div class="ns-sub">Follow-up: ' + esc(f.type) + " · " + esc(App.fmtDue(f)) + "</div>" +
             '<div class="ns-actions"><button class="btn btn-sm" data-pd="outcome" data-f="' + f.id + '">Log outcome</button></div>' : "") + "</div>";
       }
       return out;
     }
-    var st = App.followUpStatus(f && App.dueIso(f)), body, pt = App.paidTrialStatus(p);
-    // Lead on a paid trial (#92): one line in NEXT STEP; the trial flow itself comes with Book trial (c3).
-    var trialLine = pt ? '<div class="cell-sub" data-paid-trial>' + (pt.ended ? "Paid trial ended " + (-pt.left) + (pt.left === -1 ? " day" : " days") + " ago · " + esc(p.paidTrial.package)
-      : esc(pt.text) + " · " + esc(p.paidTrial.package) + " · " + App.fmtMoney(p.paidTrial.paid) + " paid in full") + "</div>" : "";
+    var st = App.followUpStatus(f && App.dueIso(f)), body;
+    // Trials (#94): one line per running trial (or the last ended one) in NEXT STEP.
+    var trialLine = App.Trial.lines(p).map(function (l) { return '<div class="cell-sub" data-trial-line>' + esc(l.text) + (l.running ? " · " + esc(l.t.package) + (l.t.kind === "paid" ? " · " + App.fmtMoney(l.t.paid) + " paid in full" : "") + " · " + esc(l.t.approval) : "") + "</div>"; }).join("");
     if (!f) body = trialLine + "<strong>No follow-up set</strong><div class=\"cell-sub\">Add one so this lead isn't forgotten.</div>" +
       '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="follow">' + icon("plus") + "Add follow-up</button></div>";
     else {
@@ -465,7 +476,8 @@
           fld("FF ID", '<input class="input" name="ffId" value="' + esc(p.ffId || "") + '">', false, "ID from the other software. Unique.") +
           fld("Source", '<select class="input" name="source">' + opt(L.sources, p.source) + "</select>", true) +
           fld("Temperature", '<select class="input" name="temperature">' + opt(L.temperatures, p.temperature) + "</select>", true) +
-          (stageEditable ? fld("Stage", '<select class="input" name="stage">' + opt(L.stages, p.stage) + "</select>", true, "Converted and Lost are set by their own actions.") : "") +
+          (stageEditable ? fld("Stage", '<select class="input" name="stage"' + (App.Trial.anyRunning(p) ? " disabled" : "") + ">" + opt(p.stage === "Trial" ? ["Trial"].concat(L.stageChoices) : L.stageChoices, p.stage) + "</select>", true,
+            App.Trial.anyRunning(p) ? "Locked while a trial runs (Trial is set by Book trial, #94). It unlocks when the trial ends." : "New / Contacted / Negotiation. Trial is set by Book trial; Converted and Lost by their own actions.") : "") +
           fld("Inquiry type", '<select class="input" name="inquiryType">' + opt(L.inquiryTypes, p.inquiryType, true) + "</select>") +
           fld("Campaign", '<input class="input" name="campaign" value="' + esc(p.campaign || "") + '">') +
         "</div>" +
@@ -480,7 +492,7 @@
   }
   function saveDetails(p) {
     var f = drawer.querySelector("[data-details]"), v = {}, err = drawer.querySelector("[data-derr]");
-    Array.prototype.forEach.call(f.elements, function (el) { if (el.name) v[el.name] = el.value.trim(); });
+    Array.prototype.forEach.call(f.elements, function (el) { if (el.name && !el.disabled) v[el.name] = el.value.trim(); });
     f.querySelectorAll(".invalid").forEach(function (x) { x.classList.remove("invalid"); });
     function fail(name, msg) { var el = f.elements[name]; if (el) { el.classList.add("invalid"); el.focus(); } err.innerHTML = msg; err.hidden = false; }
     if (!v.name) return fail("name", "Name is required.");
@@ -667,6 +679,7 @@
       case "lost": App.Lead.markLost(p.id); break;
       case "reopen": App.Lead.reopen(p.id); break;
       case "convert": App.Convert.open(p.id); break;
+      case "trial": App.Trial.open(p.id); break;
       case "addFf": App.addFfId(p.id); break;
       case "goFob": S.tab = "membership"; render(); fobAction("assign"); break;
       case "issue": App.issueItem(p.id, t.dataset.item); break;

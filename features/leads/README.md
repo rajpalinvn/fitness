@@ -117,5 +117,8 @@ Full defaults: docs/permissions.md.
 | Rajesh Kumar | Lost · Price high (Lost card / filter only) |
 | Fatima Shaikh | Meta badge + Unassigned + Assign button |
 
+### Trials on the list (#94)
+Stage cell shows one line per running trial ("Free PT trial · ends in 1 day · Pending") or the badge "Trial ended". Stage is set to Trial by Book trial; the Details form dropdown offers New / Contacted / Negotiation and is locked while a trial runs.
+
 ## 5. Status
 Ready for review

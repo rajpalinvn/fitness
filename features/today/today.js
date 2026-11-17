@@ -46,6 +46,8 @@
       .sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
   }
   function pendingRole() { return App.can("clients.view") !== "None"; }
+  function approvalsRole() { return App.can("trials.approve") !== "None"; }
+  function approvals() { return approvalsRole() ? App.Trial.pendingApprovals().filter(function (x) { return inTopBranch(x.p); }) : []; }
   function pending() {
     if (!pendingRole()) return [];
     return App.visibleClients(App.state.branchId).filter(function (p) { return App.profilePending(p).length; })
@@ -98,6 +100,16 @@
         return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : ""),
           sub: esc(p.source) + " · " + esc(App.branchName(p.branchId)) + " · received " + esc(App.fmtShortWhen(p.createdAt)) + ", " + esc(App.fmtTime(p.createdAt)),
           status: '<span class="badge badge-warning">Unassigned</span>', action: btn("assign", "Assign", { p: p.id }) });
+      } },
+    { k: "approvals", area: "v", t: "Trial approvals pending", ic: "clock", tone: "amber", get: approvals, words: "trials asked from you", show: approvalsRole,
+      empty: "No trial approvals waiting", allToast: "All pending approvals are listed here",
+      row: function (x) {
+        var t = x.t, p = x.p;
+        return row({ open: p.id, title: esc(p.name) + ' <span class="muted">· ' + esc(t.package) + "</span>",
+          sub: esc(t.type) + (t.kind === "paid" ? " · " + App.fmtMoney(t.paid) + " paid" : " · free") + " · " + esc(App.fmtDate(t.from)) + " · " + esc(App.branchName(p.branchId)) + " · booked by " + esc(App.firstName(App.byId(D.users, t.bookedByUserId))) +
+            (t.comment ? '<div class="cell-sub">“' + esc(t.comment) + "”</div>" : ""),
+          status: App.Trial.approvalBadge(t) + (t.approverUserId ? '<div class="cell-sub">asked from ' + esc(App.firstName(App.byId(D.users, t.approverUserId))) + "</div>" : ""),
+          action: btn("review", "Review", { tr: t.id }) });
       } },
     { k: "pending", area: "p", t: "Clients with pending items", ic: "key", tone: "amber", get: pending, words: "FF ID, key fob, free item or payment",
       empty: "No pending items", all: "../clients/index.html?view=attention", show: pendingRole,
@@ -180,6 +192,7 @@
       if (d.act === "fob") App.assignFob(d.p);
       if (d.act === "issue") App.issueItem(d.p, d.item);
       if (d.act === "pay") App.collectPayment(d.p, d.item);
+      if (d.act === "review") App.Trial.review(d.tr);
       if (d.act === "done") {
         var t = App.byId(D.workTasks, d.t); t.status = "Done"; t.doneAt = new Date().toISOString();
         if (t.personId) App.addTimeline(t.personId, "milestone", App.firstName(App.me()) + " finished task · " + t.title);

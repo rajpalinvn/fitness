@@ -1,0 +1,225 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// Book trial, limits, approval, Trial ended, paid trial adjust (decision #94).
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", TODAY = ROOT + "features/today/index.html", PK = ROOT + "features/settings/packages.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function key(k) { (Dc().activeElement || Dc().body).dispatchEvent(new (W().KeyboardEvent)("keydown", { key: k, bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function pickSel(id, val) { click(q('[data-dd="sel-' + id + '"]')); click(q('[data-sel="' + id + '"][data-val="' + val + '"]')); }
+function M() { return q("#trialMode"); } function mtext() { return M() ? M().innerText : ""; }
+function next() { click(q('#trialMode [data-tr="next"]')); } function finish() { click(q('#trialMode [data-tr="finish"]')); }
+function D() { return W().DUMMY; } function person(id) { return W().App.byId(D().people, id); } function T() { return W().App.Trial; }
+function openP(id) { W().App.openProfile(id, { state: "normal" }); }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function card(id) { return q('[data-tpkg="' + id + '"]'); }
+
+load(LEADS, function () {
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  ["mock.perms", "mock.settings"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  load(LEADS, function () {
+    step("who gets the button", function () {
+      openP("p1"); ok("open lead: Book trial next to Convert", !!q('[data-pd="trial"]') && !q('[data-pd="trial"]').disabled && !!q('[data-pd="convert"]'));
+      openP("p3"); ok("lost lead: disabled 'Re-open the lead first'", !!q('[data-pd="trial"]') && q('[data-pd="trial"]').disabled && /Re-open the lead first/.test(q('[data-pd="trial"]').title));
+      openP("p7"); ok("active client: Book trial shown", !!q('[data-pd="trial"]') && !q('[data-pd="trial"]').disabled);
+      openP("p21"); ok("expired client: no button", !q('[data-pd="trial"]'));
+      W().App.setRole("Trainer"); openP("p1"); ok("no trials.book -> no button", !q('[data-pd="trial"]')); W().App.setRole("CEO");
+    });
+    step("packages by person type", function () {
+      openP("p1"); click(q('[data-pd="trial"]'));
+      ok("Book trial work mode opens in the drawer", !!M() && /Book trial/.test(text(".dm-crumb")));
+      ok("lead: Membership trials + PT trials with 'requires membership' OFF; clients-only PT trial hidden", !!card("pk1") && !!card("pk2") && !!card("pk19") && !card("pk20") && /Membership trials/.test(mtext()) && /PT trials/.test(mtext()));
+      ok("no Premium PT, no non-trial packages", !card("pk17") && !card("pk7"));
+      key("Escape");
+      openP("p7"); click(q('[data-pd="trial"]'));
+      ok("active client: PT trials only (ON and OFF), no membership trials", !!card("pk19") && !!card("pk20") && !card("pk1") && !card("pk2") && /clients only/.test(card("pk20").textContent));
+      key("Escape");
+    });
+    step("free-trial limits per type, by mobile", function () {
+      openP("p26"); click(q('[data-pd="trial"]'));
+      ok("Ritika: 2 of 2 membership free trials used -> free membership trial disabled with the reason", card("pk1").disabled && /2 of 2 free membership trials used/.test(card("pk1").textContent));
+      ok("paid membership trials still allowed (unlimited, count shown)", !card("pk2").disabled && /3rd membership trial/.test(card("pk2").textContent));
+      ok("free PT trial still allowed (limits per type)", !card("pk19").disabled && /0 of 2 free PT trials used/.test(card("pk19").textContent));
+      key("Escape");
+      openP("p5"); click(q('[data-pd="trial"]'));
+      ok("Ishaan: membership trial running -> membership trials disabled 'already running'", card("pk1").disabled && /already running/.test(card("pk1").textContent) && card("pk2").disabled);
+      ok("Ishaan: PT trial still bookable", !card("pk19").disabled);
+      key("Escape");
+      openP("p25"); click(q('[data-pd="trial"]'));
+      ok("Kunal: membership AND PT trial running -> both types disabled", card("pk1").disabled && card("pk19").disabled);
+      key("Escape");
+      // branch limit: Divya's duplicate-mobile check is not needed; use the setting instead
+      W().App.Perm.saveSettings({ freeTrialsPerPerson: 3, freeTrialsPerBranch: 1 });
+      openP("p26"); click(q('[data-pd="trial"]'));
+      ok("per branch: 1 free membership trial already at Sec 31 -> disabled with the branch reason", card("pk1").disabled && /1 free membership trial already at Sec 31/.test(card("pk1").textContent));
+      W().App.Perm.resetSettings(); key("Escape");
+      ok("counted by mobile: Trial.freeUsed uses every record with the same mobile", T().freeUsed(person("p26"), "Membership") === 2 && T().freeUsed(person("p26"), "PT") === 0);
+    });
+    step("book a free PT trial for Ritika: approval required fields", function () {
+      openP("p26"); click(q('[data-pd="trial"]'));
+      next(); ok("package required", /Choose a trial package/.test(mtext()));
+      click(card("pk19"));
+      ok("2nd-trial warning counts the same type only (PT: no warning)", !/This is their/.test(mtext()));
+      next(); ok("dates step: end = start", /Ends/.test(mtext()) && /start day included/.test(mtext()) && !q("#trialMode .cv-bill [data-total]"));
+      next(); ok("approval step: comment + 'Approval asked from' (Sec 31: Karan SM, Sunita CM, Vikram RM; never CEO)", !!q("#trComment") && /Karan Malhotra/.test(q("#trApprover").textContent) && /Sunita Iyer/.test(q("#trApprover").textContent) && /Vikram Rao/.test(q("#trApprover").textContent) && !/Anita Kapoor/.test(q("#trApprover").textContent));
+      finish(); ok("comment and approver required", /A comment is required/.test(mtext()) && /Choose who approval is asked from/.test(mtext()));
+      type("#trComment", "Wants a PT taste"); pickSel("trApprover", "u5");
+      ok("free trial: button = Book trial (no payment step)", /Book trial/.test(text('#trialMode [data-tr="finish"]')) && !qa("#trialMode .step")[3] || !/Payment/.test(text("#trialMode .stepper")));
+      finish();
+      var p = person("p26"), t = p.trials[p.trials.length - 1];
+      ok("trial record: PT, free, Pending, asked from Karan; stage -> Trial", t.type === "PT" && t.kind === "free" && t.approval === "Pending" && t.approverUserId === "u5" && p.stage === "Trial");
+      ok("timeline + notification to the approver", D().timeline.some(function (x) { return x.personId === "p26" && /Free PT trial booked · PT Trial Session/.test(x.text) && /approval asked from Karan/.test(x.text); }) && D().notifications.some(function (n) { return n.trialId === t.id && n.forUserId === "u5"; }));
+      ok("done screen shows Approval pending", /Approval pending/.test(mtext()));
+      click(q('#trialMode [data-tr="done"]'));
+      ok("profile: PT trial badge + Approval pending; NEXT STEP trial line", /PT trial/.test(text(".pd-badges")) && /Approval pending/.test(text(".pd-badges")) && /Free PT trial · ends/.test(text(".next-step")));
+      ok("no bad text", !badText(), badText());
+    });
+    step("paid trial: full amount, no discount, no items; 2nd-trial warning", function () {
+      openP("p1"); click(q('[data-pd="trial"]')); click(card("pk2"));
+      ok("bill: total ₹800 in full, no discount / items", /₹800/.test(text("#trialMode [data-total]")) && /No discount, no items, no partial payment/.test(mtext()) && !q("#cvDisc") && !q("[data-x-add]"));
+      next(); next(); type("#trComment", "Try before Annual"); pickSel("trApprover", "u4"); next();
+      ok("payment step: full amount, method + reference", /Payment · full amount/.test(mtext()) && /₹800/.test(mtext()) && !!q("#trMethod"));
+      pickSel("trMethod", "UPI"); finish(); ok("reference required for UPI", /Reference no. is needed/.test(mtext()));
+      type("#trRef", "UPI-1"); finish();
+      var p = person("p1"), t = p.trials[p.trials.length - 1];
+      ok("paid trial saved: paid in full with a receipt, approval Pending (Sunita)", t.kind === "paid" && t.paid === 800 && /^S31-/.test(t.receiptNo) && t.approval === "Pending" && t.approverUserId === "u4" && p.stage === "Trial");
+      click(q('#trialMode [data-tr="done"]'));
+      openP("p1"); click(q('[data-pd="trial"]'));
+      ok("membership trials now 'already running'; PT trial card shows the warning only after picking", card("pk1").disabled && /already running/.test(card("pk1").textContent));
+      key("Escape");
+      openP("p5"); click(q('[data-pd="trial"]')); click(card("pk19"));
+      ok("Ishaan picks a PT trial: no PT history -> no warning (types counted separately)", !/This is their/.test(mtext()));
+      key("Escape");
+      openP("p23"); click(q('[data-pd="trial"]')); click(card("pk2"));
+      ok("Ira (1 ended membership trial): '2nd membership trial' warning + history", /This is their 2nd membership trial/.test(mtext()) && /Trial Paid 7 Days/.test(text("#trialMode .trial-hist")) && /Approved/.test(text("#trialMode .trial-hist")));
+      key("Escape");
+    });
+    step("no approver available (Golf Course)", function () {
+      openP("p27"); ok("Mohit: badge No approver available", /No approver available/.test(text(".pd-badges")));
+      var p = person("p12"); // Rohit is a client at Sec 31; use a Golf Course lead instead
+      openP("p11"); click(q('[data-pd="trial"]')); click(card("pk19")); next(); next();
+      ok("approval step: no dropdown, booking not blocked", !q("#trApprover") && /No approver available at Golf Course/.test(mtext()));
+      type("#trComment", "No manager here"); finish();
+      var t = person("p11").trials.slice(-1)[0];
+      ok("booked with status 'No approver available'", t.approval === "No approver available" && t.approverUserId === null);
+      click(q('#trialMode [data-tr="done"]'));
+    });
+    step("stage dropdown locked while a trial runs; re-open rule", function () {
+      openP("p5"); click(q('[data-tab-k="details"]')); click(q('[data-pd="edit"]'));
+      var sel = q('select[name="stage"]');
+      ok("Ishaan (running trial): stage select disabled + hint", sel.disabled && /Locked while a trial runs/.test(text(".details-form")));
+      click(q('[data-pd="cancelEdit"]'));
+      openP("p10"); click(q('[data-tab-k="details"]')); click(q('[data-pd="edit"]'));
+      var opts = Array.prototype.map.call(q('select[name="stage"]').options, function (o) { return o.value; });
+      ok("no trial: stage options New / Contacted / Negotiation only", opts.join() === "New,Contacted,Negotiation" && !q('select[name="stage"]').disabled, opts.join());
+      click(q('[data-pd="cancelEdit"]'));
+      openP("p23"); click(q('[data-tab-k="details"]')); click(q('[data-pd="edit"]'));
+      ok("Ira (trial ended): unlocked, current Trial shown + the 3 choices", !q('select[name="stage"]').disabled && q('select[name="stage"]').value === "Trial");
+      click(q('[data-pd="cancelEdit"]'));
+      // L24: Lost from Trial with no running trial -> Negotiation
+      var ira = person("p23"); ira.stageBeforeLost = "Trial"; ira.stage = "Lost"; ira.lostReason = "Price high";
+      openP("p23"); click(q('[data-pd="reopen"]'));
+      ok("re-open dialog says Negotiation (L24)", /back to Negotiation/.test(text("#reopenModal")));
+      click(q("#reopenModal [data-save]")); ok("re-opened to Negotiation", person("p23").stage === "Negotiation"); key("Escape");
+      ira.stage = "Trial"; ira.reopenedAt = null;
+    });
+    step("Trial ended follow-up (system, on load)", function () {
+      var fu = D().followUps.filter(function (f) { return f.note === "Trial ended · discuss plans"; });
+      var ira = person("p23").trials[0];
+      ok("Ira already had an open follow-up on/after the end date -> reused, none created", ira.endedFollowUpId === "f11c" && !fu.some(function (f) { return f.personId === "p23"; }));
+      var p = person("p26"); p.trials.push({ id: "trX", type: "Membership", kind: "paid", packageId: "pk2", package: "Trial Paid 7 Days", from: new Date(Date.now() - 9 * 864e5).toISOString(), to: new Date(Date.now() - 1 * 864e5).toISOString(), price: 800, paid: 800, branchId: "b1", bookedByUserId: "u6", bookedAt: new Date().toISOString(), comment: "x", approverUserId: "u5", approval: "Approved" });
+      D().followUps.filter(function (f) { return f.personId === "p26" && f.status === "Open"; }).forEach(function (f) { f.status = "Done"; });
+      var made = T().ensureEndedFollowUps();
+      var f2 = D().followUps.filter(function (f) { return f.personId === "p26" && f.note === "Trial ended · discuss plans"; })[0];
+      ok("ended trial with no open follow-up -> 'Trial ended · discuss plans' for the owner on the end date, any time", made === 1 && !!f2 && f2.ownerUserId === "u6" && f2.dueTime === null && f2.dueDate === p.trials.slice(-1)[0].to.slice(0, 10) && p.trials.slice(-1)[0].endedFollowUpId === f2.id);
+      ok("created once", T().ensureEndedFollowUps() === 0);
+    });
+    load(TODAY, function () {
+      step("approvals on Today (CEO sees all)", function () {
+        ok("section 'Trial approvals pending' with Ishaan, Ananya, Kunal (membership), Mohit (no approver)", !!q("#sec-approvals") && /Ishaan Singh/.test(text("#sec-approvals")) && /Ananya Desai/.test(text("#sec-approvals")) && /Mohit Jain/.test(text("#sec-approvals")) && /No approver available/.test(text("#sec-approvals")));
+        var row = Array.prototype.find.call(qa("#sec-approvals .today-row"), function (r) { return /Ananya/.test(r.textContent); });
+        click(row.querySelector('[data-act="review"]'));
+        ok("review modal: trial details + Approve / Reject", q("#trialReviewModal").classList.contains("open") && /Trial Paid 7 Days/.test(text("#trialReviewModal")) && !!q('[data-decide="Rejected"]'));
+        click(q("#trialReviewModal [data-save]")); ok("decision required", !q("#trialReviewModal [data-derr]").hidden);
+        click(q('[data-decide="Rejected"]')); click(q("#trialReviewModal [data-save]")); ok("remark required when rejecting", !q("#trialReviewModal [data-rerr]").hidden);
+        q("#trRemark").value = "Trial already used elsewhere"; click(q("#trialReviewModal [data-save]"));
+        var t = person("p6").trials[0];
+        ok("Rejected recorded; trial keeps running", t.approval === "Rejected" && t.approvalRemark === "Trial already used elsewhere" && T().isRunning(t) && !/Ananya Desai/.test(text("#sec-approvals")));
+        ok("timeline + notification to the booker", D().timeline.some(function (x) { return x.personId === "p6" && /Trial approval · Rejected by Anita/.test(x.text); }) && D().notifications.some(function (n) { return /Trial rejected by Anita: Ananya/.test(n.text); }));
+      });
+      step("approver scope", function () {
+        W().App.setRole("Sales Manager"); W().App.setBranch("b1");
+        ok("Karan (SM, Sec 31): only trials asked from him (Ishaan, Kunal), not Mohit", /Ishaan Singh/.test(text("#sec-approvals")) && !/Mohit Jain/.test(text("#sec-approvals")));
+        W().App.setRole("Sales Executive");
+        ok("Sales Executive: no approvals section", !q("#sec-approvals"));
+        W().App.setRole("CEO"); W().App.setBranch("all");
+        ok("no bad text", !badText(), badText());
+      });
+      load(LEADS, function () {
+        step("paid trial adjust in Convert", function () {
+          openP("p6"); click(q('[data-pd="convert"]')); click(q('#sellMode [data-cv="next"]')); click(q('[data-pkg="pk5"]'));
+          ok("Ananya: running paid trial -> adjust line in the bill, −₹800, total ₹7,200", /Paid membership trial · Trial Paid 7 Days/.test(text(".cv-bill")) && /− ₹800/.test(text(".cv-bill")) && /₹7,200/.test(text("#sellMode [data-total]")), text("#sellMode [data-total]"));
+          click(q('#sellMode [data-cv="next"]'));
+          ok("step 3: adjust ticked + locked; start = trial start, disabled, 'set by system'", q('[data-adjust="adjustMem"]').checked && q('[data-adjust="adjustMem"]').disabled && q("#cvStart").disabled && !!q("[data-start-locked]") && q("#cvStart").value === person("p6").trials[0].from.slice(0, 10));
+          click(q('#sellMode [data-cv="next"]')); ok("no back-date error for the system-set start", !/Back dates/.test(text("#sellMode")) && !!q("#cvFf"));
+          q("#cvFf").value = "FF-90020"; q("#cvFf").dispatchEvent(new (W().Event)("input", { bubbles: true })); click(q('#sellMode [data-fob=""]')); click(q('#sellMode [data-cv="next"]'));
+          ok("summary lists the adjust", /Paid membership trial adjusted/.test(text("#sellMode")) && /start = trial start/.test(text("#sellMode")));
+          click(q('#sellMode [data-cv="next"]')); ok("payment prefilled with the adjusted total ₹7,200", q("#payA0").value === "7200");
+          click(q('#sellMode [data-cv="finish"]'));
+          var p = person("p6");
+          ok("converted: final price ₹7,200 with trialAdjust; trial ended at conversion; start = trial start", p.kind === "Client" && p.membership.finalPrice === 7200 && p.membership.trialAdjust.amount === 800 && !!p.trials[0].adjustedAt && W().App.daysFromToday(p.membership.start) === W().App.daysFromToday(p.trials[0].from));
+          click(q('#sellMode [data-cv="done"]'));
+        });
+        step("adjust after the trial ended: buffer + permission", function () {
+          function iraConvert() { openP("p23"); click(q('[data-pd="convert"]')); pickSel("cvGender", "Female"); click(q('#sellMode [data-cv="next"]')); click(q('[data-pkg="pk5"]')); click(q('#sellMode [data-cv="next"]')); }
+          iraConvert();
+          ok("Ira (ended 4 days ago, CEO has the row): optional adjust, unticked, start = today", !!q('[data-adjust="adjustMem"]') && !q('[data-adjust="adjustMem"]').checked && !q('[data-adjust="adjustMem"]').disabled && /within the 7-day buffer/.test(text("#sellMode")) && !q("#cvStart").disabled);
+          click(q('[data-adjust="adjustMem"]'));
+          ok("ticked: −₹800 in the bill, start stays today", /− ₹800/.test(text(".cv-bill")) && /₹7,200/.test(text("#sellMode [data-total]")) && !q("#cvStart").disabled);
+          key("Escape");
+          W().App.setRole("Sales Executive"); W().App.setBranch("b2"); W().App.setRole("Sales Manager");
+          iraConvert();
+          ok("Sales Manager (no adjustAfterEnd): no checkbox, one info line why", !q('[data-adjust="adjustMem"]') && /only roles with/.test(text('[data-adj-info="Membership"]')));
+          key("Escape"); W().App.setRole("CEO"); W().App.setBranch("all");
+          var ira = person("p23").trials[0], keep = ira.to; ira.to = new Date(Date.now() - 12 * 864e5).toISOString();
+          iraConvert();
+          ok("ended 12 days ago: past the buffer, no adjust", !q('[data-adjust="adjustMem"]') && /past the 7-day buffer/.test(text('[data-adj-info="Membership"]')));
+          key("Escape"); ira.to = keep;
+          openP("p5"); click(q('[data-pd="convert"]')); click(q('#sellMode [data-cv="next"]')); click(q('[data-pkg="pk5"]')); click(q('#sellMode [data-cv="next"]'));
+          ok("Ishaan (free trial running): no adjust at all", !q('[data-adjust]') && !q("[data-adj-info]"));
+          key("Escape");
+        });
+        step("PT paid trial adjust only with Premium PT", function () {
+          var p = person("p1");
+          p.trials.push({ id: "trM", type: "Membership", kind: "paid", packageId: "pk2", package: "Trial Paid 7 Days", from: new Date(Date.now() - 864e5).toISOString(), to: new Date(Date.now() + 5 * 864e5).toISOString(), price: 800, paid: 800, branchId: "b1", bookedByUserId: "u6", bookedAt: new Date().toISOString(), comment: "x", approverUserId: "u4", approval: "Approved" });
+          p.trials.push({ id: "trPT", type: "PT", kind: "paid", packageId: "pk20", package: "PT Trial · 3 Sessions", from: new Date(Date.now() - 864e5).toISOString(), to: new Date(Date.now() + 3 * 864e5).toISOString(), price: 1500, paid: 1500, branchId: "b1", bookedByUserId: "u6", bookedAt: new Date().toISOString(), comment: "x", approverUserId: "u4", approval: "Approved" });
+          openP("p1"); click(q('[data-pd="convert"]')); click(q('#sellMode [data-cv="next"]')); click(q('[data-pkg="pk5"]')); click(q('#sellMode [data-cv="next"]'));
+          ok("Membership package: membership trial (₹800, running) locked; PT trial not offered", !!q('[data-adj-row="Membership"]') && !q('[data-adj-row="PT"]'));
+          click(q('#sellMode [data-cv="back"]')); if (!q('[data-pkg="pk17"]')) click(q('[data-acc="Premium PT"]')); click(q('[data-pkg="pk17"]'));
+          ok("Premium PT: both adjusts, −₹800 and −₹1,500, total ₹27,700", !!q('[data-adj="Membership"]') && !!q('[data-adj="PT"]') && /₹27,700/.test(text("#sellMode [data-total]")), text("#sellMode [data-total]"));
+          key("Escape");
+        });
+        load(PK, function () {
+          step("package form: PT trial 'requires membership' default OFF with the hint", function () {
+            click(q("#btnNew")); click(q('[data-seg="category"][data-val="PT"]'));
+            ok("PT (not trial): requires membership checked + locked", q('[data-f="requiresMembership"]').checked && q('[data-f="requiresMembership"]').disabled);
+            click(q('[data-seg="isTrial"][data-val="true"]'));
+            ok("PT trial: default OFF, editable, hint 'ON = clients only; OFF = leads and clients'", !q('[data-f="requiresMembership"]').checked && !q('[data-f="requiresMembership"]').disabled && /ON = clients only; OFF = leads and clients/.test(text("#pkgDrawer")));
+            ok("18 packages incl. 2 PT trials", D().packages.length === 18 && D().packages.filter(function (x) { return x.isTrial && x.category === "PT"; }).length === 2);
+            ok("settings labels say 'each trial type'", /each trial type/.test(D().settingDefs[0].label));
+          });
+          document.getElementById("out").textContent = out.join("\n");
+        });
+      });
+    });
+  });
+});
+</script></body></html>

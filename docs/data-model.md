@@ -17,7 +17,7 @@ and expected in the API. Renamed in round 6.
 |---|---|---|
 | Follow-up | `status` | Open / Done / Cancelled / Closed by system (decision #37). |
 | Follow-up | `closeReason`, `closedAt` | Only for Closed by system: Client converted / Lead lost / Client transferred. |
-| Person | `freeTrialCount` | Free trials taken (decision #39). |
+| Person | `trials` [] | Trial records (decision #94), see "Trials" below. Replaces `freeTrialCount` / `freeTrial`. |
 | Membership (sale line) | `discount`, `discountReason`, `finalPrice`, `salesRepUserId` | One sales rep per line (decision #36). |
 | Package | `category`, `subType`, `isTrial`, `people`, `days`, `sessions` | Membership / PT / Add-on. Locked after the first sale (`soldCount` > 0). |
 | Package | `priceHistory` [{ `price`, `from` }] | Price incl. GST from a date (`from` "YYYY-MM-DD"). |
@@ -74,7 +74,10 @@ Mockup names (`shared/data.js`) expected in the API. Not built yet; the screens 
 | AuditEntry (`audit`) | `tenantId`, `at`, `byUserId`, `tab` (Permissions / Settings values / Trainer types), `what`, `from`, `to` | Who, when, what, old → new (#96). Newest first. |
 | Setting (`settings`) | `key` → `value` | `freeTrialsPerPerson` 2, `freeTrialsPerBranch` 1, `paidTrialAdjustBufferDays` 7, `inactivityReleaseDays` 7, `releaseWarnDaysBefore` 1, `newLeadAssignment` Manual / RoundRobin (#96). |
 | Package | `category` adds **Premium PT**; `referenceMembershipPrice` (required for Premium PT) | At sale a Premium PT splits into a membership line (= reference price) and a PT line (= the rest) (#92). |
-| Trial sale line | `approvalStatus` (Pending / Approved / Rejected), `approverUserId`, `approvalComment` (booking comment), `approvalRemark`, `approvedAt` | Trial approval = pending reference (#94). Paid trial adjust: `adjustedTrialLineId` on the membership line. |
+| Trial (`person.trials[]`) | `id`, `type` (Membership / PT), `kind` (free / paid), `packageId`, `package`, `from`, `to`, `price`, `paid`, `receiptNo`, `payment` { method, ref }, `branchId`, `bookedByUserId`, `bookedAt`, `comment` (required), `approverUserId` (null = no approver available), `approval` (Pending / Approved / Rejected / No approver available), `approvalRemark`, `approvedAt`, `decidedByUserId`, `endedFollowUpId`, `adjustedAt`, `adjustedInto` (membership / pt) | One record per trial (#94). Limits per type by mobile. Real app: its own table keyed by person + tenant. |
+| Membership / PT sale line | `trialAdjust` { `trialId`, `amount` } | Paid trial adjusted into this line (#94); the trial gets `adjustedAt`. |
+| Follow-up | `bySystem` | "Trial ended · discuss plans" created by the system on the trial end date (#94). |
+| Notification | `forUserId`, `trialId` | Trial approval asked / decided (#94). |
 | Follow-up | `assigneeUserId` | Can differ from the lead's `ownerUserId` (#97). Default = owner. |
 | Lead (person) | `unassignedReason` (New / Released, null when owned), `releaseWarnedAt` | Unassigned when `ownerUserId` is null (#100). |
 | Follow-up / WorkTask | `closeReason` adds "Owner changed", "Released (inactive)" | #99, #100. |

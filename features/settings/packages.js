@@ -159,8 +159,8 @@
           var on = F.branchIds.indexOf(b.id) > -1;
           return '<button type="button" class="chip' + (on ? " selected" : "") + '" aria-pressed="' + on + '" data-pkbranch="' + b.id + '"' + dis("") + ">" + (on ? App.icon("check", "ico-xs") : "") + esc(b.name) + "</button>";
         }).join("") + "</div>" + A.err(errors, "branchIds") + "</div>" +
-        (prem ? "" : '<div class="field span-2"><label class="check"><input type="checkbox" data-f="requiresMembership"' + (F.requiresMembership ? " checked" : "") + dis("") + "> Requires an active membership</label>" +
-          '<span class="hint">' + (isPT ? "PT always needs an active paid membership." : "The client must have an active membership to buy this.") + "</span></div>") +
+        (prem ? "" : '<div class="field span-2"><label class="check"><input type="checkbox" data-f="requiresMembership"' + (F.requiresMembership ? " checked" : "") + (isPT && !F.isTrial ? " disabled checked" : dis("")) + "> Requires an active membership</label>" +
+          '<span class="hint">' + (isPT && F.isTrial ? "PT trial: ON = clients only; OFF = leads and clients (#94)." : isPT ? "PT always needs an active paid membership." : "The client must have an active membership to buy this.") + "</span></div>") +
         '<div class="field span-2">' + freeItemsHtml() + "</div>" +
         '<div class="field span-2"><label class="check"><input type="checkbox" data-f="active"' + (F.active ? " checked" : "") + dis("") + "> Active (can be sold)</label></div>" +
         '<div class="field span-2">' + historyTable() + "</div>" +
@@ -216,7 +216,7 @@
     var prem = F.category === "Premium PT", trial = F.category !== "Add-on" && !prem && F.isTrial;
     Object.assign(p, { name: F.name.trim(), category: F.category, subType: F.subType || null, isTrial: trial,
       people: F.category === "PT" ? Number(F.people) : (p.people || 1), days: F.category === "Add-on" ? null : Number(F.days),
-      sessions: hasSessions(F.category) ? Number(F.sessions) : null, taxCategoryId: F.taxCategoryId, requiresMembership: F.category === "PT" ? true : prem ? false : F.requiresMembership,
+      sessions: hasSessions(F.category) ? Number(F.sessions) : null, taxCategoryId: F.taxCategoryId, requiresMembership: F.category === "PT" ? (trial ? !!F.requiresMembership : true) : prem ? false : F.requiresMembership,
       branchIds: F.branchIds.slice(), audience: F.audience, active: F.active,
       freeItems: F.category === "Add-on" || trial ? [] : F.freeItems.map(function (f) { return { itemId: f.itemId, qty: Number(f.qty), rule: f.rule }; }) });
     if (newEntry) {
@@ -250,7 +250,7 @@
       var k = t.dataset.seg, v = t.dataset.val;
       F[k] = k === "isTrial" ? v === "true" : k === "people" ? Number(v) : v;
       if (k === "category") { F.subType = v === "Add-on" ? D.addOnKinds[0] : ""; if (v === "PT") F.requiresMembership = true; if (v === "Premium PT") F.requiresMembership = false; if (v !== "PT" && F.people === 2) F.people = 1; if (v === "Add-on" || v === "Premium PT") F.isTrial = false; }
-      if (k === "isTrial") { renderForm(); return; }
+      if (k === "isTrial") { if (F.category === "PT") F.requiresMembership = v !== "true"; renderForm(); return; }   // PT trial default: OFF (leads and clients)
       renderForm(); return;
     }
     if ((t = e.target.closest("[data-pkbranch]"))) { var i = F.branchIds.indexOf(t.dataset.pkbranch); if (i > -1) F.branchIds.splice(i, 1); else F.branchIds.push(t.dataset.pkbranch); renderForm(); return; }

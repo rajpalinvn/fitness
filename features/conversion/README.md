@@ -1,7 +1,7 @@
 # Convert to Client
 
 > **Real app rule:** the person becomes a client **only when the first payment of a Membership or Premium PT succeeds**
-> (decisions #79, #92). Trials (free or paid) are never sold here: they are booked with **Book trial** (c3) and the person stays a Lead (#93).
+> (decisions #79, #92). Trials (free or paid) are never sold here: they are booked with **Book trial** (below) and the person stays a Lead (#93).
 
 ## 1. Screens
 | Screen / part | File | Purpose |
@@ -31,7 +31,13 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
   Cancel (step 1), Esc or outside click return to the profile with the toast
   "Conversion not saved"; nothing is saved.
 - Trials are **not** here: the Package step offers Membership and Premium PT only (PT listed but disabled, #89) and says
-  'Trials are booked with "Book trial"'. **Until c3 there is no way to book a trial in the mockup.**
+  'Trials are booked with "Book trial"' (see the Book trial section at the end of this README).
+- **Paid trial adjust** (#94, step 3 "Paid trial adjust" + bill group "Paid trial adjusted"): a RUNNING paid membership trial →
+  "Paid membership trial ₹800 adjusted" ticked and **locked**, bill −₹800, start date = the trial's start (read-only, "Set by system";
+  the only back date, #41), the trial ends at conversion. Trial ENDED within the buffer (Settings value, default 7 days) and the
+  user has `trials.adjustAfterEnd` → the checkbox is optional, start = today. Beyond the buffer or without the permission → no
+  checkbox, one info line why. Free trials never. A running / ended paid **PT** trial is adjusted the same way only when the
+  package is **Premium PT** (into the PT line). Saved as `trialAdjust { trialId, amount }` on the line; the trial gets `adjustedAt`.
 - **Paid** → Summary **Next** → **Step 6 Payment** → **Save payment** (decision #79: "money taken = client";
   the person becomes a client when the first payment is saved) →
   - person `kind` = Client, stage Converted, next client no (CL-1003, CL-1004 …),
@@ -79,7 +85,8 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Sale type | derived from package | — | — | — | Paid (becomes a Client; next step Corporate entry). Premium PT: "Paid · becomes a Client with membership + PT". |
-| Start date | date | Yes | No | today | Today up to 30 days ahead; no back dates (#41). |
+| Paid trial adjust | checkbox per trial type | — | — | ticked + locked (running) / unticked (ended, in buffer, permitted) / absent | "Running paid membership trial · adjusted (locked) · membership start = trial start, set by system" / "ended N days ago · within the 7-day buffer" / "past the 7-day buffer, no adjust" / "only roles with 'Paid trial adjust after it ended' can adjust". |
+| Start date | date | Yes | No | today (running paid trial: trial start, disabled) | Today up to 30 days ahead; no back dates (#41) — the only exception is the system-set trial start. |
 | Ends | derived | — | — | — | Start + days − 1 ("365 days, start day included"). Overlap check (#41) applies to clients; a lead has no membership yet. |
 
 ### Step 4 · Corporate entry: FF ID & key fob
@@ -141,12 +148,75 @@ Leads can't buy a PT-only package (needs an active membership), so that dummy ca
 | Aarav Patel (overdue) | Paid Annual with 10% discount + fob KF-S31-0013; FF ID required; overdue follow-up closed by system. |
 | Sneha Reddy (no email) | WhatsApp-receipts hint; Aarav's email or FF-20702 blocked; **Premium PT "Quarterly + 12 PT"** → 2 lines ₹8,000 + ₹22,000, 10% off split ₹800 / ₹2,200, two sales reps, client with membership + PT. |
 | Ishaan Singh (free trial, 2 before) | T-shirt "(already received)"; no trial packages offered. |
-| Ananya Desai / Ira Kapoor | Leads on a paid trial (running / ended): NEXT STEP "Paid trial · ends in N days", badge "Trial ended". Convert offered (adjust comes in c3). |
+| Ananya Desai (running paid trial) | Convert → adjust ticked + locked, −₹800, start = trial start (set by system), total ₹7,200 on Quarterly. |
+| Ira Kapoor (paid trial ended 4 days ago) | CEO / Club Manager: optional adjust (within the 7-day buffer), start = today. Sales Manager: info line only. |
+| Ishaan Singh (free trial running) | No adjust at all. |
 | Fatima Shaikh (Meta, unassigned) | Gender required; converting user becomes owner; external ID kept; Key fob pending. |
 | Nisha Agarwal (Sec 65) | Only 1 fob in Sec 65 stock. |
 | Simran Kaur (Golf Course) | Fobs from Golf Course stock. |
 | Rajesh Kumar (Lost) | No Convert button. |
 | Vivaan / Divya (clients) | No Convert button. |
 
+---
+
+# Book trial (`shared/trial.js`, decision #94)
+Work mode in the profile drawer (`App.DrawerMode`, key `trial`), like Convert. Button **Book trial** sits under Convert to Client on a lead and in the
+action area of an active client. Permission `trials.book` (scope). Source of every rule: #94, notes v3 §1 Trial, L1–L7, L1b, L1c, L23–L24.
+
+## 1. Screens
+| Part | Purpose |
+|---|---|
+| Book trial mode: Package → Dates → Approval → Payment (paid trial only) → Done | Books one trial for the person; trial summary on the right. |
+| Review modal (`App.Trial.review`) | Approver marks Approved / Rejected + remark. Opened from Today "Trial approvals pending". |
+| Today section "Trial approvals pending" | For users with `trials.approve`: trials asked from them; CEO sees all (incl. "No approver available"). |
+| Profile | Badges "Membership trial" / "PT trial" + approval, or "Trial ended"; NEXT STEP trial lines; Stage dropdown rules. |
+
+## 2. Flow
+- **Who gets which**: open lead = Membership trials + PT trials whose package has "Requires an active membership" OFF; active client = PT trials (ON and OFF);
+  expired client = no button; lost lead = disabled "Re-open the lead first". Premium PT has no trial.
+- **Package**: cards in two groups (Membership trials / PT trials); active trial packages sold at the person's branch. A card is disabled with the reason when a
+  trial of that type is already running ("A membership trial is already running"), or the free limit is reached ("2 of 2 free membership trials used",
+  "1 free membership trial already at Sec 31"). Limits = Settings values, per trial type, counted by mobile across all records / branches, same for every role,
+  no override. Paid trials unlimited ("3rd membership trial"). From the 2nd trial of the same type: amber warning + trial history.
+- **Dates**: start today..+30, end = start + days − 1.
+- **Approval**: comment required + "Approval asked from" (SM / CM / RM of the person's branch whose role has `trials.approve`; never the CEO). No approver in the
+  branch → booking not blocked, status "No approver available".
+- **Payment** (paid trial only): full amount at once, method + reference (except Cash), receipt no.; no discount, items, partial or balance.
+- **Book**: trial record added (`p.trials[]`, approval Pending), package sold count +1, lead stage = **Trial** (automatic), timeline
+  "Paid membership trial booked · Trial Paid 7 Days · 7 days from today · ₹800 paid in full (UPI, receipt S31-000124) · approval asked from Karan",
+  notification to the approver, then the shared "Set next follow-up" modal if the person has no open follow-up.
+- **Approval**: Today → Review → Approve / Reject (remark required to reject) → recorded on the trial, timeline, notification to the booker. Rejected only
+  recorded; the trial keeps running.
+- **Trial ended**: badge "Trial ended"; the system creates the owner follow-up "Trial ended · discuss plans" on the end date (due any time) unless an open
+  follow-up exists on / after that date. **Mockup-only: created on page load** (`App.Trial.ensureEndedFollowUps`), once per trial.
+- **Stage dropdown** (Details tab): New / Contacted / Negotiation (Trial shown read-only while current); disabled while ANY trial runs; unlocked after it ends.
+  Re-open (L24): previous stage Trial with no running trial → Negotiation.
+
+## 3. Field table
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Trial package | cards | Yes | — | — | "Choose a trial package." Disabled cards carry the reason. |
+| Start date | date | Yes | — | today | Today..+30 days; "Back dates are not allowed." |
+| Comment | textarea | Yes | — | — | "A comment is required." |
+| Approval asked from | select (SM / CM / RM of the branch with `trials.approve`) | Yes when any exists | — | the only one, if one | "Choose who approval is asked from." |
+| Method / Reference | select / text | paid trial | — | first active method | Reference required unless the method says not. |
+| Decision (review) | Approve / Reject | Yes | — | — | "Choose Approve or Reject." Remark required to reject. |
+
+## 4. States
+- Validation as above; no packages → "No trial packages are sold at <branch> for this person."; a running trial of the type → card disabled.
+- Done screen with the approval badge; toast "<Type> trial booked for <name>"; cancel → toast "Trial not booked".
+- Today section empty: "No trial approvals waiting".
+
+### Dummy edge cases
+| Person | Shows |
+|---|---|
+| Ishaan Singh (Sec 31) | 2nd free membership trial running, approval Pending (Karan); 1st was Rejected. Membership cards "already running"; PT trial still open. |
+| Kunal Bose (Sec 31) | Membership AND PT trial running together (one per type). |
+| Ritika Sen (Sec 31) | 2 of 2 free membership trials used (Sec 31 + Sec 65) → free membership trial disabled; paid ones and the free PT trial allowed. |
+| Mohit Jain (Golf Course) | Paid 15-day trial, "No approver available" (no SM / CM / RM at Golf Course) → CEO's pending list. |
+| Ananya Desai / Ira Kapoor (Sec 65) | Paid trial running / ended 4 days ago (approver Vikram, RM). |
+| Divya Nair (client) | Used 2 membership free trials as a lead; can still book a free PT trial. |
+| Vivaan Joshi (client) | Books PT trials incl. "PT Trial · 3 Sessions" (clients only). |
+
 ## 5. Status
-Ready for review · **Book trial comes in c3** (until then no trial can be booked in the mockup; the paid-trial adjust on Convert also comes in c3).
+Ready for review

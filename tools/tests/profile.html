@@ -109,7 +109,7 @@ load(LEADS, function () {
         ok("no Convert on client", !q('[data-pd="convert"]'));
         click(q('[data-tab-k="membership"]'));
         ok("fob assigned shown", /KF-S31-0021/.test(text(".pd-scroll")));
-        openP("p6"); ok("Ananya is a lead on a paid trial: Convert available, NEXT STEP trial line", !!q('[data-pd="convert"]') && /Paid trial · ends in/.test(text(".next-step")));
+        openP("p6"); ok("Ananya is a lead on a paid trial: Convert available, NEXT STEP trial line", !!q('[data-pd="convert"]') && /Paid membership trial · ends in/.test(text(".next-step")));
         openP("p7"); click(q('[data-tab-k="membership"]'));
         ok("Vivaan green + fob actions", q(".pd-left .next-step").classList.contains("green") && !!q('[data-pd="fobReturn"]') && !!q('[data-pd="fobLost"]') && !!q('[data-pd="fobReplace"]'));
         var before = D().keyFobs.filter(function (k) { return k.branchId === "b1" && k.status === "In stock"; }).length;
