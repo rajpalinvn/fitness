@@ -56,6 +56,8 @@
       <div class="field"><label for="fFrom">Created from</label><input class="input" type="date" id="fFrom"></div>
       <div class="field"><label for="fTo">Created to</label><input class="input" type="date" id="fTo"></div>
       <div class="field"><label><input type="checkbox" id="fSynced"> Synced leads only</label></div>
+      <div class="field" id="fReasonWrap"><label for="fReason">Unassigned reason</label><select class="input" id="fReason"></select></div>
+      <div class="field"><label><input type="checkbox" id="fTransferred"> Transferred in · needs follow-up person</label></div>
     </div>
 
     <div class="active-filters" id="activeFilters"></div>
@@ -64,6 +66,8 @@
       <strong>Couldn't load leads.</strong> Please check your connection.
       <button class="btn btn-sm" id="btnRetry">Retry</button>
     </div>
+
+    <div class="bulk-bar" id="bulkBar" hidden></div>
 
     <div class="table-wrap">
       <table class="table">

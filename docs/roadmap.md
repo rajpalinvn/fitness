@@ -13,14 +13,14 @@ feature README. Rules: `docs/decisions.md`. Questions: `docs/open-questions.md`.
 - Convert to Client: Sell mode in the drawer (details, package, sale & start, key fob, summary).
 - Settings: Display, Packages, Items & stock (items, accessory stock, key fobs, tax categories), Sales rules.
 - Settings › Roles & permissions: grid (8 tenant roles × 24 actions), settings values, roles, trainer types, audit log (#95, #96, #102).
+- **Lead flow update** (#92–#101), done in c2–c4: Premium PT, Convert = Membership / Premium PT, Book trial (limits, approval, Trial ended, paid trial adjust); c4 ownership: follow-up assigned to other staff ("Follow-up from <owner>", "Own" scope incl. assignee), owner-change dialog (single, bulk, client, re-open), move to another branch ("Transferred in" + pick person), inactivity release ("Releases tomorrow", Unassigned · Released) and "Take this lead".
 - Test runner: `bash tools/run-tests.sh`.
 
 ## Next
-1. **Lead flow update** (#92–#101) — IN PROGRESS. Done (c2): Premium PT package, Convert = Membership / Premium PT only with FF ID required, trials out of Convert, Clients list without "Paid trial". Done (c3): Book trial (membership / PT trial groups by person type, free-trial limits per type, approval as a pending reference with Today "Trial approvals pending" + review modal, "Trial ended" + system follow-up, stage dropdown New / Contacted / Negotiation locked while a trial runs, re-open rule L24, paid trial adjust in Convert: locked / optional within the buffer / none). Remaining (c4+): owner change dialog, branch move, follow-up to others ("Follow-up from <owner>", "Own" scope incl. assignee), inactivity release + Unassigned reasons + Take this lead.
-2. **Tasks**: my / team tasks, task modal (title, assigned to, due, priority, person), Open / Done / Cancelled.
-3. **Follow-ups list**: all open follow-ups by date, owner, type; "View all" target for Due today.
-4. **Renewals**: "Renew" action on Clients and the profile (drawer work mode), automatic renewal follow-ups, and a Today section "Expiring this week".
-5. **Global search (real)**: search leads, clients, FF ID, key fob, mobile from the top bar with results grouped by type.
+1. **Tasks**: my / team tasks, task modal (title, assigned to, due, priority, person), Open / Done / Cancelled.
+2. **Follow-ups list**: all open follow-ups by date, owner, type; "View all" target for Due today.
+3. **Renewals**: "Renew" action on Clients and the profile (drawer work mode), automatic renewal follow-ups, and a Today section "Expiring this week". Requirement (#94, c4): the client Sell mode also offers the paid PT trial adjust on a NORMAL PT sale, only for a client with a paid membership (same running / buffer / permission rules); a lead without membership adjusts a PT trial only by buying Premium PT.
+4. **Global search (real)**: search leads, clients, FF ID, key fob, mobile from the top bar with results grouped by type.
 
 ## Later
 - **Upgrade** (membership and PT, #44), opens in the drawer work mode (#64).

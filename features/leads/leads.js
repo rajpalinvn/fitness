@@ -9,13 +9,15 @@
   var nextFollowUp = App.nextFollowUp, needsAttention = App.needsAttention;
 
   var S = { stage: "", attention: false, search: "", owner: "", source: "", branch: App.state.branchId,
-    temp: "", follow: "", from: "", to: "", synced: false, mode: "loading" };
-  // Links from Today "View all": ?view=attention, ?follow=Due%20today, ?owner=none (unassigned)
+    temp: "", follow: "", from: "", to: "", synced: false, reason: "", transferred: false, sel: {}, mode: "loading" };
+  // Links from Today "View all": ?view=attention, ?follow=Due%20today, ?owner=none (unassigned), &reason=Released, ?view=transferred
   (function () {
     var q = location.search;
     if (/[?&]view=attention\b/.test(q)) S.attention = true;
     var f = /[?&]follow=([^&#]+)/.exec(q); if (f) S.follow = decodeURIComponent(f[1]);
     var o = /[?&]owner=([^&#]+)/.exec(q); if (o) S.owner = decodeURIComponent(o[1]);
+    var r = /[?&]reason=([^&#]+)/.exec(q); if (r) S.reason = decodeURIComponent(r[1]);
+    if (/[?&]view=transferred\b/.test(q)) S.transferred = true;
   })();
   var current = { personId: null };
 
@@ -59,6 +61,8 @@
       if (S.source && p.source !== S.source) return false;
       if (S.temp && p.temperature !== S.temp) return false;
       if (S.synced && !p.synced) return false;
+      if (S.reason && (p.ownerUserId || (p.unassignedReason || "New") !== S.reason)) return false;   // Unassigned reason (#100)
+      if (S.transferred && !p.transferredIn) return false;                                           // Transferred in (#98)
       if (S.from && new Date(p.createdAt) < new Date(S.from)) return false;
       if (S.to && new Date(p.createdAt) > new Date(S.to + "T23:59:59")) return false;
       if (S.follow) {
@@ -106,6 +110,8 @@
     });
     opts($("fTemp"), "Any", L.temperatures);
     opts($("fFollow"), "Any", ["Overdue", "Due today", "Scheduled", "No follow-up set"]);
+    opts($("fReason"), "Any", [{ v: "New", t: "Unassigned · New" }, { v: "Released", t: "Unassigned · Released" }]);
+    $("fReasonWrap").hidden = App.can("leads.viewUnassigned") === "None";
     syncControls();
   }
   function syncControls() {
@@ -115,6 +121,7 @@
     $("fBranch").value = $("mBranch").value = S.branch;
     $("fTemp").value = S.temp; $("fFollow").value = S.follow;
     $("fFrom").value = S.from; $("fTo").value = S.to; $("fSynced").checked = S.synced;
+    $("fReason").value = S.reason; $("fTransferred").checked = S.transferred;
     App.syncAllSelects(document.querySelector(".main"));
   }
 
@@ -143,6 +150,8 @@
     if (S.from) tags.push(["from", "Created from " + S.from]);
     if (S.to) tags.push(["to", "Created to " + S.to]);
     if (S.synced) tags.push(["synced", "Synced only"]);
+    if (S.reason) tags.push(["reason", "Unassigned · " + S.reason]);
+    if (S.transferred) tags.push(["transferred", "Transferred in · needs follow-up person"]);
     $("activeFilters").innerHTML = tags.length ? '<span class="muted">Filtered by:</span>' + tags.map(function (t) {
       return '<button class="filter-tag" data-clear="' + t[0] + '" aria-label="Remove filter ' + esc(t[1]) + '">' + esc(t[1]) + App.icon("x", "ico-sm") + "</button>";
     }).join("") : "";
@@ -168,6 +177,7 @@
     var html = '<div class="stack"><span class="badge ' + cls + '">' + esc(p.stage) + '</span><span class="badge badge-' +
       p.temperature.toLowerCase() + '">' + esc(p.temperature) + "</span>";
     if (p.reopenedAt) html += '<span class="badge badge-info">Re-opened</span>';
+    html += App.ownershipBadges(p, { noUnassigned: true });
     html += "</div>";
     if (p.stage === "Lost") html += '<div class="cell-sub">Reason: ' + esc(App.empty(p.lostReason)) + "</div>";
     App.Trial.lines(p).forEach(function (l) {
@@ -175,14 +185,31 @@
     });
     return html;
   }
+  // Unassigned (#100): reason + "Take this lead" (leads.take) and / or Assign (leads.assign). Lost leads keep their owner.
+  function canAssign(p) { return App.scopeAllows("leads.assign", p, { strictOwn: true }); }
   function ownerCell(p) {
     if (p.ownerUserId) return esc(user(p.ownerUserId).name);
-    return '<div class="stack"><span class="badge badge-warning">Unassigned</span>' +
-      '<button class="btn btn-sm" data-act="assign" data-id="' + p.id + '">Assign</button></div>';
+    return '<div class="stack"><span class="badge badge-warning">Unassigned · ' + esc(p.unassignedReason || "New") + "</span>" +
+      (App.Lead.canTake(p) ? '<button class="btn btn-sm btn-primary" data-act="take" data-id="' + p.id + '">Take this lead</button>' : "") +
+      (canAssign(p) ? '<button class="btn btn-sm" data-act="assign" data-id="' + p.id + '">Assign</button>' : "") + "</div>";
+  }
+  // Bulk owner change (#99): a tick in the name cell for staff with leads.assign; one dialog, one choice for all.
+  function bulkOn() { return App.can("leads.assign") !== "None"; }
+  function checkCell(p) {
+    if (!bulkOn() || !canAssign(p)) return "";
+    return '<input type="checkbox" class="row-check" data-check="' + p.id + '"' + (S.sel[p.id] ? " checked" : "") + ' aria-label="Select ' + esc(p.name) + '">';
+  }
+  function renderBulk(list) {
+    Object.keys(S.sel).forEach(function (id) { if (list.indexOf(id) < 0) delete S.sel[id]; });
+    var n = Object.keys(S.sel).length, bar = $("bulkBar");
+    bar.hidden = !n;
+    bar.innerHTML = n ? "<strong>" + n + " selected</strong>" +
+      '<button class="btn btn-sm btn-primary" data-bulk="owner">' + App.icon("user") + "Change owner</button>" +
+      '<button class="btn btn-sm btn-ghost" data-bulk="clear">Clear selection</button>' : "";
   }
   function row(p) {
     return '<tr data-id="' + p.id + '">' +
-      '<td class="sticky-1"><div class="stack"><span class="cell-title">' + esc(p.name) + "</span>" +
+      '<td class="sticky-1"><div class="stack">' + checkCell(p) + '<span class="cell-title">' + esc(p.name) + "</span>" +
         (p.synced ? '<span class="badge badge-info" title="Synced from Meta">Meta</span>' : "") + "</div>" +
         '<div class="cell-sub">' + esc(p.cc + " " + p.mobile) + "</div></td>" +
       '<td class="sticky-2 col-next">' + followCell(p) + "</td>" +
@@ -221,6 +248,7 @@
       (S.stage === "Lost" ? " · lost" : " · most urgent follow-up first");
     lastList = list.map(function (p) { return p.id; });
     tbody.innerHTML = list.map(row).join("");
+    renderBulk(lastList);
     if (list.length) return;
 
     var anyVisible = S.mode !== "empty" && App.visibleLeads("all").length > 0;
@@ -254,8 +282,11 @@
       if (b.dataset.act === "wa") App.toast("Opening WhatsApp for " + p.name, "");
       if (b.dataset.act === "follow") App.Followup.openAdd(p.id);
       if (b.dataset.act === "assign") App.Lead.assign(p.id);
+      if (b.dataset.act === "take") App.Lead.take(p.id);
       return;
     }
+    var c = e.target.closest("[data-check]");
+    if (c) { if (c.checked) S.sel[c.dataset.check] = true; else delete S.sel[c.dataset.check]; renderBulk(lastList); return; }
     var tr = e.target.closest("tr[data-id]"); if (tr) openProfile(tr.dataset.id);
   });
   $("pipeline").addEventListener("click", function (e) {
@@ -268,7 +299,7 @@
   $("activeFilters").addEventListener("click", function (e) {
     var t = e.target.closest("[data-clear]"); if (!t) return;
     var k = t.dataset.clear;
-    if (k === "attention" || k === "synced") S[k] = false; else S[k] = "";
+    if (k === "attention" || k === "synced" || k === "transferred") S[k] = false; else S[k] = "";
     syncControls(); render();
   });
   function bind(id, key, ev) {
@@ -281,11 +312,18 @@
   bind("fSearch", "search", "input"); bind("fStage", "stage");
   bind("fOwner", "owner"); bind("mOwner", "owner"); bind("fSource", "source"); bind("mSource", "source");
   bind("fBranch", "branch"); bind("mBranch", "branch");
+  bind("fReason", "reason"); bind("fTransferred", "transferred");
+  $("bulkBar").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-bulk]"); if (!b) return;
+    if (b.dataset.bulk === "clear") { S.sel = {}; render(); return; }
+    var ids = Object.keys(S.sel); S.sel = {};
+    App.Lead.assignMany(ids);
+  });
   bind("fTemp", "temp"); bind("fFollow", "follow"); bind("fFrom", "from"); bind("fTo", "to"); bind("fSynced", "synced");
   $("btnMore").addEventListener("click", function () { $("moreFilters").classList.toggle("open"); });
   function clearAll() {
     S.stage = ""; S.attention = false; S.search = ""; S.owner = ""; S.source = ""; S.temp = ""; S.follow = "";
-    S.from = ""; S.to = ""; S.synced = false; S.branch = App.state.branchId; syncControls(); render();
+    S.from = ""; S.to = ""; S.synced = false; S.reason = ""; S.transferred = false; S.sel = {}; S.branch = App.state.branchId; syncControls(); render();
   }
   $("btnClear").addEventListener("click", clearAll);
   $("btnRetry").addEventListener("click", load);
@@ -310,7 +348,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     fillFilters();
-    ["fStage", "fOwner", "fSource", "fBranch", "mOwner", "mSource", "mBranch", "fTemp", "fFollow"].forEach(function (id) { App.enhanceSelect($(id)); });
+    ["fStage", "fOwner", "fSource", "fBranch", "mOwner", "mSource", "mBranch", "fTemp", "fFollow", "fReason"].forEach(function (id) { App.enhanceSelect($(id)); });
     load();
   });
 })();

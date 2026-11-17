@@ -1,0 +1,286 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// Ownership (c4): follow-up to others (#97), owner-change dialog (#99), branch move (#98), inactivity release + Unassigned + Take (#100).
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", TODAY = ROOT + "features/today/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function pickSel(id, val) { click(q('[data-dd="sel-' + id + '"]')); click(q('[data-sel="' + id + '"][data-val="' + val + '"]')); }
+function radio(v) { var r = q('#ownerModal input[name="ownerChoice"][value="' + v + '"]'); r.checked = true; r.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function D() { return W().DUMMY; } function A() { return W().App; } function person(id) { return A().byId(D().people, id); }
+function fu(id) { return A().byId(D().followUps, id); } function task(id) { return A().byId(D().workTasks, id); }
+function openP(id) { A().openProfile(id, { state: "normal" }); }
+function ids() { return Array.prototype.map.call(qa("#rows tr[data-id]"), function (r) { return r.dataset.id; }); }
+function tl(pid) { return D().timeline.filter(function (t) { return t.personId === pid; }).map(function (t) { return t.text; }).join(" | "); }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function as(role, branch, cb) { W().sessionStorage.setItem("mock.role", role); W().sessionStorage.setItem("mock.branch", branch || "all"); load(LEADS, cb); }
+function grid(short, key, value) { A().Perm.save([{ short: short, key: key, value: value }], "Permissions"); }
+function clearGrid() { ["mock.perms", "mock.settings", "mock.audit"].forEach(function (k) { W().sessionStorage.removeItem(k); }); }
+function done() { document.getElementById("out").textContent = out.join("\n"); }
+
+load(LEADS, function () { clearGrid(); as("CEO", "all", s1); });
+
+// ---------- 1. Inactivity release (#100) ----------
+function s1() {
+  step("release on page load", function () {
+    var p = person("p31");
+    ok("p31 overdue 8 days -> Unassigned · Released", !p.ownerUserId && p.unassignedReason === "Released");
+    ok("its follow-up + task closed by system · Released (inactive)", fu("f31").status === "Closed by system" && fu("f31").closeReason === "Released (inactive)" && task("t8").status === "Closed by system");
+    ok("timeline 'Released to Unassigned · no follow-up for 7 days'", /Released to Unassigned · no follow-up for 7 days/.test(tl("p31")));
+    ok("owner told", D().notifications.some(function (n) { return n.forUserId === "u6" && /Meghna Pillai was released/.test(n.text); }));
+  });
+  step("warning the day before", function () {
+    var i = A().Release.info(person("p30"));
+    ok("p30 overdue 6 days -> warn, 1 day left", i && i.warn && i.left === 1 && person("p30").ownerUserId === "u6");
+    ok("badge text 'Releases tomorrow'", A().Release.badgeText(i) === "Releases tomorrow");
+    var n1 = D().notifications.filter(function (n) { return /Gaurav Sethi releases tomorrow/.test(n.text); }).length;
+    A().Release.run();
+    var n2 = D().notifications.filter(function (n) { return /Gaurav Sethi releases tomorrow/.test(n.text); }).length;
+    ok("one notification per lead per day (run twice -> still 1)", n1 === 1 && n2 === 1, n1 + "/" + n2);
+    ok("Leads list row shows 'Releases tomorrow'", /Releases tomorrow/.test(text('#rows tr[data-id="p30"]')));
+    openP("p30"); ok("profile shows 'Releases tomorrow'", /Releases tomorrow/.test(text(".pd-badges")));
+  });
+  step("exceptions", function () {
+    ok("trial running (overdue 9) -> never released, no warning", person("p32").ownerUserId === "u6" && A().Release.info(person("p32")) === null);
+    ok("lost lead never released, keeps its owner", person("p37").ownerUserId === "u5" && A().Release.info(person("p37")) === null);
+    ok("client never released", A().Release.info(person("p7")) === null);
+    ok("unassigned not counted", A().Release.info(person("p14")) === null);
+    var i = A().Release.info(person("p33"));
+    ok("assigned TODAY with a follow-up overdue 10 days -> NOT released, clock 0 days", person("p33").ownerUserId === "u7" && i.days === 0 && !i.warn && !i.release);
+  });
+  step("clock reset by follow-up activity", function () {
+    var f = fu("f30"); f.status = "Done"; f.outcome = "Call later"; f.doneAt = new Date().toISOString();
+    var i = A().Release.info(person("p30"));
+    ok("logging the overdue follow-up resets the clock", i.days === 0 && !i.warn);
+    A().Followup.create("p30", { type: "Call", dueDate: A().todayIso(), dueTime: null, note: null });
+    ok("a follow-up scheduled -> not inactive", A().Release.info(person("p30")).inactive === false);
+  });
+  W().sessionStorage.setItem("mock.settings", JSON.stringify({ inactivityReleaseDays: 6, releaseWarnDaysBefore: 1 }));
+  load(LEADS, function () {
+    step("setting 'Release inactive leads after' = 6", function () {
+      ok("p30 (6 days) now released", !person("p30").ownerUserId && person("p30").unassignedReason === "Released");
+      ok("label in settings defs", /Release inactive leads after/.test(D().settingDefs.filter(function (d) { return d.key === "inactivityReleaseDays"; })[0].label));
+    });
+    clearGrid(); as("Sales Executive", "all", s2);
+  });
+}
+
+// ---------- 2. Follow-up assigned to another staff (#97) ----------
+function s2() {
+  step("assignee visibility (Priya, SE Own)", function () {
+    ok("p28 (Rahul's, Golf Course) visible: open follow-up assigned to Priya", ids().indexOf("p28") > -1);
+    ok("badge 'Follow-up from Rahul' in the list", /Follow-up from Rahul/.test(text('#rows tr[data-id="p28"]')));
+    ok("p29: her follow-up is Done -> not in her list", ids().indexOf("p29") < 0);
+    ok("own leads have no 'Follow-up from'", !/Follow-up from/.test(text('#rows tr[data-id="p1"]')));
+    ok("scope Own includes the assignee (convert, book trial, mark lost)", A().scopeAllows("sales.convert", person("p28")) && A().scopeAllows("trials.book", person("p28")) && A().scopeAllows("leads.markLost", person("p28")));
+    ok("default sales rep = assignee (Priya) on p28, owner on own lead", A().Convert.defaultRep(person("p28")) === "u6" && A().Convert.defaultRep(person("p1")) === "u6");
+    openP("p28");
+    ok("profile: full profile + badge + Convert", /Follow-up from Rahul/.test(text(".pd-badges")) && !!q('[data-pd="convert"]') && !!q('[data-pd="trial"]'));
+    ok("NEXT STEP names the assignee", /Priya Sharma/.test(text(".next-step")));
+    A().closeProfile();
+  });
+  step("'Assigned to' in the follow-up modal", function () {
+    A().Followup.openAdd("p1");
+    var sel = q("#fuAddModal .ff-assign");
+    ok("SE (assignFollowUp Own) on own lead: Assigned to, default = owner", !!sel && sel.value === "u6");
+    ok("staff from any branch (Arjun Sec 65, Rahul Golf Course)", !!sel.querySelector('option[value="u7"]') && !!sel.querySelector('option[value="u10"]'));
+    pickSel(sel.id, "u7"); click(q("#fuAddModal [data-save]"));
+    var f = D().followUps[D().followUps.length - 1];
+    ok("saved with assignedToUserId = Arjun, owner unchanged", f.personId === "p1" && f.assignedToUserId === "u7" && f.ownerUserId === "u6" && person("p1").ownerUserId === "u6");
+    ok("timeline 'Priya set a follow-up for Arjun Nair'", /Priya set a follow-up for Arjun Nair/.test(tl("p1")));
+    A().Followup.openAdd("p28");
+    ok("not owner (only assignee): no Assigned to (Own = leads I own)", !q("#fuAddModal .ff-assign") && /Assigned to Rahul Gupta/.test(text("#fuAddModal")));
+    click(q("#fuAddModal [data-close]"));
+  });
+  step("lead leaves the assignee's list when the follow-up closes", function () {
+    var f = fu("f28"); f.status = "Done"; f.outcome = "Interested"; f.doneAt = new Date().toISOString(); A().dataChanged();
+    ok("p28 gone after Done", ids().indexOf("p28") < 0);
+    ok("Done follow-up stays in history (by Priya)", /Priya called · Interested/.test(A().Followup.describeDone(f)));
+  });
+  step("grid off: assignFollowUp None", function () {
+    grid("SE", "leads.assignFollowUp", "None"); A().Followup.openAdd("p1");
+    ok("no Assigned to field", !q("#fuAddModal .ff-assign"));
+    click(q("#fuAddModal [data-close]")); clearGrid();
+    ok("null scan (leads, SE)", !badText(), badText());
+  });
+  as("CEO", "all", s3);
+}
+
+// ---------- 3. Owner change dialog (#99) ----------
+function s3() {
+  step("move (default) + third person not moved", function () {
+    ok("N counts only the old owner's items (p38: Priya's follow-up + task = 2, not Arjun's)", A().Owner.count(["p38"]) === 2, A().Owner.count(["p38"]));
+    openP("p38"); click(q('.pd-kv [data-pd="assign"]'));
+    pickSel("assignUser", "u5"); click(q("#assignModal [data-save]"));
+    ok("dialog: 'Open follow-ups and tasks (2)' with 3 choices, Move checked", /Open follow-ups and tasks \(2\)/.test(text("#ownerModal")) && qa('#ownerModal input[name="ownerChoice"]').length === 3 && q('#ownerModal input[value="move"]').checked);
+    click(q("#ownerModal [data-save]"));
+    ok("Priya's follow-up + task moved to Karan", fu("f38").assignedToUserId === "u5" && task("t10").assignedUserId === "u5" && person("p38").ownerUserId === "u5");
+    ok("Arjun's follow-up stays with Arjun", fu("f38b").assignedToUserId === "u7" && fu("f38b").status === "Open");
+    ok("timeline 'Owner changed from Priya to Karan'", /Owner changed from Priya to Karan by Anita · 2 open items moved/.test(tl("p38")));
+    ok("history kept", person("p38").ownerHistory.some(function (h) { return h.from === "u6" && h.to === "u5"; }));
+  });
+  step("close + one new follow-up", function () {
+    var due = fu("f1").dueDate;
+    openP("p1"); click(q('.pd-kv [data-pd="assign"]')); pickSel("assignUser", "u5"); click(q("#assignModal [data-save]"));
+    radio("close");
+    ok("due field shown = earliest open due", !q("#ownerModal [data-due]").hidden && q("#ownerDue").value === due);
+    click(q("#ownerModal [data-save]"));
+    var nf = D().followUps.filter(function (f) { return f.personId === "p1" && f.status === "Open"; });
+    ok("old closed 'Owner changed'", fu("f1").status === "Closed by system" && fu("f1").closeReason === "Owner changed");
+    ok("one new follow-up for Karan, due = earliest", nf.length === 1 && nf[0].assignedToUserId === "u5" && nf[0].dueDate === due);
+  });
+  step("keep with the old owner", function () {
+    A().Owner.apply(["p17"], "u5", "keep");
+    ok("Priya keeps f15; owner = Karan", fu("f15").assignedToUserId === "u6" && person("p17").ownerUserId === "u5");
+    ok("Priya still sees p17 as assignee", A().isAssigneeOnly(person("p17"), "u6"));
+  });
+  step("N = 0 -> plain confirm", function () {
+    openP("p2"); click(q('.pd-kv [data-pd="assign"]')); pickSel("assignUser", "u5"); click(q("#assignModal [data-save]"));
+    ok("no choices, plain confirm", q("#ownerModal").classList.contains("open") && !q('#ownerModal input[name="ownerChoice"]') && /No open follow-ups or tasks/.test(text("#ownerModal")));
+    click(q("#ownerModal [data-save]")); ok("owner changed", person("p2").ownerUserId === "u5");
+    A().closeProfile();
+  });
+  step("bulk: one choice for all", function () {
+    click(q('[data-check="p4"]')); click(q('[data-check="p25"]'));
+    ok("bulk bar '2 selected'", !q("#bulkBar").hidden && /2 selected/.test(text("#bulkBar")));
+    click(q('#bulkBar [data-bulk="owner"]')); pickSel("assignManyUser", "u5"); click(q("#assignManyModal [data-save]"));
+    ok("one dialog for both, 'One choice applies to all 2 leads'", /One choice applies to all 2 leads/.test(text("#ownerModal")));
+    click(q("#ownerModal [data-save]"));
+    ok("both owned by Karan, items moved", person("p4").ownerUserId === "u5" && person("p25").ownerUserId === "u5" && fu("f2").assignedToUserId === "u5" && fu("f25").assignedToUserId === "u5");
+    ok("null scan (leads, CEO)", !badText(), badText());
+  });
+  step("client owner change uses the same dialog", function () {
+    openP("p7"); click(q('.pd-kv [data-pd="assign"]')); pickSel("assignUser", "u5"); click(q("#assignModal [data-save]"));
+    ok("client: Open follow-ups and tasks (3)", /Open follow-ups and tasks \(3\)/.test(text("#ownerModal")), text("#ownerModal"));
+    click(q("#ownerModal [data-save]")); ok("client owner Karan", person("p7").ownerUserId === "u5");
+    A().closeProfile();
+  });
+  step("permission label renamed", function () {
+    ok("leads.assign = 'Assign / reassign / change owner (leads and clients)'", D().permissionDefs.filter(function (d) { return d.key === "leads.assign"; })[0].label === "Assign / reassign / change owner (leads and clients)");
+  });
+  as("Club Manager", "all", s4);
+}
+
+// ---------- 4. Re-open someone else's lost lead, Take, Transferred in (CM) ----------
+function s4() {
+  step("re-open someone else's lost lead", function () {
+    openP("p37"); click(q('[data-pd="reopen"]')); click(q("#reopenModal [data-save]"));
+    ok("owner dialog: 'You are the new owner', 1 open item (Karan's task)", /You are the new owner/.test(text("#ownerModal")) && /Open follow-ups and tasks \(1\)/.test(text("#ownerModal")));
+    click(q("#ownerModal [data-save]"));
+    ok("Sunita owns it, task moved", person("p37").ownerUserId === "u4" && task("t9").assignedUserId === "u4" && person("p37").stage === "Negotiation");
+    ok("then asks for the next follow-up", q("#fuAddModal").classList.contains("open"));
+    click(q("#fuAddModal [data-close]")); A().closeProfile();
+  });
+  step("Unassigned: reasons, filter, take", function () {
+    ok("list shows 'Unassigned · New' and 'Unassigned · Released'", /Unassigned · New/.test(text('#rows tr[data-id="p14"]')) && /Unassigned · Released/.test(text('#rows tr[data-id="p36"]')));
+    pickSel("fReason", "Released");
+    ok("filter Released: p31 + p36 only", ids().sort().join() === "p31,p36", ids().join());
+    click(q('#rows tr[data-id="p36"] [data-act="take"]'));
+    ok("Take: Sunita owns p36, branch unchanged, 'Taken by Sunita'", person("p36").ownerUserId === "u4" && person("p36").branchId === "b1" && /Taken by Sunita/.test(tl("p36")) && !person("p36").unassignedReason);
+    click(q("#btnClear"));
+  });
+  step("transferred in: filter + pick (CM)", function () {
+    ok("p34 badge 'Transferred in'", /Transferred in/.test(text('#rows tr[data-id="p34"]')));
+    click(q("#fTransferred")); ok("filter shows only p34", ids().join() === "p34", ids().join());
+    openP("p34"); ok("profile box + Pick button", !!q("[data-transfer]") && !!q('[data-pd="pick"]'));
+    click(q('[data-pd="pick"]')); click(q("#pickModal [data-save]"));
+    ok("pick needs an SE", !q("#pickModal [data-perr]").hidden);
+    pickSel("pickSe", "u6"); click(q("#pickModal [data-save]"));
+    var f = D().followUps.filter(function (x) { return x.personId === "p34" && x.assignedToUserId === "u6"; })[0];
+    ok("flag cleared, Priya gets the follow-up, owner stays Arjun", !person("p34").transferredIn && !!f && person("p34").ownerUserId === "u7");
+    A().closeProfile();
+  });
+  load(TODAY, function () {
+    step("Today (CM)", function () {
+      ok("Unassigned leads section with reasons", /Unassigned · New/.test(text("#sec-unassigned")) && /Unassigned · Released/.test(text("#sec-unassigned")));
+      ok("row action 'Take this lead'", /Take this lead/.test(text("#sec-unassigned")));
+      ok("Transferred in section lists Kiran", /Kiran Joshi/.test(text("#sec-transferred")) && /Pick person/.test(text("#sec-transferred")));
+      ok("null scan (today, CM)", !badText(), badText());
+    });
+    W().sessionStorage.setItem("mock.role", "Sales Executive");
+    load(TODAY, function () {
+      step("Today (SE)", function () {
+        ok("SE: no Unassigned, no Transferred in sections", !q("#sec-unassigned") && !q("#sec-transferred"));
+        ok("SE cannot pick or take", !A().Lead.canPick(person("p34")) && !A().Lead.canTake(person("p14")));
+      });
+      as("Sales Executive", "all", s5);
+    });
+  });
+}
+
+// ---------- 5. Move to another branch (#98) ----------
+function s5() {
+  step("SE move: no pick -> Transferred in", function () {
+    openP("p1");
+    ok("More menu: Move to another branch", !!q('[data-pd="move"]'));
+    click(q('[data-pd="move"]'));
+    ok("no follow-up person field for SE", !q("#moveModal [data-pick]"));
+    ok("branch list = other branches only", !q('#moveBranch option[value="b1"]') && !!q('#moveBranch option[value="b3"]'));
+    click(q("#moveModal [data-save]")); ok("branch required", /Choose the new branch/.test(text("#moveModal [data-merr]")));
+    pickSel("moveBranch", "b3"); click(q("#moveModal [data-save]"));
+    ok("remark required", /Add a remark/.test(text("#moveModal [data-merr]")) && q("#moveRemark").classList.contains("invalid"));
+    type("#moveRemark", "Shifted to Golf Course"); click(q("#moveModal [data-save]"));
+    var p = person("p1");
+    ok("branch Golf Course, owner Priya, her follow-up stays", p.branchId === "b3" && p.ownerUserId === "u6" && fu("f1").status === "Open" && fu("f1").assignedToUserId === "u6");
+    ok("flag transferredIn {from Sec 31, by Priya}", p.transferredIn && p.transferredIn.from === "b1" && p.transferredIn.by === "u6");
+    ok("timeline 'Moved Sec 31 → Golf Course by Priya'", /Moved Sec 31 → Golf Course by Priya · Shifted to Golf Course/.test(tl("p1")));
+    A().closeProfile();
+  });
+  step("unassigned lead moved stays unassigned", function () {
+    A().Lead.applyMove("p14", "b2", "Closer to Sec 65", null);
+    ok("only the branch changes", person("p14").branchId === "b2" && !person("p14").ownerUserId && !person("p14").transferredIn);
+  });
+  step("grid: movePickPerson on for SE", function () {
+    grid("SE", "leads.movePickPerson", "Branch");
+    openP("p17"); click(q('[data-pd="move"]')); pickSel("moveBranch", "b3");
+    ok("follow-up person + due appear (Golf Course SEs)", !q("#moveModal [data-pick]").hidden && !!q('#movePerson option[value="u10"]') && !q('#movePerson option[value="u6"]'));
+    type("#moveRemark", "Works near Golf Course"); click(q("#moveModal [data-save]"));
+    ok("person required", /Choose the follow-up person/.test(text("#moveModal [data-merr]")));
+    pickSel("movePerson", "u10"); click(q("#moveModal [data-save]"));
+    var f = D().followUps.filter(function (x) { return x.personId === "p17" && x.assignedToUserId === "u10"; })[0];
+    ok("Rahul gets a follow-up now, no Transferred in flag", !!f && !person("p17").transferredIn && person("p17").ownerUserId === "u6");
+    A().closeProfile();
+  });
+  step("grid: leads.move None", function () {
+    grid("SE", "leads.move", "None"); openP("p2");
+    ok("no Move item", !q('[data-pd="move"]'));
+    A().closeProfile();
+  });
+  step("grid: SE given View + Take unassigned", function () {
+    grid("SE", "leads.viewUnassigned", "Branch"); grid("SE", "leads.take", "Branch"); A().setRole("Sales Executive");
+    ok("released p31 visible with Take this lead", !!q('#rows tr[data-id="p31"] [data-act="take"]'));
+    click(q('#rows tr[data-id="p31"] [data-act="take"]'));
+    ok("Priya takes p31", person("p31").ownerUserId === "u6" && /Taken by Priya/.test(tl("p31")));
+    clearGrid();
+  });
+  as("Sales Manager", "all", s6);
+}
+
+// ---------- 6. Grid on / off: leads.assign, leads.viewUnassigned ----------
+function s6() {
+  step("SM: leads.assign Branch (default)", function () {
+    ok("bulk tick shown", !!q('[data-check="p1"]'));
+    openP("p1"); ok("owner Change link", !!q('.pd-kv [data-pd="assign"]')); A().closeProfile();
+    grid("SM", "leads.assign", "None"); A().setRole("Sales Manager");
+    ok("assign None: no bulk tick", !q('[data-check="p1"]'));
+    openP("p1"); ok("assign None: no Change link, no Change owner item", !q('[data-pd="assign"]')); A().closeProfile();
+    clearGrid();
+  });
+  step("CM: viewUnassigned None hides unassigned", function () {
+    A().setRole("Club Manager");
+    ok("default: p14 visible", ids().indexOf("p14") > -1);
+    grid("CM", "leads.viewUnassigned", "None"); A().setRole("Club Manager");
+    ok("None: p14 hidden", ids().indexOf("p14") < 0);
+    clearGrid(); ok("null scan (leads, CM)", !badText(), badText());
+  });
+  done();
+}
+</script></body></html>

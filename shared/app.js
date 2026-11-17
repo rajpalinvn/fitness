@@ -414,15 +414,24 @@
   App.setting = function (key) { return Perm.settings()[key]; };
 
   // ---------- Access = the Roles & permissions grid (decisions #96, #102; keys in docs/permissions.md) ----------
-  // Scope meaning: None = nothing · Own = the person's owner is me (TODO c4: + leads where I have an open follow-up, #97)
-  // · Branch = the person's branch is one of my branchIds · All = everyone in the tenant.
-  App.scopeAllows = function (key, p) {
+  // Scope meaning: None = nothing · Own = I own the person OR I have an OPEN follow-up on it (#97, L9)
+  // · Branch = the person's branch is one of my branchIds (+ the Own cases: a follow-up assignee from another branch)
+  // · All = everyone in the tenant. opts.strictOwn: "Own" = only leads I own (used by leads.assignFollowUp, #97).
+  App.fuAssignee = function (f) { return f ? (f.assignedToUserId || f.ownerUserId || null) : null; };
+  App.openFollowUpFor = function (p, uid) {
+    if (!p || !uid) return null;
+    return DUMMY.followUps.filter(function (f) { return f.personId === p.id && f.status === "Open" && App.fuAssignee(f) === uid; })[0] || null;
+  };
+  // "Follow-up from <owner>" (#97, L11): I see this lead only because I have an open follow-up on it.
+  App.isAssigneeOnly = function (p, uid) { uid = uid || (App.demoUser() || {}).id; return !!p && !!uid && p.ownerUserId !== uid && !!App.openFollowUpFor(p, uid); };
+  App.scopeAllows = function (key, p, opts) {
     var s = App.can(key), u = App.demoUser();
     if (s === true) return true;
     if (!s || s === false || s === "None" || !u) return false;
     if (s === "All") return true;
-    if (s === "Branch") return !p || u.branchIds.indexOf(p.branchId) > -1;
-    if (s === "Own") return !!p && !!p.ownerUserId && p.ownerUserId === u.id;
+    var own = !!p && !!p.ownerUserId && p.ownerUserId === u.id, assignee = !(opts && opts.strictOwn) && !!p && !!App.openFollowUpFor(p, u.id);
+    if (s === "Branch") return !p || u.branchIds.indexOf(p.branchId) > -1 || assignee;
+    if (s === "Own") return own || assignee;
     return false;
   };
   // Branch ids a scope covers: All = every branch, Branch / Own = my branches, None = [].
@@ -462,6 +471,7 @@
   // Lead visibility from the grid: leads.view; a lost lead needs leads.viewLost; an unassigned lead needs leads.viewUnassigned.
   App.canSee = function (p) {
     if (p.stage === "Lost") return App.scopeAllows("leads.viewLost", p);
+    if (App.isAssigneeOnly(p)) return App.can("leads.view") !== "None";
     if (!p.ownerUserId) return App.scopeAllows("leads.viewUnassigned", p);
     return App.scopeAllows("leads.view", p);
   };
@@ -487,6 +497,76 @@
       openTasks: DUMMY.workTasks.filter(function (t) { return t.status === "Open" && me && t.assignedUserId === me.id; }).length,
       unread: DUMMY.notifications.filter(function (n) { return n.unread; }).length
     };
+  };
+
+  // ---------- Ownership clock + inactivity release (decision #100, notes L18–L19) ----------
+  // The date the CURRENT owner got the lead: assigned / taken / owner changed (ownerHistory) or re-opened; else created.
+  App.ownedSince = function (p) {
+    var at = p.createdAt;
+    (p.ownerHistory || []).forEach(function (h) { if (h.to === p.ownerUserId && h.at && new Date(h.at) > new Date(at)) at = h.at; });
+    if (p.reopenedAt && new Date(p.reopenedAt) > new Date(at)) at = p.reopenedAt;
+    return at;
+  };
+  // Last follow-up activity on the person (created, logged, cancelled) by anyone working it: owner or assignee.
+  App.lastFollowUpActivity = function (p) {
+    var at = null;
+    DUMMY.followUps.forEach(function (f) {
+      if (f.personId !== p.id) return;
+      [f.createdAt, f.doneAt, f.cancelledAt].forEach(function (x) { if (x && (!at || new Date(x) > new Date(at))) at = x; });
+    });
+    return at;
+  };
+  var Release = {};
+  // Excluded: clients, lost leads, unassigned leads, any running trial.
+  Release.applies = function (p) { return !!p && p.kind === "Lead" && p.stage !== "Lost" && p.stage !== "Converted" && !!p.ownerUserId && !Trial.anyRunning(p); };
+  // { inactive, since, days, left, warn, release }. Clock = days since the overdue due date, or (no open follow-up) since the
+  // last follow-up activity, else created. It never starts before the current owner got the lead; any follow-up activity resets it.
+  Release.info = function (p) {
+    if (!Release.applies(p)) return null;
+    var f = App.nextFollowUp(p.id), base;
+    if (f) { if (App.followUpStatus(App.dueIso(f)).text !== "Overdue") return { inactive: false }; base = f.dueDate ? f.dueDate + "T00:00" : App.dueIso(f); }
+    else base = App.lastFollowUpActivity(p) || p.createdAt;
+    var since = base;
+    [App.ownedSince(p), App.lastFollowUpActivity(p)].forEach(function (x) { if (x && new Date(x) > new Date(since)) since = x; });
+    var n = App.setting("inactivityReleaseDays"), warnBefore = App.setting("releaseWarnDaysBefore"), days = Math.max(0, -App.daysFromToday(since)), left = n - days;
+    return { inactive: true, since: since, days: days, left: left, n: n, release: days >= n, warn: left > 0 && left <= warnBefore };
+  };
+  Release.badgeText = function (i) { return i && i.warn ? (i.left === 1 ? "Releases tomorrow" : "Releases in " + i.left + " days") : ""; };
+  // MOCKUP: runs on page load (the real app runs it as a daily job). Warn = one notification per lead per day to the owner.
+  Release.run = function () {
+    var today = App.todayIso(), out = { warned: [], released: [] };
+    DUMMY.people.forEach(function (p) {
+      var i = Release.info(p); if (!i || !i.inactive) return;
+      if (i.release) {
+        var old = p.ownerUserId, now = new Date().toISOString(), reason = "Released (inactive)";
+        DUMMY.followUps.forEach(function (f) { if (f.personId === p.id && f.status === "Open") { f.status = "Closed by system"; f.closedAt = now; f.closeReason = reason; } });
+        DUMMY.workTasks.forEach(function (t) { if (t.personId === p.id && t.status === "Open") { t.status = "Closed by system"; t.closedAt = now; t.closeReason = reason; } });
+        p.ownerHistory = p.ownerHistory || []; p.ownerHistory.push({ from: old, to: null, at: now, by: null, how: "Released" });
+        p.ownerUserId = null; p.unassignedReason = "Released"; p.releasedAt = now; p.releaseWarnedAt = null;
+        DUMMY.timeline.push({ personId: p.id, at: now, kind: "milestone", text: "Released to Unassigned · no follow-up for " + i.n + " days (was " + App.userName(old) + ")", by: null });
+        DUMMY.notifications.unshift({ id: "nrel" + p.id, text: p.name + " was released to Unassigned · no follow-up for " + i.n + " days", at: now, unread: true, forUserId: old });
+        out.released.push(p.id);
+      } else if (i.warn) {
+        if (p.releaseWarnedAt !== today) {
+          p.releaseWarnedAt = today;
+          DUMMY.notifications.unshift({ id: "nwarn" + p.id + today, text: p.name + " " + Release.badgeText(i).toLowerCase() + " to Unassigned · add a follow-up to keep it", at: new Date().toISOString(), unread: true, forUserId: p.ownerUserId });
+        }
+        out.warned.push(p.id);
+      }
+    });
+    return out;
+  };
+  App.Release = Release;
+  // Ownership badges, ONE place for the Leads list, Today and the profile (#97, #98, #100, L23):
+  // "Follow-up from <owner>", "Releases tomorrow", "Transferred in", "Unassigned · New / Released".
+  App.ownershipBadges = function (p, o) {
+    if (!p || p.kind !== "Lead") return "";
+    var h = "", me = App.demoUser(), ri = Release.info(p);
+    if (me && App.isAssigneeOnly(p, me.id)) h += '<span class="badge badge-info" data-badge="fu-from">Follow-up from ' + App.esc(App.firstName(App.byId(DUMMY.users, p.ownerUserId))) + "</span>";
+    if (ri && ri.warn) h += '<span class="badge badge-warning" data-badge="release">' + App.esc(Release.badgeText(ri)) + "</span>";
+    if (p.transferredIn) h += '<span class="badge badge-warning" data-badge="transfer">Transferred in</span>';
+    if (!p.ownerUserId && p.stage !== "Lost" && !(o && o.noUnassigned)) h += '<span class="badge badge-warning" data-badge="unassigned">Unassigned · ' + App.esc(p.unassignedReason || "New") + "</span>";
+    return h;
   };
 
   // ---------- Date fields: always show "12 Nov 2026", never mm/dd/yyyy (decision #86) ----------
@@ -528,4 +608,8 @@
   document.addEventListener("DOMContentLoaded", function () { App.initTabs(); });
 
   window.App = App;
+  // Data normalisation + the inactivity job (mockup: on page load, before any page renders).
+  (DUMMY.followUps || []).forEach(function (f) { if (!f.assignedToUserId) f.assignedToUserId = f.ownerUserId || null; });
+  (DUMMY.people || []).forEach(function (p) { if (p.kind === "Lead" && !p.ownerUserId && p.stage !== "Lost" && !p.unassignedReason) p.unassignedReason = "New"; });
+  App.releaseResult = Release.run();
 })();

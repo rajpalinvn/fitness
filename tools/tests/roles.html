@@ -143,7 +143,7 @@ load(SET, function () {
           type("#set-inactivityReleaseDays", "200"); ok("range error", /between 1 and 90/.test(text("#panel")));
           type("#set-inactivityReleaseDays", "10"); type("#set-releaseWarnDaysBefore", "2");
           ok("valid: 2 changes, Save enabled", /2 changes/.test(text("#saveCount")) && !q('#saveBar [data-rp="save"]').disabled);
-          click(q('#saveBar [data-rp="save"]')); ok("confirm lists settings", /Inactivity release after/.test(text("#rpConfirm")) && /7/.test(text("#rpConfirm")) && /10/.test(text("#rpConfirm")));
+          click(q('#saveBar [data-rp="save"]')); ok("confirm lists settings", /Release inactive leads after/.test(text("#rpConfirm")) && /7/.test(text("#rpConfirm")) && /10/.test(text("#rpConfirm")));
           click(q('#rpConfirm [data-rp="confirmSave"]'));
         });
         setTimeout(function () {

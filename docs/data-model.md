@@ -78,7 +78,10 @@ Mockup names (`shared/data.js`) expected in the API. Not built yet; the screens 
 | Membership / PT sale line | `trialAdjust` { `trialId`, `amount` } | Paid trial adjusted into this line (#94); the trial gets `adjustedAt`. |
 | Follow-up | `bySystem` | "Trial ended · discuss plans" created by the system on the trial end date (#94). |
 | Notification | `forUserId`, `trialId` | Trial approval asked / decided (#94). |
-| Follow-up | `assigneeUserId` | Can differ from the lead's `ownerUserId` (#97). Default = owner. |
-| Lead (person) | `unassignedReason` (New / Released, null when owned), `releaseWarnedAt` | Unassigned when `ownerUserId` is null (#100). |
+| Follow-up | `assignedToUserId` | Who does the follow-up; can differ from the lead's `ownerUserId` (#97), any branch. Default = owner. The follow-up's `ownerUserId` = the lead owner it comes from. Built in c4. |
+| Lead (person) | `unassignedReason` (New / Released, null when owned), `releaseWarnedAt` ("YYYY-MM-DD", one warning per lead per day), `releasedAt` | Unassigned when `ownerUserId` is null (#100). Existing ownerless leads = New. |
+| Lead (person) | `transferredIn` { `from` (branchId), `by` (userId), `at` } or null | Moved by someone without `leads.movePickPerson` (#98): waits for the new branch CM to pick the follow-up person; cleared when picked. |
+| Person | `ownerHistory[].how` | "Changed" / "Taken" / "Re-opened" / "Released". The latest entry where `to` = current owner = the date the owner got the lead (start of the inactivity clock, #100 FIX). |
+| WorkTask | `status` adds "Closed by system", `closeReason`, `closedAt` | Owner changed (choice "Close") / Released (inactive). |
 | Follow-up / WorkTask | `closeReason` adds "Owner changed", "Released (inactive)" | #99, #100. |
 

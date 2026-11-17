@@ -78,7 +78,7 @@
     { key: "leads.take",            module: "Leads",    label: "Take an unassigned lead (\"Take this lead\")",           type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "leads.viewLost",        module: "Leads",    label: "View lost leads",                                       type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "leads.create",          module: "Leads",    label: "Create lead",                                           type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
-    { key: "leads.assign",          module: "Leads",    label: "Assign / reassign / change owner (single + bulk)",      type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" }, atLeastOne: true },
+    { key: "leads.assign",          module: "Leads",    label: "Assign / reassign / change owner (leads and clients)", type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" }, atLeastOne: true },
     { key: "leads.assignFollowUp",  module: "Leads",    label: "Assign a follow-up to another staff (any branch)",      type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "leads.markLost",        module: "Leads",    label: "Mark lost",                                             type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "leads.reopen",          module: "Leads",    label: "Re-open lost lead",                                     type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
@@ -105,7 +105,7 @@
     { key: "freeTrialsPerPerson",      label: "Free trials per person (each trial type)", def: 2, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Counted by mobile number across all branches, separately for Membership trials and PT trials (#94)." },
     { key: "freeTrialsPerBranch",      label: "Free trials per branch (each trial type)", def: 1, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Must be the same or fewer than per person." },
     { key: "paidTrialAdjustBufferDays", label: "Paid trial adjust buffer after it ends", def: 7, min: 0, max: 30, unit: "days", by: "CEO", hint: "Within this many days after a paid trial ended, the adjust is still offered (to roles with the grid row)." },
-    { key: "inactivityReleaseDays",    label: "Inactivity release after",               def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
+    { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
     { key: "newLeadAssignment",        label: "New-lead assignment",                    def: "Manual", options: ["Manual", "Round-robin"], by: "CEO", hint: "Round-robin comes later (Q10)." }
   ];
@@ -122,9 +122,9 @@
     stages: ["New", "Contacted", "Trial", "Negotiation"],        // the 5 stages with Lost (#101); Trial is automatic
     stageChoices: ["New", "Contacted", "Negotiation"],           // what staff may pick by hand (#94, L5); locked while a trial runs
     systemStages: ["Converted", "Lost"],                         // fixed
-    taskStatuses: ["Open", "Done", "Cancelled"],                 // WorkTask
+    taskStatuses: ["Open", "Done", "Cancelled", "Closed by system"],   // WorkTask ("Closed by system": owner changed / released, #99, #100)
     followUpStatuses: ["Open", "Done", "Cancelled", "Closed by system"],
-    systemCloseReasons: ["Client converted", "Lead lost", "Client transferred"],
+    systemCloseReasons: ["Client converted", "Lead lost", "Client transferred", "Owner changed", "Released (inactive)"],
     priorities: ["Critical", "High", "Medium", "Low"],
     saleTypes: ["Trial", "Trial Paid", "Paid"],
     fobStatuses: ["In stock", "Assigned", "Lost", "Returned"],
@@ -312,6 +312,43 @@
       note: "EDGE (trials): Golf Course has no SM / CM / RM -> approval 'No approver available', shows in the CEO's pending list" }
   );
 
+  // ---- Ownership edge cases (decisions #97-#100, c4). L() = a plain open lead. ----
+  function L(id, name, mob, branchId, ownerUserId, stage, extra) {
+    return Object.assign({ id: id, kind: "Lead", name: name, cc: "+91", mobile: mob, email: null, gender: null, birthDate: null, ffId: null,
+      source: "Walk-in", temperature: "Warm", stage: stage || "Contacted", inquiryType: "Walk-in", campaign: null, ownerUserId: ownerUserId,
+      branchId: branchId, remarks: null, externalId: null, createdAt: day(-20), lastActivityAt: day(-6) }, extra || {});
+  }
+  people.push(
+    L("p28", "Varun Khanna", "90000 01261", "b3", "u10", "Contacted", { createdAt: day(-5), lastActivityAt: day(-1),
+      note: "EDGE (#97): owner Rahul (Golf Course); open follow-up ASSIGNED TO Priya (Sec 31, another branch) -> Priya sees it with 'Follow-up from Rahul'" }),
+    L("p29", "Tanvi Shah", "90000 01262", "b2", "u7", "Contacted", { createdAt: day(-9), lastActivityAt: day(-2),
+      note: "EDGE (#97): Priya's follow-up on this lead is DONE -> the lead left Priya's list (stays in her follow-up history)" }),
+    L("p30", "Gaurav Sethi", "90000 01263", "b1", "u6", "Contacted", { createdAt: day(-20), lastActivityAt: day(-6),
+      note: "EDGE (#100): follow-up overdue 6 days -> 'Releases tomorrow' + one notification to Priya" }),
+    L("p31", "Meghna Pillai", "90000 01264", "b1", "u6", "New", { createdAt: day(-25), lastActivityAt: day(-8),
+      note: "EDGE (#100): follow-up overdue 8 days -> RELEASED on page load (Unassigned · Released), follow-up + task closed by system" }),
+    L("p32", "Rohan Das", "90000 01265", "b1", "u6", "Trial", { createdAt: day(-15), lastActivityAt: day(-1),
+      trials: [{ id: "tr12", type: "Membership", kind: "paid", packageId: "pk2", package: "Trial Paid 7 Days", from: day(-1), to: day(5), price: 800, paid: 800, receiptNo: "S31-000122",
+        branchId: "b1", bookedByUserId: "u6", bookedAt: day(-1), comment: "Wants to try evenings", approverUserId: "u5", approval: "Approved", approvedAt: day(-1), endedFollowUpId: null }],
+      note: "EDGE (#100): follow-up overdue 9 days BUT a trial is running -> never released, no warning" }),
+    L("p33", "Asha Menon", "90000 01266", "b2", "u7", "Contacted", { createdAt: day(-30), lastActivityAt: day(0, 9),
+      ownerHistory: [{ from: "u3", to: "u7", at: day(0, 9), by: "u3" }],
+      note: "EDGE (#100 FIX): assigned to Arjun TODAY, follow-up overdue 10 days -> NOT released (clock starts when the current owner got it)" }),
+    L("p34", "Kiran Joshi", "90000 01267", "b1", "u7", "Contacted", { createdAt: day(-12), lastActivityAt: day(-1),
+      transferredIn: { from: "b2", by: "u7", at: day(-1) },
+      note: "EDGE (#98): moved Sec 65 -> Sec 31 by Arjun (SE, cannot pick) -> 'Transferred in' waiting for Sunita (CM) to pick an SE" }),
+    L("p35", "Lakshmi Iyer", "90000 01268", "b1", "u4", "New", { createdAt: day(-3), lastActivityAt: day(-2), source: "Instagram",
+      ownerHistory: [{ from: null, to: "u4", at: day(-2), by: "u4", how: "Taken" }],
+      note: "EDGE (#100): was Unassigned · New, TAKEN by Sunita ('Take this lead')" }),
+    L("p36", "Yash Arora", "90000 01269", "b1", null, "Contacted", { createdAt: day(-30), lastActivityAt: day(-1), unassignedReason: "Released", releasedAt: day(-1),
+      ownerHistory: [{ from: "u5", to: null, at: day(-1), by: null, how: "Released" }],
+      note: "EDGE (#100): Unassigned · Released (inactive) yesterday, was Karan's" }),
+    L("p37", "Sana Qureshi", "90000 01270", "b1", "u5", "Lost", { createdAt: day(-40), lastActivityAt: day(-10), stageBeforeLost: "Negotiation", lostReason: "Timing issue", lostAt: day(-10),
+      note: "EDGE (#100/#99): Karan's LOST lead with an open task -> re-opened by someone else (e.g. Sunita) = new owner + owner-change dialog (N = 1)" }),
+    L("p38", "Dev Malhotra", "90000 01271", "b1", "u6", "Negotiation", { createdAt: day(-8), lastActivityAt: day(-1),
+      note: "EDGE (#99 FIX): Priya owns it; Arjun (third person) has his own open follow-up -> an owner change moves only Priya's items, Arjun's stays" })
+  );
+
   // ---------- Payments (decisions #79–#84). payment = { total, paid, dueDate, receipts: [{ no, at, by, rows: [{ method, amount, ref, slip }] }] }
   function rc(no, at, by, rows) { return { no: no, at: at, by: by, rows: rows.map(function (r) { return { method: r[0], amount: r[1], ref: r[2] || null, slip: r[3] || null }; }) }; }
   function pay(total, dueDate, receipts) {
@@ -378,7 +415,20 @@
     { id: "f13", personId: "p15", type: "Call", dueDate: dd(-1), dueTime: "12:00", ownerUserId: "u7", status: "Open", outcome: null, note: "Wants weekend batch" },
     { id: "f14", personId: "p16", type: "Visit planned", dueDate: dd(-4), dueTime: "18:00", ownerUserId: "u10", status: "Open", outcome: null, note: null },
     { id: "f15", personId: "p17", type: "WhatsApp", dueDate: dd(-1), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "Send couple PT details" },
-    { id: "f12", personId: "p7", type: "Call", dueDate: dd(7), dueTime: "11:00", ownerUserId: "u6", status: "Open", outcome: null, note: "Check how training is going" }
+    { id: "f12", personId: "p7", type: "Call", dueDate: dd(7), dueTime: "11:00", ownerUserId: "u6", status: "Open", outcome: null, note: "Check how training is going" },
+    // Ownership (#97-#100). ownerUserId = the lead owner the follow-up comes from; assignedToUserId = who does it (default = owner).
+    { id: "f28", personId: "p28", type: "Call", dueDate: dd(1), dueTime: "17:00", ownerUserId: "u10", assignedToUserId: "u6", status: "Open", outcome: null, note: "Lives near Sec 31 · invite for a visit", createdAt: day(-1) },
+    { id: "f29", personId: "p29", type: "Call", dueDate: dd(-2), dueTime: "12:00", ownerUserId: "u7", assignedToUserId: "u6", status: "Done", outcome: "Interested", note: "Asked about Sec 31 timings", createdAt: day(-4), doneAt: day(-2, 12, 20) },
+    { id: "f29b", personId: "p29", type: "WhatsApp", dueDate: dd(2), dueTime: null, ownerUserId: "u7", status: "Open", outcome: null, note: "Send Sec 65 batch list", createdAt: day(-2) },
+    { id: "f30", personId: "p30", type: "Call", dueDate: dd(-6), dueTime: "11:00", ownerUserId: "u6", status: "Open", outcome: null, note: "Price discussion", createdAt: day(-9) },
+    { id: "f31", personId: "p31", type: "Call", dueDate: dd(-8), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: null, createdAt: day(-12) },
+    { id: "f32", personId: "p32", type: "Call", dueDate: dd(-9), dueTime: null, ownerUserId: "u6", status: "Open", outcome: null, note: "Before the trial", createdAt: day(-14) },
+    { id: "f33", personId: "p33", type: "Call", dueDate: dd(-10), dueTime: null, ownerUserId: "u7", status: "Open", outcome: null, note: "Moved from Vikram today", createdAt: day(-15) },
+    { id: "f34", personId: "p34", type: "Call", dueDate: dd(2), dueTime: null, ownerUserId: "u7", status: "Open", outcome: null, note: "Arjun keeps in touch", createdAt: day(-1) },
+    { id: "f35", personId: "p35", type: "Call", dueDate: dd(1), dueTime: "12:00", ownerUserId: "u4", status: "Open", outcome: null, note: null, createdAt: day(-2) },
+    { id: "f36", personId: "p36", type: "Call", dueDate: dd(-8), dueTime: null, ownerUserId: "u5", status: "Closed by system", closeReason: "Released (inactive)", closedAt: day(-1), outcome: null, note: null, createdAt: day(-12) },
+    { id: "f38", personId: "p38", type: "Visit planned", dueDate: dd(1), dueTime: "18:00", ownerUserId: "u6", status: "Open", outcome: null, note: "Couple membership", createdAt: day(-1) },
+    { id: "f38b", personId: "p38", type: "Call", dueDate: dd(3), dueTime: null, ownerUserId: "u6", assignedToUserId: "u7", status: "Open", outcome: null, note: "Arjun: Sec 65 timings for his wife", createdAt: day(-1) }
   ];
 
   var workTasks = [  // WorkTask (staff work, decision #6)
@@ -388,7 +438,10 @@
     { id: "t4", title: "Call back about locker", assignedUserId: "u7", dueAt: day(-3, 12), priority: "Low", personId: "p6", status: "Done", note: null },
     { id: "t6", title: "Print welcome kit for Rohit", assignedUserId: "u6", dueAt: day(0, 15), priority: "Medium", personId: "p12", status: "Open", note: null },
     { id: "t7", title: "Check fob stock count", assignedUserId: "u4", dueAt: day(0, 12), priority: "High", personId: null, status: "Open", note: null },
-    { id: "t5", title: "Update brochure stock", assignedUserId: "u9", dueAt: day(2, 12), priority: "Low", personId: null, status: "Cancelled", note: null }
+    { id: "t5", title: "Update brochure stock", assignedUserId: "u9", dueAt: day(2, 12), priority: "Low", personId: null, status: "Cancelled", note: null },
+    { id: "t8", title: "Send Meghna the offer PDF", assignedUserId: "u6", dueAt: day(-7, 12), priority: "Low", personId: "p31", status: "Open", note: null },
+    { id: "t9", title: "Return Sana's ID copy", assignedUserId: "u5", dueAt: day(2, 12), priority: "Medium", personId: "p37", status: "Open", note: "Lost lead, open task" },
+    { id: "t10", title: "Share Dev's diet plan", assignedUserId: "u6", dueAt: day(2, 15), priority: "Low", personId: "p38", status: "Open", note: null }
   ];
 
   // Human-language timeline events.
@@ -414,7 +467,13 @@
     { personId: "p7", at: day(-100), kind: "milestone", text: "Converted to Client · Annual Membership · key fob KF-S31-0012", by: "u6" },
     { personId: "p7", at: day(-7), kind: "note", text: "Priya noted: asked about PT sessions for next month", by: "u6" },
     { personId: "p8", at: day(0, 8, 15), kind: "milestone", text: "Lead received from Meta · waiting for an owner" },
-    { personId: "p10", at: day(-1), kind: "whatsapp", text: "Arjun sent WhatsApp · price list", by: "u7" }
+    { personId: "p10", at: day(-1), kind: "whatsapp", text: "Arjun sent WhatsApp · price list", by: "u7" },
+    { personId: "p28", at: day(-1), kind: "milestone", text: "Rahul set a follow-up for Priya (Sec 31) · Call", by: "u10" },
+    { personId: "p33", at: day(0, 9), kind: "milestone", text: "Owner changed from Vikram to Arjun by Vikram", by: "u3" },
+    { personId: "p34", at: day(-1), kind: "milestone", text: "Moved Sec 65 \u2192 Sec 31 by Arjun · lives in Sec 31 now", by: "u7" },
+    { personId: "p35", at: day(-2), kind: "milestone", text: "Taken by Sunita", by: "u4" },
+    { personId: "p36", at: day(-1), kind: "milestone", text: "Released to Unassigned · no follow-up for 7 days (was Karan Malhotra)", by: null },
+    { personId: "p37", at: day(-10), kind: "milestone", text: "Marked as Lost · Timing issue", by: "u5" }
   ];
 
   // ---------- Masters (decisions #49–#56) ----------

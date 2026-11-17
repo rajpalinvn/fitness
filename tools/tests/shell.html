@@ -46,7 +46,7 @@ load(BASE, function () {
   click(q('[data-role="CEO"]'));
   ok("role -> CEO, chip updated", /CEO/.test(q(".demo-chip").textContent));
   ok("CEO all branches: badge == card", badge("Today") === attnCard(), badge("Today") + " vs " + attnCard());
-  ok("CEO sees 17 open leads (incl. the 5 trial leads)", rows() === 17, rows());
+  ok("CEO sees 27 open leads (incl. trial + ownership c4 dummies)", rows() === 27, rows());
   click(q(".demo-chip")); ok("demo chip opens role menu", vis(q('[data-dd-menu="user"]')));
   click(Dc().body); ok("outside click closes menu", !vis(q('[data-dd-menu="user"]')));
 
@@ -76,7 +76,7 @@ load(BASE, function () {
   click(q("#fuAddModal [data-save]"));
   ok("badge updates after data change, still == card", badge("Today") === attnCard() && badge("Today") !== before, before + " -> " + badge("Today") + " / card " + attnCard());
 
-  setSel(q("#fStage"), "Lost"); ok("Lost filter shows lost lead", rows() === 1 && !!q('#rows tr[data-id="p3"]'));
+  setSel(q("#fStage"), "Lost"); ok("Lost filter shows the 2 lost leads", rows() === 2 && !!q('#rows tr[data-id="p3"]') && !!q('#rows tr[data-id="p37"]'));
   setSel(q("#fStage"), ""); ok("default hides Lost", !q('#rows tr[data-id="p3"]'));
   setInput(q("#fSearch"), "09000001234"); ok("search with leading 0", rows() === 1, rows());
   setInput(q("#fSearch"), "+91 90000 01234"); ok("search with +91", rows() === 1, rows());

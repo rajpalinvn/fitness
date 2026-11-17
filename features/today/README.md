@@ -67,5 +67,13 @@ Roles with no `leads.view` (Trainer / MXM / Finance by default) see the note "Le
 | Harsh Vardhan (Sec 65) | Only FF ID pending (has a fob). |
 | Ishaan, Kunal (asked from Karan), Ananya (Vikram), Mohit (no approver) | Trial approvals pending (CEO sees all; Karan only his). |
 
+### Ownership sections (c4, #98, #100)
+| Section | Who sees it | Rows | Action |
+|---|---|---|---|
+| Unassigned leads (was "Unassigned new leads") | `leads.viewUnassigned` (CM / RM / CEO by default) | Unassigned open leads in scope, newest (released / received) first; badge "Unassigned · New / Released" | "Take this lead" (`leads.take`), else "Assign" (`leads.assign`), else none |
+| Transferred in · needs follow-up person | `leads.assign` Branch or All (CM / RM / CEO by default; SM too, as the grid allows) | Leads with `transferredIn` in scope (new branch) | "Pick person" → pick modal. View all → Leads `?view=transferred` |
+- Overdue or not set rows also show "Releases tomorrow" / "Follow-up from <owner>" / "Transferred in" badges.
+- Empty: "Every lead has an owner" / "No transferred leads waiting".
+
 ## 5. Status
 Ready for review

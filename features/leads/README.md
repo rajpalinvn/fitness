@@ -120,5 +120,21 @@ Full defaults: docs/permissions.md.
 ### Trials on the list (#94)
 Stage cell shows one line per running trial ("Free PT trial · ends in 1 day · Pending") or the badge "Trial ended". Stage is set to Trial by Book trial; the Details form dropdown offers New / Contacted / Negotiation and is locked while a trial runs.
 
+### Ownership on the list (c4, #97–#100)
+| Item | Type | Notes |
+|---|---|---|
+| Badge "Follow-up from <owner>" | badge (info) | On leads I see only because I have an open follow-up (L11). Leaves my list when that follow-up is Done / Cancelled / Closed by system. |
+| Badge "Releases tomorrow" | badge (warning) | Day N-1 of the inactivity clock (#100). |
+| Badge "Transferred in" | badge (warning) | Moved without a follow-up person (#98). |
+| Owner cell "Unassigned · New / Released" | badge + buttons | "Take this lead" (`leads.take`) and / or "Assign" (`leads.assign`). Lost leads keep their owner. |
+| Bulk select | checkbox in the name cell | Only with `leads.assign` and for leads in that scope. Bar "N selected · Change owner · Clear selection" → staff → the owner-change dialog (one choice for all). |
+| Filter "Unassigned reason" | select (More filters) | Any / Unassigned · New / Unassigned · Released. Hidden without `leads.viewUnassigned`. URL `?owner=none&reason=Released`. |
+| Filter "Transferred in · needs follow-up person" | checkbox (More filters) | URL `?view=transferred` (Today "View all"). |
+
+Visibility: `leads.view` Own = leads I own + leads where I have an open follow-up (Branch also includes those, so an assignee from another branch always sees them). Unassigned = `leads.viewUnassigned`.
+Inactivity release is computed on page load in the mockup (real app: daily job) — see #100.
+
+Dummy (c4): p28 Varun (Rahul's, follow-up assigned to Priya), p29 Tanvi (Priya's follow-up Done → hidden from her), p30 Gaurav (Releases tomorrow), p31 Meghna (released on load), p32 Rohan (overdue 9 + trial running → never released), p33 Asha (assigned today, follow-up overdue 10 → not released), p34 Kiran (Transferred in, waiting for Sunita), p35 Lakshmi (taken by Sunita), p36 Yash (Unassigned · Released), p37 Sana (Karan's lost lead with an open task), p38 Dev (Priya's, + Arjun's own follow-up that must not move), p8 Fatima (Unassigned · New, Meta), p14 Neha (Unassigned · New).
+
 ## 5. Status
 Ready for review

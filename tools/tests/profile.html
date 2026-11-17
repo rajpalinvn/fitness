@@ -33,7 +33,7 @@ load(LEADS, function () {
       ok("no visible native selects on list", natives.length === 0, natives.length);
       ok("styled filter pills exist (stage, owner, source, branch)", ["fStage", "fOwner", "fSource", "fBranch"].every(function (i) { return vis(q('[data-dd="sel-' + i + '"]')); }));
       pickSel("fStage", "Lost");
-      ok("styled stage dropdown filters to Lost", qa("#rows tr[data-id]").length === 1 && !!q('#rows tr[data-id="p3"]'));
+      ok("styled stage dropdown filters to Lost", qa("#rows tr[data-id]").length === 2 && !!q('#rows tr[data-id="p3"]'));
       ok("styled pill shows selection", /Lost/.test(q('[data-dd="sel-fStage"]').textContent) && q('[data-dd="sel-fStage"]').classList.contains("is-set"));
       ok("lost row follow-up disabled", q('#rows tr[data-id="p3"] .row-actions button[disabled]') != null);
       pickSel("fStage", "");

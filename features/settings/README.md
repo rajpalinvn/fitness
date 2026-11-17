@@ -262,7 +262,7 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 | Free trials per person | number 0–10 | Yes | — | 2 | Whole number. |
 | Free trials per branch | number 0–10 | Yes | — | 1 | ≤ per person: "Per branch can't be more than per person (N)." |
 | Paid trial adjust buffer | number 0–30 days | Yes | — | 7 | Changed by CEO. |
-| Inactivity release after | number 1–90 days | Yes | — | 7 | Changed by roles with `settings.editInactivity`. |
+| Release inactive leads after | number 1–90 days | Yes | — | 7 | Changed by roles with `settings.editInactivity`. Used by the inactivity release (#100, c4): next follow-up overdue (or none open) for N days → Unassigned · Released; warning N − "Warn the owner before release" days before. |
 | Warn the owner before release | number 0–89 days | Yes | — | 1 | < inactivity days: "Must be less than the inactivity days (N)." |
 | New-lead assignment | Manual / Round-robin | Yes | — | Manual | Round-robin disabled "Later" (Q10). |
 | Trainer type name | text | Yes | Yes (case-insensitive) | — | "Enter a name." / "This name already exists." |

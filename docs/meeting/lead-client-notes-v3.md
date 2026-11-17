@@ -72,7 +72,7 @@
 | Leads | Take an unassigned lead ("Take this lead" → I become owner) | — | — | Branch | Branch | All |
 | Leads | View lost leads | Own | Branch | Branch | Branch | All |
 | Leads | Create lead | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Leads | Assign / reassign / change owner (single + bulk) | — | Branch | Branch | Branch | All |
+| Leads | Assign / reassign / change owner (leads and clients; single + bulk) | — | Branch | Branch | Branch | All |
 | Leads | Assign a follow-up to another staff (any branch) | Own | Branch | Branch | Branch | All |
 | Leads | Mark lost | Own | Branch | Branch | Branch | All |
 | Leads | Re-open lost lead | Own | Branch | Branch | Branch | All |
@@ -110,7 +110,7 @@ Discount % numbers follow #77 (CEO 100% = placeholder Q31; "no limit" never show
 | Free trials per person (all branches) | 2 | grid row "Edit free-trial limit settings" |
 | Free trials per branch | 1 | same |
 | Paid trial adjust buffer after it ends | 7 days | CEO |
-| Inactivity release after | 7 days | grid row "Edit inactivity release days" |
+| Release inactive leads after | 7 days | grid row "Edit inactivity release days" |
 | Warn the owner before release | 1 day before | same |
 | New-lead assignment | Manual (Round-robin later) | CEO |
 | Max discount % per role (#77) | see grid | CEO |
@@ -142,9 +142,9 @@ O-R3, O-R5, O-R6, T-R7 (who approves), and **Q8** (permission matrix) everywhere
 | L13 | If the mover does **not** have the "pick directly" permission (SE by default): the lead appears for the **new branch's CM** in "Transferred in · needs follow-up person" (Leads filter + Today). The CM picks an SE of that branch, who gets a follow-up. |
 | L14 | If the mover **has** that permission: a dropdown of the new branch's SEs appears in the move dialog, and that SE gets the follow-up right away. |
 | L15 | The owner's own open follow-ups stay as they are (owner did not change). The new-branch SE converts → they are the sales rep by default (L10); any credit for the owner is decided in the incentive scheme. |
-| L16 | **Owner change (single or bulk):** the dialog shows "Open follow-ups and tasks (N)" with 3 choices, default first: **(1) Move to the new owner** · (2) Close them ("Closed by system · Owner changed") and create **one** new follow-up for the new owner (due = earliest open due date, editable) · (3) Keep with the old owner (old owner keeps seeing the lead while they stay open, L8). In bulk, one choice applies to all. |
+| L16 | **Owner change (single or bulk):** the dialog shows "Open follow-ups and tasks (N)" with 3 choices, default first: **(1) Move to the new owner** · (2) Close them ("Closed by system · Owner changed") and create **one** new follow-up for the new owner (due = earliest open due date, editable) · (3) Keep with the old owner (old owner keeps seeing the lead while they stay open, L8). In bulk, one choice applies to all. **FIX (17 Nov):** the dialog acts ONLY on items assigned to the OLD OWNER; follow-ups assigned to other staff stay with them, and N counts only the old owner's items. |
 | L17 | Applies to **open follow-ups and open tasks**. Not moved: done / closed history, notes, timeline, and trial-approval requests (they stay a record of who asked whom). Same dialog for a client's owner change. |
-| L18 | **Inactivity release (built now):** a lead is inactive when its next follow-up is **overdue or not set for N days** (setting, default 7). Then: owner removed → **Unassigned**, open follow-ups and tasks "Closed by system · Released (inactive)", timeline entry. Applies to all open leads. **Not** while a trial is running. Lost leads are never released (they are closed already). |
+| L18 | **Inactivity release (built now):** a lead is inactive when its next follow-up is **overdue or not set for N days** (setting, default 7). Then: owner removed → **Unassigned**, open follow-ups and tasks "Closed by system · Released (inactive)", timeline entry. Applies to all open leads. **Not** while a trial is running. Lost leads are never released (they are closed already). **FIX (17 Nov):** the clock never starts before the date the CURRENT owner got the lead (assigned, taken, re-opened, owner changed); any follow-up activity by owner or assignee resets it. Clock = days since the overdue due date, or since the last follow-up activity (else created) when none is open. |
 | L19 | The owner gets a warning **1 day before** (notification + "Releases tomorrow" badge on the lead). Any follow-up logged or scheduled resets the clock. |
 | L20 | **"Pool" = Unassigned leads, controlled only by the grid.** Unassigned has a reason: New (Meta / Excel / manual unassigned), Released (inactive). Filter by reason. Default grid: only CM / RM / CEO see and take them. Giving SE "View" + "Take" (Branch) turns on the pool for SE, no new screen. |
 | L21 | **Take this lead** = explicit button, no auto-claim by activity. Taker becomes owner; the lead's branch does **not** change (cross-branch owner, like L12). |

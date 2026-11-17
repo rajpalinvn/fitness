@@ -37,7 +37,7 @@ load(TODAY, function () {
       ok("my tasks count == sidebar Tasks badge", cnt("tasks") === badge("Tasks"), cnt("tasks") + " vs " + badge("Tasks"));
       ok("overdue row: Log outcome", /Log outcome/.test(rowOf("attention", "Aarav Patel").textContent) && /Overdue · 2 days/.test(rowOf("attention", "Aarav Patel").textContent));
       ok("not-set row: Add follow-up", /Add follow-up/.test(rowOf("attention", "Sneha Reddy").textContent) && /No follow-up set/.test(rowOf("attention", "Sneha Reddy").textContent));
-      ok("overdue first (oldest), then not set", qa("#sec-attention .today-row")[0].textContent.indexOf("Aarav") > -1);
+      ok("overdue first (oldest: Rohan, 9 days), then not set", qa("#sec-attention .today-row")[0].textContent.indexOf("Rohan Das") > -1);
       ok("one action per row", Array.prototype.every.call(qa(".today-row"), function (r) { return r.querySelectorAll("button").length === 1; }));
       ok("pending row: 3 badges + first action Add FF ID", /FF ID pending/.test(rowOf("pending", "Rohit").textContent) && /Key fob pending/.test(rowOf("pending", "Rohit").textContent) &&
         /Pending issue · T-shirt/.test(rowOf("pending", "Rohit").textContent) && /Add FF ID/.test(rowOf("pending", "Rohit").querySelector("button").textContent));
@@ -87,11 +87,9 @@ load(TODAY, function () {
       ok("more than 5: shows 5 rows + more", qa("#sec-attention .today-row").length === 5 && /more/.test(text("#sec-attention")) && /View all \(\d+\)/.test(text("#sec-attention")));
       ok("owner shown to managers", /Unassigned|Priya|Arjun|Rahul/.test(text("#sec-attention")));
       ok("pending: Rohit + Harsh", /Rohit Verma/.test(text("#sec-pending")) && /Harsh Vardhan/.test(text("#sec-pending")));
+      ok("unassigned rows show the reason (New / Released)", /Unassigned · New/.test(text("#sec-unassigned")) && /Unassigned · Released/.test(text("#sec-unassigned")));
       click(rowOf("unassigned", "Neha").querySelector("button"));
-      ok("Assign opens the shared modal", q("#assignModal").classList.contains("open"));
-      var sel = q("#assignUser"); sel.value = "u6"; sel.dispatchEvent(new (W().Event)("change", { bubbles: true }));
-      click(q("#assignModal [data-save]"));
-      ok("Neha assigned and leaves unassigned", person("p14").ownerUserId === "u6" && !rowOf("unassigned", "Neha"));
+      ok("Take this lead: CEO owns Neha, she leaves unassigned (#100)", person("p14").ownerUserId === "u2" && !rowOf("unassigned", "Neha"));
       click(rowOf("pending", "Rohit").querySelector("button"));
       ok("CEO can waive", !!q("#issueModal [data-wv]"));
       click(q("#issueModal [data-wv]")); click(q("#issueModal [data-wv]"));

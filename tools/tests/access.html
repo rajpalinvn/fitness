@@ -33,7 +33,7 @@ load(LEADS, function () {
       });
       load(TODAY, function () {
         step("Today · follows the grid", function () {
-          ok("SE: Unassigned section hidden (no leads.assign), Needs attention + pending shown", !q("#sec-unassigned") && !!q("#sec-attention") && !!q("#sec-pending"));
+          ok("SE given View unassigned: section shows (leads.viewUnassigned), no Take / Assign button", !!q("#sec-unassigned") && !q("#sec-unassigned .today-row button") && !!q("#sec-attention") && !!q("#sec-pending"));
           P().save([{ short: "SE", key: "leads.assign", value: "Branch" }], "Permissions");
         });
         load(TODAY, function () {

@@ -6,7 +6,12 @@
      App.Followup.cancel(followUpId)             cancel (never delete)
      App.Lead.markLost(personId, opts)           reason modal ("Other" needs text)
      App.Lead.reopen(personId)                   clears reason, timeline "Re-opened", asks next follow-up
-     App.Lead.assign(personId)                   pick owner from the lead's branch
+     App.Lead.assign(personId)                   pick owner from the lead's branch -> App.Owner.change
+     App.Lead.move(personId)                     move to another branch (#98)
+     App.Lead.pickPerson(personId)               transferred in: new-branch CM picks the follow-up SE (#98)
+     App.Lead.take(personId)                     "Take this lead" (#100)
+     App.Owner.change(ids, newOwnerId, opts)     THE owner-change dialog (#99): single, bulk, client, re-open
+     App.Owner.apply(ids, newOwnerId, choice, o) the same without UI (choice: move | close | keep)
    Load after shell.js. */
 (function () {
   var D = window.DUMMY, L = D.lists, esc = App.esc;
@@ -45,9 +50,10 @@
           '<input class="input ff-time" type="time" value="11:00" aria-label="Time (optional)" title="Time is optional"></div>' +
           '<span class="hint ff-preview"></span><span class="error ff-err" hidden></span></div>' +
         '<div class="field"><label>Note</label><textarea class="input ff-note" rows="2" placeholder="What is this follow-up about? (optional)"></textarea></div>' +
-        '<p class="hint">Assigned to ' + esc(p && p.ownerUserId ? App.userName(p.ownerUserId) + " (lead owner)" : "the lead owner (not set yet)") + ".</p>" +
+        assignField(p) +
       "</div>";
     var root = container.querySelector(".ff");
+    var asel = root.querySelector(".ff-assign"); if (asel) App.enhanceSelect(asel);
     function dueDate() {
       var pick = chipValue(root, "fpick"), t = root.querySelector(".ff-time").value, base;
       if (pick === "c") { var v = root.querySelector(".ff-date").value; if (!v) return null; base = new Date(v + "T00:00"); }
@@ -75,17 +81,37 @@
         var bad = !d ? "Pick a date." : App.startOfDay(d) < App.startOfDay(new Date()) ? "The date can't be in the past." : "";
         err.hidden = !bad; err.textContent = bad;
         if (bad) return null;
-        return { type: chipValue(root, "ftype"), dueDate: isoDate(d), dueTime: d.noTime ? null : ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2), note: root.querySelector(".ff-note").value.trim() || null };
+        var as = root.querySelector(".ff-assign");
+        return { assignedToUserId: as ? as.value : (p && p.ownerUserId) || null, type: chipValue(root, "ftype"), dueDate: isoDate(d), dueTime: d.noTime ? null : ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2), note: root.querySelector(".ff-note").value.trim() || null };
       },
       reset: function () { mountForm(container, personId, opts); }
     };
   }
 
+  // "Assigned to" (#97): only with the grid row leads.assignFollowUp (Own = leads I own, Branch, All). Default = owner.
+  // Staff from ANY branch whose role works leads (leads.view not None).
+  function followUpStaff() {
+    return D.users.filter(function (u) {
+      var r = !u.platform && App.Perm.roleByName(u.role); return r && App.Perm.get(r.short, "leads.view") !== "None";
+    });
+  }
+  function canAssignFollowUp(p) { return !!p && !!p.ownerUserId && App.scopeAllows("leads.assignFollowUp", p, { strictOwn: true }); }
+  function assignField(p) {
+    if (!canAssignFollowUp(p)) return '<p class="hint">Assigned to ' + esc(p && p.ownerUserId ? App.userName(p.ownerUserId) + " (lead owner)" : "the lead owner (not set yet)") + ".</p>";
+    return '<div class="field"><label for="ffAssign' + p.id + '">Assigned to</label><select class="input ff-assign" id="ffAssign' + p.id + '">' +
+      followUpStaff().map(function (u) {
+        return '<option value="' + u.id + '"' + (u.id === p.ownerUserId ? " selected" : "") + ">" + esc(u.name) + (u.id === p.ownerUserId ? " (lead owner)" : "") +
+          " · " + esc(u.role) + " · " + esc(u.branchIds.map(App.branchName).join(", ")) + "</option>";
+      }).join("") + '</select><span class="hint">Any branch. They see this lead while the follow-up is open; the owner stays the same.</span></div>';
+  }
   function create(personId, v) {
-    var p = person(personId);
+    var p = person(personId), to = v.assignedToUserId || p.ownerUserId || null;
     var f = { id: "f" + Date.now() + Math.floor(Math.random() * 1000), personId: personId, type: v.type, dueDate: v.dueDate, dueTime: v.dueTime,
-      ownerUserId: p.ownerUserId, status: "Open", outcome: null, note: v.note, createdAt: new Date().toISOString() };
+      ownerUserId: p.ownerUserId, assignedToUserId: to, status: "Open", outcome: null, note: v.note, createdAt: new Date().toISOString(),
+      createdByUserId: (App.me() || {}).id || null };
     D.followUps.push(f);
+    if (to && to !== p.ownerUserId) App.addTimeline(personId, "milestone", App.firstName(App.me()) + " set a follow-up for " + App.userName(to) + " · " + v.type);
+    p.lastActivityAt = f.createdAt;
     return f;
   }
 
@@ -96,7 +122,7 @@
     closed.forEach(function (f) {
       f.status = "Closed by system"; f.closedAt = now; f.closeReason = reason;
       D.notifications.unshift({ id: "n" + Date.now() + f.id, text: f.type + " with " + p.name + " was closed by system · " + reason.toLowerCase(),
-        at: now, unread: true, userId: f.ownerUserId });
+        at: now, unread: true, userId: App.fuAssignee(f) });
     });
     return closed.length;
   }
@@ -197,7 +223,7 @@
       '<p class="hint">Cancelled follow-ups stay in the timeline.' + (openFollowUps(p.id).length === 1 && isOpenLead(p) ? " This lead will have no follow-up set." : "") + "</p>";
     m.foot.innerHTML = '<button class="btn" data-close>Keep it</button><button class="btn btn-danger" data-save>Cancel follow-up</button>';
     m.foot.querySelector("[data-save]").onclick = function () {
-      f.status = "Cancelled"; f.cancelledAt = new Date().toISOString(); f.cancelReason = m.body.querySelector("#fuCReason").value.trim() || null;
+      f.status = "Cancelled"; f.cancelledAt = new Date().toISOString(); f.cancelledByUserId = App.me().id; f.cancelReason = m.body.querySelector("#fuCReason").value.trim() || null;
       App.close(m.el); App.toast("Follow-up cancelled", ""); App.dataChanged();
     };
     App.openModal("fuCancelModal");
@@ -247,7 +273,11 @@
       p.stage = backTo; p.lostReason = null; p.lostAt = null; p.reopenedAt = new Date().toISOString();
       App.addTimeline(p.id, "milestone", "Re-opened by " + App.me().name);
       App.close(m.el); App.dataChanged();
-      openAdd(p.id, { title: "Set next follow-up", intro: p.name + " is open again. Set the next follow-up.", cancelText: "Later" });
+      function askFollowUp() { openAdd(p.id, { title: "Set next follow-up", intro: p.name + " is open again. Set the next follow-up.", cancelText: "Later" }); }
+      // L22 / #100: re-opening someone else's lost lead makes you the owner; the owner-change dialog shows only if anything is open.
+      var me = App.me();
+      if (me && p.ownerUserId !== me.id) Owner.change([p.id], me.id, { reason: "reopen", silentIfNone: true, onDone: askFollowUp });
+      else askFollowUp();
     };
     App.openModal("reopenModal");
   }
@@ -259,25 +289,225 @@
       '<div class="field"><label for="assignUser">Staff member <span class="req">*</span></label>' +
       '<select class="input" id="assignUser"><option value="">Choose…</option>' + staff.map(function (u) {
         return '<option value="' + u.id + '"' + (u.id === p.ownerUserId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(u.role) + "</option>";
-      }).join("") + '</select><span class="hint">Staff from this lead\'s branch. Open follow-ups move to the new owner.</span>' +
+      }).join("") + '</select><span class="hint">Staff from this lead\'s branch. Next you choose what happens to the old owner\'s open follow-ups and tasks.</span>' +
       '<span class="error" data-aerr hidden>Choose a staff member.</span></div>';
     App.enhanceSelect(m.body.querySelector("#assignUser"));
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>' + (p.ownerUserId ? "Save" : "Assign") + "</button>";
     m.foot.querySelector("[data-save]").onclick = function () {
       var uid = m.body.querySelector("#assignUser").value;
       if (!uid) { m.body.querySelector("[data-aerr]").hidden = false; return; }
-      if (p.ownerUserId !== uid) p.ownerHistory.push({ from: p.ownerUserId || null, to: uid, at: new Date().toISOString(), by: App.me().id });
-      p.ownerUserId = uid;
-      openFollowUps(p.id).forEach(function (f) { f.ownerUserId = uid; });
-      App.addTimeline(p.id, "milestone", "Owner set to " + App.userName(uid));
-      App.close(m.el); App.toast(p.name + " assigned to " + App.userName(uid), "success"); App.dataChanged();
+      if (uid === p.ownerUserId) { App.close(m.el); return; }
+      App.close(m.el);
+      Owner.change([p.id], uid, { noConfirm: true });
     };
     App.openModal("assignModal");
+  }
+  // Bulk assign (#99): one staff for all selected leads, then the same owner-change dialog (one choice for all).
+  function assignMany(ids) {
+    var people = ids.map(person).filter(Boolean), m = App.makeModal("assignManyModal"), branches = {};
+    people.forEach(function (p) { branches[p.branchId] = true; });
+    var staff = D.users.filter(function (u) { return ASSIGNABLE_ROLES.indexOf(u.role) > -1 && u.branches.some(function (b) { return branches[b]; }); });
+    m.title.textContent = "Change owner of " + people.length + (people.length === 1 ? " lead" : " leads");
+    m.body.innerHTML = '<p class="muted">' + esc(people.map(function (p) { return p.name; }).join(", ")) + "</p>" +
+      '<div class="field"><label for="assignManyUser">New owner <span class="req">*</span></label>' +
+      '<select class="input" id="assignManyUser"><option value="">Choose…</option>' + staff.map(function (u) {
+        return '<option value="' + u.id + '">' + esc(u.name) + " · " + esc(u.role) + " · " + esc(App.branchName(u.branchIds[0])) + "</option>";
+      }).join("") + '</select><span class="hint">Staff from the branches of the selected leads. The lead\'s branch does not change.</span>' +
+      '<span class="error" data-aerr hidden>Choose a staff member.</span></div>';
+    App.enhanceSelect(m.body.querySelector("#assignManyUser"));
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Next</button>';
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var uid = m.body.querySelector("#assignManyUser").value;
+      if (!uid) { m.body.querySelector("[data-aerr]").hidden = false; return; }
+      App.close(m.el); Owner.change(ids, uid, {});
+    };
+    App.openModal("assignManyModal");
+  }
+
+  // ---------- Owner change (#99, notes L16–L17) ----------
+  // Acts ONLY on open follow-ups / tasks assigned to the OLD owner. Follow-ups assigned to other staff stay with them
+  // and are not counted. History, notes, timeline and trial approvals never move.
+  var Owner = {};
+  Owner.itemsOf = function (p) {
+    var old = p.ownerUserId; if (!old) return { fus: [], tasks: [] };
+    return {
+      fus: D.followUps.filter(function (f) { return f.personId === p.id && f.status === "Open" && App.fuAssignee(f) === old; }),
+      tasks: D.workTasks.filter(function (t) { return t.personId === p.id && t.status === "Open" && t.assignedUserId === old; })
+    };
+  };
+  Owner.count = function (ids) {
+    return ids.reduce(function (n, id) { var p = person(id); if (!p) return n; var it = Owner.itemsOf(p); return n + it.fus.length + it.tasks.length; }, 0);
+  };
+  // Earliest open due date (follow-ups dueDate, tasks dueAt) among the old owner's items, "YYYY-MM-DD".
+  Owner.earliestDue = function (p) {
+    var it = Owner.itemsOf(p), d = null;
+    it.fus.forEach(function (f) { if (!d || f.dueDate < d) d = f.dueDate; });
+    it.tasks.forEach(function (t) { var x = isoDate(t.dueAt); if (!d || x < d) d = x; });
+    return d;
+  };
+  // choice: "move" (default) | "close" (closed by system + ONE new follow-up for the new owner) | "keep" (old owner keeps them).
+  Owner.apply = function (ids, newOwnerId, choice, o) {
+    o = o || {}; choice = choice || "move";
+    var me = App.me(), now = new Date().toISOString(), done = [];
+    ids.forEach(function (id) {
+      var p = person(id); if (!p || p.ownerUserId === newOwnerId) return;
+      var old = p.ownerUserId, it = Owner.itemsOf(p), n = it.fus.length + it.tasks.length, earliest = Owner.earliestDue(p);
+      if (choice === "move") {
+        it.fus.forEach(function (f) { f.assignedToUserId = newOwnerId; f.ownerUserId = newOwnerId; });
+        it.tasks.forEach(function (t) { t.assignedUserId = newOwnerId; });
+      } else if (choice === "close") {
+        it.fus.forEach(function (f) { f.status = "Closed by system"; f.closedAt = now; f.closeReason = "Owner changed"; });
+        it.tasks.forEach(function (t) { t.status = "Closed by system"; t.closedAt = now; t.closeReason = "Owner changed"; });
+      }
+      p.ownerHistory = p.ownerHistory || [];
+      p.ownerHistory.push({ from: old || null, to: newOwnerId, at: now, by: me ? me.id : null, how: o.reason === "reopen" ? "Re-opened" : o.reason === "take" ? "Taken" : "Changed" });
+      p.ownerUserId = newOwnerId; p.unassignedReason = null; p.releaseWarnedAt = null;
+      if (choice === "close" && n) {
+        var due = (ids.length === 1 && o.due) || earliest || App.todayIso();
+        D.followUps.push({ id: "f" + Date.now() + Math.floor(Math.random() * 100000), personId: p.id, type: "Call", dueDate: due, dueTime: null, ownerUserId: newOwnerId,
+          assignedToUserId: newOwnerId, status: "Open", outcome: null, note: "Owner changed · pick up from " + App.firstName(App.byId(D.users, old)), createdAt: now, bySystem: true });
+      }
+      var what = { move: n + " open item" + (n === 1 ? "" : "s") + " moved", close: n + " closed · 1 new follow-up", keep: n + " kept with " + App.firstName(App.byId(D.users, old)) }[choice];
+      App.addTimeline(p.id, "milestone", (old ? "Owner changed from " + App.firstName(App.byId(D.users, old)) + " to " + App.firstName(App.byId(D.users, newOwnerId)) : "Owner set to " + App.firstName(App.byId(D.users, newOwnerId))) +
+        " by " + App.firstName(me) + (n ? " · " + what : ""));
+      done.push(p.id);
+    });
+    App.dataChanged();
+    return done;
+  };
+  Owner.change = function (ids, newOwnerId, opts) {
+    opts = opts || {};
+    ids = ids.filter(function (id) { var p = person(id); return p && p.ownerUserId !== newOwnerId; });
+    if (!ids.length) { if (opts.onDone) opts.onDone(); return; }
+    var n = Owner.count(ids), many = ids.length > 1, nu = App.userName(newOwnerId);
+    function finish(choice, due) {
+      Owner.apply(ids, newOwnerId, choice, { due: due, reason: opts.reason });
+      App.toast((many ? ids.length + " leads" : person(ids[0]).name) + " · owner " + nu, "success");
+      if (opts.onDone) opts.onDone();
+    }
+    var allUnassigned = ids.every(function (id) { return !person(id).ownerUserId; });
+    if (!n && (opts.silentIfNone || allUnassigned)) { finish("move"); return; }   // nothing to hand over from an unassigned lead
+    var m = App.makeModal("ownerModal"), p0 = person(ids[0]);
+    m.title.textContent = opts.reason === "reopen" ? "You are the new owner" : "Change owner";
+    var head = '<p>' + (many ? "<strong>" + ids.length + " leads</strong>" : "<strong>" + esc(p0.name) + "</strong>" + (p0.ownerUserId ? " · now " + esc(App.userName(p0.ownerUserId)) : " · Unassigned")) +
+      " → <strong>" + esc(nu) + "</strong></p>";
+    if (!n) {
+      m.body.innerHTML = head + '<p class="muted">No open follow-ups or tasks to hand over. History, notes and the timeline stay as they are.</p>';
+      m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Change owner</button>';
+      m.foot.querySelector("[data-save]").onclick = function () { App.close(m.el); finish("move"); };
+      App.openModal("ownerModal"); return;
+    }
+    var earliest = many ? null : Owner.earliestDue(p0), oldName = many ? "the old owner" : App.firstName(App.byId(D.users, p0.ownerUserId));
+    function opt(v, title, sub, checked) {
+      return '<label class="radio-card"><input type="radio" name="ownerChoice" value="' + v + '"' + (checked ? " checked" : "") + '><span><strong>' + esc(title) + '</strong><span class="cell-sub">' + esc(sub) + "</span></span></label>";
+    }
+    m.body.innerHTML = head +
+      '<div class="field"><label>Open follow-ups and tasks (' + n + ") <span class=\"req\">*</span></label>" +
+        '<div class="radio-list" role="radiogroup">' +
+          opt("move", "Move to the new owner", "They become " + App.firstName(App.byId(D.users, newOwnerId)) + "'s, with the same dates.", true) +
+          opt("close", "Close them and create one new follow-up", "Closed by system · Owner changed. One new follow-up for " + App.firstName(App.byId(D.users, newOwnerId)) + (many ? " per lead (due = that lead's earliest open due date)." : "."), false) +
+          opt("keep", "Keep with the old owner", oldName + " keeps them and still sees the lead while they stay open.", false) +
+        "</div>" +
+        (many ? '<span class="hint">One choice applies to all ' + ids.length + " leads.</span>" : "") +
+      "</div>" +
+      (many ? "" : '<div class="field" data-due hidden><label for="ownerDue">New follow-up due</label><input class="input" type="date" id="ownerDue" value="' + esc(earliest || App.todayIso()) + '"><span class="hint">Earliest open due date. You can change it.</span></div>') +
+      '<p class="hint">Only items assigned to the old owner are counted. Follow-ups other staff hold stay with them. History, notes, timeline and trial approvals never move.</p>';
+    m.body.onchange = function () { var d = m.body.querySelector("[data-due]"); if (d) d.hidden = m.body.querySelector('input[name="ownerChoice"]:checked').value !== "close"; };
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Change owner</button>';
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var c = m.body.querySelector('input[name="ownerChoice"]:checked').value, d = m.body.querySelector("#ownerDue");
+      App.close(m.el); finish(c, d ? d.value : null);
+    };
+    App.openModal("ownerModal");
+  };
+
+  // ---------- Move to another branch (#98, notes L12–L15) ----------
+  function sesOf(branchId) { return D.users.filter(function (u) { return u.role === "Sales Executive" && u.branchIds.indexOf(branchId) > -1; }); }
+  function canMove(p) { return isOpenLead(p) && App.scopeAllows("leads.move", p); }
+  function canPickOnMove(p) { return !!p.ownerUserId && App.scopeAllows("leads.movePickPerson", p); }
+  function seField(id, branchId) {
+    var list = sesOf(branchId);
+    return '<select class="input" id="' + id + '"><option value="">Choose…</option>' + list.map(function (u) { return '<option value="' + u.id + '">' + esc(u.name) + "</option>"; }).join("") + "</select>";
+  }
+  function move(personId) {
+    var p = person(personId); if (!canMove(p)) return;
+    var m = App.makeModal("moveModal"), others = D.branches.filter(function (b) { return b.id !== p.branchId; }), pick = canPickOnMove(p);
+    m.title.textContent = "Move to another branch";
+    m.body.innerHTML = '<p class="muted">' + esc(p.name) + " · now " + esc(App.branchName(p.branchId)) + (p.ownerUserId ? " · owner " + esc(App.userName(p.ownerUserId)) : " · Unassigned") + "</p>" +
+      '<div class="field"><label for="moveBranch">New branch <span class="req">*</span></label><select class="input" id="moveBranch"><option value="">Choose…</option>' +
+        others.map(function (b) { return '<option value="' + b.id + '">' + esc(b.name) + "</option>"; }).join("") + "</select></div>" +
+      '<div class="field"><label for="moveRemark">Remark <span class="req">*</span></label><textarea class="input" id="moveRemark" rows="2" placeholder="Why is the lead moving? e.g. lives near Golf Course now"></textarea></div>' +
+      (pick ? '<div data-pick hidden><div class="field"><label for="movePerson">Follow-up person <span class="req">*</span></label><span data-pick-sel></span><span class="hint">A Sales Executive of the new branch. They get a follow-up now.</span></div>' +
+        '<div class="field"><label for="moveDue">Follow-up due <span class="req">*</span></label><input class="input" type="date" id="moveDue" value="' + isoDate(plusDays(1)) + '" min="' + isoDate(new Date()) + '"></div></div>' : "") +
+      '<p class="hint">' + (p.ownerUserId ? "The owner stays " + esc(App.firstName(App.byId(D.users, p.ownerUserId))) + " and keeps their open follow-ups." +
+        (pick ? "" : " The new branch's Club Manager picks the follow-up person (\"Transferred in\").") : "The lead stays Unassigned; only the branch changes.") + "</p>" +
+      '<span class="error" data-merr hidden></span>';
+    var bsel = m.body.querySelector("#moveBranch"); App.enhanceSelect(bsel);
+    bsel.onchange = function () {
+      var box = m.body.querySelector("[data-pick]"); if (!box) return;
+      box.hidden = !bsel.value; box.querySelector("[data-pick-sel]").innerHTML = bsel.value ? seField("movePerson", bsel.value) : "";
+      var s2 = box.querySelector("#movePerson"); if (s2) App.enhanceSelect(s2);
+    };
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Move lead</button>';
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var to = bsel.value, remark = m.body.querySelector("#moveRemark").value.trim(), err = m.body.querySelector("[data-merr]");
+      var ps = m.body.querySelector("#movePerson"), due = m.body.querySelector("#moveDue");
+      var bad = !to ? "Choose the new branch." : !remark ? "Add a remark: why is the lead moving?" : (pick && ps && !ps.value) ? "Choose the follow-up person." : (pick && due && !due.value) ? "Pick the follow-up date." : "";
+      m.body.querySelector("#moveRemark").classList.toggle("invalid", !!to && !remark);
+      if (bad) { err.textContent = bad; err.hidden = false; return; }
+      Lead.applyMove(p.id, to, remark, pick && ps ? { seId: ps.value, due: due.value } : null);
+      App.close(m.el); App.toast(p.name + " moved to " + App.branchName(to), "success");
+    };
+    App.openModal("moveModal");
+  }
+  // No UI: move + (optional) follow-up person. Without one, an owned lead is flagged transferredIn for the new branch's CM.
+  function applyMove(personId, toBranchId, remark, pickOpt) {
+    var p = person(personId), from = p.branchId, me = App.me();
+    p.branchId = toBranchId;
+    App.addTimeline(p.id, "milestone", "Moved " + App.branchName(from) + " → " + App.branchName(toBranchId) + " by " + App.firstName(me) + " · " + remark);
+    if (!p.ownerUserId) { p.transferredIn = null; App.dataChanged(); return; }       // unassigned stays unassigned, only the branch changes
+    if (pickOpt && pickOpt.seId) { p.transferredIn = null; givePerson(p, pickOpt.seId, pickOpt.due); }
+    else p.transferredIn = { from: from, by: me ? me.id : null, at: new Date().toISOString() };
+    App.dataChanged();
+  }
+  function givePerson(p, seId, due) {
+    D.followUps.push({ id: "f" + Date.now() + Math.floor(Math.random() * 1000), personId: p.id, type: "Call", dueDate: due || isoDate(plusDays(1)), dueTime: null,
+      ownerUserId: p.ownerUserId, assignedToUserId: seId, status: "Open", outcome: null, note: "Transferred in · first call from " + App.branchName(p.branchId), createdAt: new Date().toISOString() });
+    App.addTimeline(p.id, "milestone", "Follow-up person: " + App.firstName(App.byId(D.users, seId)) + " (" + App.branchName(p.branchId) + ") · picked by " + App.firstName(App.me()));
+  }
+  // Transferred in (#98, L13): picking needs leads.assign at Branch or higher on the lead (new branch).
+  function canPick(p) { var s = App.can("leads.assign"); return !!p && !!p.transferredIn && (s === "Branch" || s === "All") && App.scopeAllows("leads.assign", p, { strictOwn: true }); }
+  function pickPerson(personId) {
+    var p = person(personId); if (!canPick(p)) return;
+    var m = App.makeModal("pickModal"), t = p.transferredIn;
+    m.title.textContent = "Pick the follow-up person";
+    m.body.innerHTML = '<p class="muted">' + esc(p.name) + " · moved from " + esc(App.branchName(t.from)) + " by " + esc(App.firstName(App.byId(D.users, t.by))) + " · owner stays " + esc(App.userName(p.ownerUserId)) + "</p>" +
+      '<div class="field"><label for="pickSe">Sales Executive (' + esc(App.branchName(p.branchId)) + ') <span class="req">*</span></label>' + seField("pickSe", p.branchId) + "</div>" +
+      '<div class="field"><label for="pickDue">Follow-up due <span class="req">*</span></label><input class="input" type="date" id="pickDue" value="' + isoDate(plusDays(1)) + '" min="' + isoDate(new Date()) + '"></div>' +
+      '<span class="error" data-perr hidden></span>';
+    App.enhanceSelect(m.body.querySelector("#pickSe"));
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Give follow-up</button>';
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var se = m.body.querySelector("#pickSe").value, due = m.body.querySelector("#pickDue").value, err = m.body.querySelector("[data-perr]");
+      if (!se || !due) { err.textContent = !se ? "Choose a Sales Executive." : "Pick the follow-up date."; err.hidden = false; return; }
+      p.transferredIn = null; givePerson(p, se, due);
+      App.close(m.el); App.toast(App.userName(se) + " will follow up " + p.name, "success"); App.dataChanged();
+    };
+    App.openModal("pickModal");
+  }
+  // Take this lead (#100, L21): unassigned only, grid row leads.take; branch does not change.
+  function canTake(p) { return !!p && p.kind === "Lead" && !p.ownerUserId && p.stage !== "Lost" && App.scopeAllows("leads.take", p); }
+  function take(personId) {
+    var p = person(personId), me = App.me(); if (!canTake(p) || !me) return;
+    p.ownerHistory = p.ownerHistory || []; p.ownerHistory.push({ from: null, to: me.id, at: new Date().toISOString(), by: me.id, how: "Taken" });
+    p.ownerUserId = me.id; p.unassignedReason = null;
+    App.addTimeline(p.id, "milestone", "Taken by " + App.firstName(me));
+    App.toast("You own " + p.name + " now", "success"); App.dataChanged();
   }
 
   // Human sentence for a finished follow-up: "Priya called · Interested · next call Fri"
   function describeDone(f) {
-    var who = App.firstName(App.byId(D.users, f.ownerUserId));
+    var who = App.firstName(App.byId(D.users, App.fuAssignee(f)));
     var s = who + " " + (VERB[f.type] || "followed up") + " · " + f.outcome;
     var n = f.nextId && App.byId(D.followUps, f.nextId);
     if (n) s += " · next " + (NEXT_WORD[n.type] || "follow-up") + " " + App.fmtShortWhen(App.dueIso(n));
@@ -286,5 +516,7 @@
 
   App.Followup = { mountForm: mountForm, openAdd: openAdd, openOutcome: openOutcome, cancel: cancel, create: create,
     describeDone: describeDone, isOpenLead: isOpenLead, closeBySystem: closeBySystem, openFollowUps: openFollowUps };
-  App.Lead = { markLost: markLost, reopen: reopen, assign: assign };
+  var Lead = { markLost: markLost, reopen: reopen, assign: assign, assignMany: assignMany, move: move, applyMove: applyMove, pickPerson: pickPerson, take: take,
+    canMove: canMove, canPick: canPick, canTake: canTake, canAssignFollowUp: canAssignFollowUp };
+  App.Lead = Lead; App.Owner = Owner;
 })();

@@ -20,7 +20,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `leads.take` | Take an unassigned lead ("Take this lead") | Leads | scope | All | Branch | Branch | None | None | None | None | None | CEO |
 | `leads.viewLost` | View lost leads | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
 | `leads.create` | Create lead | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
-| `leads.assign` | Assign / reassign / change owner (single + bulk) | Leads | scope | All | Branch | Branch | Branch | None | None | None | None | CEO; at least one other role keeps it |
+| `leads.assign` | Assign / reassign / change owner (leads and clients) | Leads | scope | All | Branch | Branch | Branch | None | None | None | None | CEO; at least one other role keeps it |
 | `leads.assignFollowUp` | Assign a follow-up to another staff (any branch) | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
 | `leads.markLost` | Mark lost | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
 | `leads.reopen` | Re-open lost lead | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
@@ -52,8 +52,18 @@ The CEO never appears in that dropdown but can approve / reject any pending tria
 | `freeTrialsPerPerson` | Free trials per person (all branches) | 2 | 0–10, whole | grid row `trials.editLimits` |
 | `freeTrialsPerBranch` | Free trials per branch | 1 | 0–10, ≤ per person | grid row `trials.editLimits` |
 | `paidTrialAdjustBufferDays` | Paid trial adjust buffer after it ends | 7 | 0–30 days | CEO |
-| `inactivityReleaseDays` | Inactivity release after | 7 | 1–90 days | grid row `settings.editInactivity` |
+| `inactivityReleaseDays` | Release inactive leads after | 7 | 1–90 days | grid row `settings.editInactivity` |
 | `releaseWarnDaysBefore` | Warn the owner before release | 1 | 0–89, < inactivity days | grid row `settings.editInactivity` |
 | `newLeadAssignment` | New-lead assignment | Manual | Manual (Round-robin later, Q10) | CEO |
 
 Every saved change (permissions, settings values, trainer types) goes to the audit log: who, when, tab, what, old → new.
+
+## How the ownership rows are used (c4, #97–#100)
+- `leads.assign`: Change / Assign owner in the profile, bulk "Change owner" on Leads, a client's owner, and picking the
+  follow-up person for a "Transferred in" lead (needs Branch or All). One dialog: `App.Owner.change` (#99).
+- `leads.assignFollowUp`: the "Assigned to" field in the follow-up form. Here "Own" = leads I OWN only (not leads where I am
+  just the assignee).
+- `leads.move` / `leads.movePickPerson`: "Move to another branch" in the profile More menu; with the pick row the dialog also
+  asks for the new branch's Sales Executive + due date.
+- `leads.viewUnassigned` / `leads.take`: Unassigned leads (reason New / Released) in Leads and Today; "Take this lead".
+- `leads.reopen`: re-opening someone else's lost lead makes you the owner (owner dialog if anything is open).

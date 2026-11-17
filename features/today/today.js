@@ -1,5 +1,6 @@
 /* Today: the first screen staff see every day (decisions #22, #24, #61–#63).
-   Sections: Overdue or not set · Due today · My open tasks · Unassigned new leads · Clients with pending items.
+   Sections: Overdue or not set · Due today · My open tasks · Unassigned leads (New / Released) ·
+   Transferred in · needs follow-up person · Trial approvals pending · Clients with pending items.
    Each: count, up to 5 rows, ONE main action per row, "View all". Uses the shared flows only. */
 (function () {
   var D = window.DUMMY, esc = App.esc, icon = App.icon;
@@ -39,11 +40,19 @@
         return oa - ob || PRI[a.priority] - PRI[b.priority] || new Date(a.dueAt) - new Date(b.dueAt);
       });
   }
-  function unassignedRole() { return App.access.assignLeads() && App.can("leads.viewUnassigned") !== "None"; }
+  // Unassigned (#100): visibility = grid row leads.viewUnassigned; reason New / Released; action Take (leads.take) or Assign (leads.assign).
+  function unassignedRole() { return App.can("leads.viewUnassigned") !== "None"; }
   function unassigned() {
     if (!unassignedRole()) return [];
     return App.visibleLeads(App.state.branchId).filter(function (p) { return !p.ownerUserId && p.stage !== "Lost"; })
-      .sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+      .sort(function (a, b) { return new Date(b.releasedAt || b.createdAt) - new Date(a.releasedAt || a.createdAt); });
+  }
+  // Transferred in (#98, L13): the new branch's CM (leads.assign at Branch or higher; RM / CEO by scope) picks the follow-up person.
+  function transferRole() { var s = App.can("leads.assign"); return s === "Branch" || s === "All"; }
+  function transferred() {
+    if (!transferRole()) return [];
+    return App.visibleLeads(App.state.branchId).filter(function (p) { return p.transferredIn && App.Lead.canPick(p); })
+      .sort(function (a, b) { return new Date(a.transferredIn.at) - new Date(b.transferredIn.at); });
   }
   function pendingRole() { return App.can("clients.view") !== "None"; }
   function approvalsRole() { return App.can("trials.approve") !== "None"; }
@@ -73,7 +82,7 @@
       empty: "All caught up · every lead has a follow-up on time", all: "../leads/index.html?view=attention",
       row: function (x) {
         var p = x.p, f = x.f;
-        return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : ""),
+        return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : "") + " " + App.ownershipBadges(p, { noUnassigned: true }),
           sub: (f ? esc(f.type) + " · due " + esc(App.fmtDue(f)) : "Lead from " + esc(p.source) + " · " + esc(App.branchName(p.branchId))) + ownerBit(p),
           status: f ? '<span class="badge badge-danger">Overdue · ' + daysAgo(App.dueIso(f)) + "</span>" : '<span class="badge badge-danger">No follow-up set</span>',
           action: f ? btn("outcome", "Log outcome", { f: f.id }) : btn("addfu", "Add follow-up", { p: p.id }) });
@@ -94,12 +103,22 @@
           status: (over ? '<span class="badge badge-danger">Overdue</span> ' : "") + '<span class="badge ' + PRI_BADGE[t.priority] + '">' + esc(t.priority) + "</span>",
           action: btn("done", "Mark done", { t: t.id }, false) });
       } },
-    { k: "unassigned", area: "u", t: "Unassigned new leads", ic: "user", tone: "amber", get: unassigned, words: "without an owner",
-      empty: "Every new lead has an owner", all: "../leads/index.html?owner=none", show: unassignedRole,
+    { k: "unassigned", area: "u", t: "Unassigned leads", ic: "user", tone: "amber", get: unassigned, words: "without an owner (New / Released)",
+      empty: "Every lead has an owner", all: "../leads/index.html?owner=none", show: unassignedRole,
       row: function (p) {
+        var rel = p.unassignedReason === "Released", act = App.Lead.canTake(p) ? btn("take", "Take this lead", { p: p.id })
+          : App.scopeAllows("leads.assign", p, { strictOwn: true }) ? btn("assign", "Assign", { p: p.id }) : "";
         return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : ""),
-          sub: esc(p.source) + " · " + esc(App.branchName(p.branchId)) + " · received " + esc(App.fmtShortWhen(p.createdAt)) + ", " + esc(App.fmtTime(p.createdAt)),
-          status: '<span class="badge badge-warning">Unassigned</span>', action: btn("assign", "Assign", { p: p.id }) });
+          sub: esc(p.source) + " · " + esc(App.branchName(p.branchId)) + (rel ? " · released " + esc(App.fmtShortWhen(p.releasedAt)) : " · received " + esc(App.fmtShortWhen(p.createdAt)) + ", " + esc(App.fmtTime(p.createdAt))),
+          status: '<span class="badge badge-warning">Unassigned · ' + esc(p.unassignedReason || "New") + "</span>", action: act });
+      } },
+    { k: "transferred", area: "x", t: "Transferred in · needs follow-up person", ic: "swap", tone: "amber", get: transferred, words: "moved to your branch",
+      empty: "No transferred leads waiting", all: "../leads/index.html?view=transferred", show: transferRole,
+      row: function (p) {
+        var t = p.transferredIn;
+        return row({ open: p.id, title: esc(p.name),
+          sub: "From " + esc(App.branchName(t.from)) + " → " + esc(App.branchName(p.branchId)) + " · by " + esc(App.firstName(App.byId(D.users, t.by))) + " · owner " + esc(App.firstName(App.byId(D.users, p.ownerUserId))),
+          status: '<span class="badge badge-warning">Transferred in</span>', action: btn("pick", "Pick person", { p: p.id }) });
       } },
     { k: "approvals", area: "v", t: "Trial approvals pending", ic: "clock", tone: "amber", get: approvals, words: "trials asked from you", show: approvalsRole,
       empty: "No trial approvals waiting", allToast: "All pending approvals are listed here",
@@ -166,7 +185,7 @@
       box.innerHTML = note + '<div class="card today-clear">' + icon("check") + "<h2>All caught up</h2><p class=\"muted\">Nothing needs you right now. New leads and follow-ups will show up here.</p></div>";
       return;
     }
-    box.innerHTML = note + '<div class="today-grid' + (secs.some(function (s) { return s.area === "u"; }) ? "" : " no-unassigned") + '">' + secs.map(function (s) {
+    box.innerHTML = note + '<div class="today-grid' + (secs.some(function (s) { return s.area === "u"; }) ? "" : " no-unassigned") + (secs.some(function (s) { return s.area === "x"; }) ? "" : " no-transfer") + '">' + secs.map(function (s) {
       var list = data[s.k], n = list.length;
       return '<section class="card today-sec" id="sec-' + s.k + '" data-area="' + s.area + '" aria-labelledby="h-' + s.k + '">' +
         '<header class="today-sec-head"><span class="tl-ico ' + (n ? s.tone : "green") + '">' + icon(s.ic, "ico-sm") + '</span><h2 id="h-' + s.k + '">' + esc(s.t) + "</h2>" +
@@ -188,6 +207,8 @@
       if (d.act === "outcome") App.Followup.openOutcome(d.f);
       if (d.act === "addfu") App.Followup.openAdd(d.p);
       if (d.act === "assign") App.Lead.assign(d.p);
+      if (d.act === "take") App.Lead.take(d.p);
+      if (d.act === "pick") App.Lead.pickPerson(d.p);
       if (d.act === "ff") App.addFfId(d.p);
       if (d.act === "fob") App.assignFob(d.p);
       if (d.act === "issue") App.issueItem(d.p, d.item);

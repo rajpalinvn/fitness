@@ -94,5 +94,16 @@ Saving adds "<name> updated <fields>" to the timeline.
 | Aditya Bose | Amber "Due today" |
 | Nisha Agarwal, Simran Kaur | Green "Scheduled" |
 
+### Ownership in the drawer (c4, #97–#100)
+- Badges (top): "Follow-up from <owner>", "Releases tomorrow" / "Releases in N days", "Transferred in" (one helper, `App.ownershipBadges`, also used by Leads and Today).
+- Owner row: name + "Change" (only with `leads.assign` on this person). Unassigned: "Unassigned · New / Released" + "Take this lead" (`leads.take`) + "Assign" (`leads.assign`).
+- More menu (open lead): Mark as lost · Change owner / Assign owner (`leads.assign`) · Move to another branch (`leads.move`).
+- "Transferred in · needs follow-up person" box under NEXT STEP: from branch, by, when + "Pick follow-up person" (`leads.assign` Branch / All).
+- Lost lead: "Re-open lead" only with `leads.reopen`; someone else's lost lead → you become owner (owner dialog if anything is open).
+- Client: Owner "Change" opens the same owner dialog (#99).
+- NEXT STEP / open follow-ups show the ASSIGNEE's name; a follow-up held by someone else adds "· follow-up from <owner>".
+- Tasks tab: a task can be "Closed by system · Owner changed / Released (inactive)".
+- Convert: default sales rep = me when I am a follow-up assignee (incl. the new-branch SE), else the owner (#97, L10, L15).
+
 ## 5. Status
 Ready for review

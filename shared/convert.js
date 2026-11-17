@@ -89,11 +89,15 @@
     if (!(a && a.locked) && C.start < isoDay(new Date())) C.start = isoDay(new Date());
   }
 
+  // Sales rep default (#97, #98, L10, L15): a follow-up assignee (incl. the new-branch SE) who converts is the rep; else the owner, else me.
+  function defaultRep(p) { var me = App.me(); return me && App.isAssigneeOnly(p, me.id) ? me.id : (p.ownerUserId || (me && me.id)); }
+  // exposed below as App.Convert.defaultRep
+
   // ---------- open ----------
   function open(pid) {
     var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
-      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: p.ownerUserId || App.me().id, repPtId: p.ownerUserId || App.me().id, start: isoDay(new Date()), adjustMem: false, adjustPt: false,
+      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: defaultRep(p), repPtId: defaultRep(p), start: isoDay(new Date()), adjustMem: false, adjustPt: false,
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
       pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "" };
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
@@ -694,5 +698,5 @@
     App.openProfile(p.id, { state: "normal", tab: "membership" });   // updates the link to #client-…; shows when the mode exits
   }
 
-  App.Convert = { open: open };
+  App.Convert = { open: open, defaultRep: defaultRep };
 })();

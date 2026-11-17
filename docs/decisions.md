@@ -468,6 +468,10 @@
     The CEO never appears in that dropdown but can approve / reject any
     pending trial (e.g. from a pending approvals list). Dropdown built in
     the lead flow update.
+    Added 17 Nov (c4): paid PT trial adjust also applies to a NORMAL PT
+    sale, only for a client with a paid membership (client Sell mode,
+    built with Renewals). A lead without membership can adjust a PT trial
+    only by buying Premium PT. Same running / buffer / permission rules.
 95. Roles (notes §2a): fixed, seeded, locked `roles` table with keys
     SUPER_ADMIN (SA, all branches), CEO (multi, reports to SuperAdmin),
     REGIONAL_MANAGER (RM, multi → CEO), CLUB_MANAGER (CM, single → RM),
@@ -520,6 +524,10 @@
     this. If the assignee converts they are the sales rep of that sale by
     default (#36, changeable at sale). Leads list badge "Follow-up from
     <owner>" on leads the user does not own (L11).
+    Built in c4: "Assigned to" in the shared follow-up modal (grid row
+    leads.assignFollowUp: Own = leads I own, Branch, All; staff of any
+    branch; default = owner); follow-up field assignedToUserId. Scope
+    "Own" (and "Branch") also covers leads where I have an open follow-up.
 98. Lead moved to another branch (notes L12–L15). The lead's branch
     changes; the owner stays (cross-branch owner). Remark mandatory;
     timeline "Moved Sec 31 → Golf Course by Priya". Mover without the grid
@@ -540,6 +548,13 @@
     to open follow-ups and open tasks only; done / closed history, notes,
     timeline and trial-approval requests are not moved. Same dialog for a
     client's owner change.
+    FIX (17 Nov, c4): the dialog acts ONLY on items assigned to the OLD
+    OWNER. Follow-ups assigned to other staff (#97) stay with them and are
+    not counted in N. N = 0 -> a plain confirm. One shared flow
+    (App.Owner.change) for single assign / reassign, bulk assign, a
+    client's owner change and re-opening someone else's lost lead.
+    Permission: leads.assign, label "Assign / reassign / change owner
+    (leads and clients)".
 100. Inactivity release and Unassigned (notes L18–L22), built now. A lead
     is inactive when its next follow-up is overdue or not set for N days
     (setting, default 7): owner removed → Unassigned, open follow-ups and
@@ -556,6 +571,18 @@
     Unassigned: they keep their owner; visibility by the grid row "View
     lost leads"; re-opening someone else's lost lead makes you the owner,
     with the owner-change dialog (#99) if anything is open.
+    FIX (17 Nov, c4): inactive = next follow-up overdue, or no open
+    follow-up. The clock counts days since the overdue due date, or since
+    the last follow-up activity (else the created date) when none is open,
+    and NEVER starts before the date the CURRENT owner got the lead
+    (assigned, taken, re-opened, owner changed). Any follow-up activity by
+    the owner or an assignee resets it. Excluded: lost, unassigned, any
+    running trial, clients. Day N-1: badge "Releases tomorrow" + one
+    notification to the owner per lead per day. Day N: owner removed ->
+    Unassigned (reason Released); open follow-ups / tasks "Closed by
+    system · Released (inactive)"; timeline "Released to Unassigned · no
+    follow-up for 7 days". Setting "Release inactive leads after" (days).
+    Mockup computes it on page load (real app: a daily job).
 101. Lead stages stay 5 (notes L23–L24): New, Contacted, Trial (automatic),
     Negotiation, Lost. Converted = becomes a Client, not a stage.
     Situations are badges, not stages: Trial ended, Unassigned, Transferred

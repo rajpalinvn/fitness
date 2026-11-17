@@ -54,5 +54,38 @@
 - **Success**: toasts ("Outcome saved · Interested", "Follow-up set for … · <date>", "… marked as Lost").
 - **Blocked**: add follow-up on a Lost lead → toast "Re-open the lead first to add a follow-up".
 
+## Ownership flows (c4, decisions #97–#100) — all in shared/followup.js
+
+### Screens / modals
+- **Add follow-up → "Assigned to"** (#97): who does the follow-up. Shown only with grid row `leads.assignFollowUp` on a lead I OWN (SE Own; SM / CM / RM Branch; CEO All). Otherwise the hint "Assigned to <owner> (lead owner)".
+- **Owner change dialog** (`App.Owner.change(ids, newOwnerId)`, #99): ONE flow for single assign / reassign (profile Owner "Change" / "Assign", More › Change owner), bulk "Change owner" on Leads, a client's owner change, and re-opening someone else's lost lead.
+- **Move to another branch** (`App.Lead.move`, #98): profile More menu.
+- **Pick the follow-up person** (`App.Lead.pickPerson`, #98): for a "Transferred in" lead (profile box, Today row).
+- **Take this lead** (`App.Lead.take`, #100): no modal; Leads owner cell, Today Unassigned row, profile Owner row.
+
+### Field table
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Assigned to (`assignedToUserId`) | staff dropdown (App.enhanceSelect) | Yes (when shown) | No | Lead owner | Staff of ANY branch whose role has `leads.view` (SE, SM, CM, RM, CEO by default). Label "Name · Role · Branch". The assignee sees the full lead while the follow-up is Open; the owner never changes. Timeline "Priya set a follow-up for Arjun Nair · Call". |
+| Owner dialog: Open follow-ups and tasks (N) | radio, 3 choices | Yes | — | Move to the new owner | (1) Move: same dates, now the new owner's. (2) Close them: "Closed by system · Owner changed" + ONE new follow-up (Call) for the new owner. (3) Keep with the old owner: they keep them and still see the lead while open. N counts ONLY open follow-ups / tasks assigned to the OLD owner; follow-ups other staff hold stay with them. |
+| New follow-up due (choice 2) | date | Yes | — | Earliest open due of the old owner's items | Editable for one lead. Bulk: each lead gets its own earliest due (not editable). |
+| Owner dialog with N = 0 | plain confirm | — | — | — | "No open follow-ups or tasks to hand over." Assigning an unassigned lead / re-open with nothing open: no dialog at all. |
+| Move: New branch | dropdown | Yes | — | — | Other branches only. |
+| Move: Remark | text | Yes | No | — | "Add a remark: why is the lead moving?" Timeline "Moved Sec 31 → Golf Course by Priya · <remark>". |
+| Move: Follow-up person | dropdown (new branch SEs) | Yes (when shown) | No | — | Only with `leads.movePickPerson` and an owned lead. That SE gets a follow-up now (Call, "Transferred in · first call"). |
+| Move: Follow-up due | date | Yes (when shown) | — | Tomorrow | Not in the past. |
+| Pick person: Sales Executive | dropdown (lead's branch SEs) | Yes | — | — | Needs `leads.assign` Branch or All. Clears `transferredIn`, creates the follow-up. |
+| Pick person: Follow-up due | date | Yes | — | Tomorrow | |
+
+### Flow rules
+- Move: branch changes, OWNER STAYS, owner's open follow-ups stay. Without the pick row the lead gets `transferredIn {from, by, at}` and badge "Transferred in"; the new branch's CM (RM / CEO by scope) sees it in Leads (filter) and Today. An unassigned lead moved stays unassigned (no flag).
+- Take: unassigned (not lost) lead + `leads.take` scope → taker = owner, branch unchanged, timeline "Taken by Arjun".
+- Re-open someone else's lost lead (`leads.reopen` scope): you become owner; dialog if the old owner has open items; then "Set next follow-up".
+- Close reasons added: "Owner changed", "Released (inactive)" (tasks too).
+- History, notes, timeline and trial approvals never move.
+
+### States
+- Validation errors inline (red text, field outlined). Toasts on success ("Kiran Joshi moved to Golf Course", "You own Yash Arora now").
+
 ## 5. Status
 Ready for review (shared components). Follow-ups list screen: Draft.
