@@ -241,9 +241,9 @@
       gender: "Male", birthDate: "1996-09-21", ffId: "FF-20610", source: "Walk-in", temperature: "Hot", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
       createdAt: day(-14), lastActivityAt: day(-10), clientNo: "CL-1000", homeBranchId: "b1", joinedAt: day(-10), keyFob: null, photo: null,
-      membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-10), end: day(19), price: 3000,
+      membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-17), end: day(12), price: 3000,
         discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
-      note: "EDGE (payment): partial PT — 12 sessions ₹12,000, paid ₹5,500 -> 5 of 12 sessions unlocked, balance due" },
+      note: "EDGE (c6): membership renews in 12 days, PT runs longer (Membership renewal due, PT active). EDGE (payment): partial PT — 12 sessions ₹12,000, paid ₹5,500 -> 5 of 12 sessions unlocked, balance due" },
     { id: "p19", kind: "Client", name: "Divya Nair", cc: "+91", mobile: "90000 01252", email: "divya.nair@example.com",
       gender: null, birthDate: null, ffId: "FF-20701", source: "Walk-in", temperature: "Warm", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
@@ -369,7 +369,7 @@
       createdAt: day(-70), lastActivityAt: day(-5), clientNo: "CL-0926", homeBranchId: "b1", joinedAt: day(-65), keyFob: "KF-S31-0024", photo: null,
       membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-35), end: day(-5), price: 3000,
         discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
-      note: "EDGE (#103): membership ended 5 days ago but PT runs 40 more days -> status by the LATER end = Active" }
+      note: "EDGE (#103, c6): membership ended 5 days ago, PT runs 40 more days -> client Active (later end) but PT ON HOLD (12 unlocked, 0 usable)" }
   );
 
   // ---------- Payments (decisions #79–#84). payment = { total, paid, dueDate, receipts: [{ no, at, by, rows: [{ method, amount, ref, slip }] }] }

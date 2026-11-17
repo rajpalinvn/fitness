@@ -105,7 +105,7 @@ load(LEADS, function () {
       step("clients", function () {
         openP("p19");
         ok("client tabs include Membership", /Membership/.test(text(".pd-tabs")));
-        ok("Divya amber renewal due soon", q(".pd-left .next-step").classList.contains("amber") && /Renewal due soon/.test(left()));
+        ok("Divya amber: NEXT STEP Membership renews in 3 days (per package)", q(".pd-left .next-step").classList.contains("amber") && /Membership renews in 3 days/.test(left()));
         ok("no Convert on client", !q('[data-pd="convert"]'));
         click(q('[data-tab-k="membership"]'));
         ok("fob assigned shown", /KF-S31-0021/.test(text(".pd-scroll")));

@@ -200,9 +200,16 @@
     return '<button class="btn btn-block" data-pd="trial"' + (cb.disabled ? ' disabled title="' + esc(cb.why) + '"' : "") + ">" + icon("clock") + "Book trial" + (cb.disabled ? ' <span class="cell-sub">· ' + esc(cb.why) + "</span>" : "") + "</button>";
   }
   function memberBadge(p) {
-    var ms = App.clientStatus(p); if (!ms) return "";   // by the last package end; Ex-client after N days (#103 Q25)
-    var label = ms.key === "ex" ? "Ex-client" : ms.cls === "red" ? "Expired" : ms.cls === "amber" ? "Renewal due" : "Active";
-    return '<span class="badge ' + ms.badge + '">' + label + "</span>";
+    // Client level by the LATER end (Active / Expired / Ex-client), then one badge per package (#27 per package, c6).
+    var ms = App.clientStatus(p); if (!ms) return "";
+    var label = ms.key === "ex" ? "Ex-client" : ms.key === "expired" ? "Expired" : "Active";
+    var h = '<span class="badge ' + (ms.key === "renewal" ? "badge-success" : ms.badge) + '" data-client-status>' + label + "</span>";
+    if (ms.key === "ex" || ms.key === "expired") return h;
+    App.packageStatuses(p).forEach(function (x) {
+      if (x.what === "PT" && App.ptOnHold(p)) { h += '<span class="badge badge-warning" data-pkg-status="PT">PT on hold</span>'; return; }
+      h += '<span class="badge ' + x.st.badge + '" data-pkg-status="' + x.what + '">' + x.what + " · " + (x.st.key === "renewal" ? "renewal due" : x.st.key === "expired" ? "expired" : "active") + "</span>";
+    });
+    return h;
   }
   function qa(act, ic, label, disabled, why) {
     return '<button class="btn qa" data-pd="' + act + '"' + (disabled ? ' disabled title="' + esc(why) + '" aria-label="' + label + " (" + esc(why) + ')"' : ' title="' + label + '"') + ">" +
@@ -231,11 +238,14 @@
     if (isClient(p)) {
       var ms = App.clientStatus(p);
       if (ms) {
+        // NEXT STEP = the most urgent package (c6): PT on hold first, then the soonest renewal due, else client level.
+        var urgent = App.renewalsDue(p).sort(function (a, b) { return a.st.left - b.st.left; })[0], cls = ms.cls;
         var txt = ms.key === "ex" ? "<strong>Ex-client</strong> · last package ended " + esc(App.fmtDate(ms.end))
-          : ms.cls === "red" ? "<strong>Expired</strong> · last package ended " + esc(App.fmtDate(ms.end))
-          : ms.cls === "amber" ? "<strong>Renewal due soon</strong> · " + ms.left + (ms.left === 1 ? " day" : " days") + " left"
-          : "<strong>Active</strong> · " + ms.left + " days left";
-        out = '<div class="next-step ' + ms.cls + '"><div class="ns-label">Next step</div>' + txt +
+          : ms.key === "expired" ? "<strong>Expired</strong> · last package ended " + esc(App.fmtDate(ms.end))
+          : App.ptOnHold(p) ? (cls = "red", '<strong data-hold>Renew membership to continue PT</strong><div class="cell-sub">' + esc(App.ptHoldText(p)) + " · PT ends " + esc(App.fmtDate(p.pt.end)) + "</div>")
+          : urgent ? (cls = "amber", "<strong>" + urgent.what + " renews in " + urgent.st.left + (urgent.st.left === 1 ? " day" : " days") + "</strong>")
+          : (cls = "green", "<strong>Active</strong> · " + ms.left + " days left");
+        out = '<div class="next-step ' + cls + '"><div class="ns-label">Next step</div>' + txt +
           '<div class="cell-sub">' + esc(p.membership.package) + " · ends " + esc(App.fmtDate(p.membership.end)) + "</div>" +
           App.Trial.running(p).map(function (t) { return '<div class="cell-sub" data-trial-line>' + esc(t.type) + " trial · " + esc(t.package) + " · ends " + esc(App.fmtShortWhen(t.to)) + " · " + esc(t.approval) + "</div>"; }).join("") + pendingItems(p) +
           (f ? '<div class="ns-sub">Follow-up: ' + esc(f.type) + " · " + esc(App.fmtDue(f)) + "</div>" +
@@ -601,7 +611,8 @@
     var t = p.pt, un = App.ptUnlocked(t.price, t.discount, t.sessions, t.payment ? t.payment.paid : 0);
     return paySection("Personal training · " + t.package, t, p,
       kv("Valid", App.fmtDate(t.start) + " – " + App.fmtDate(t.end)) + kv("Per session", App.fmtMoney((t.price - (t.discount || 0)) / t.sessions)) +
-      '<dt>Sessions</dt><dd data-pt-unlocked>Sessions unlocked ' + un + " of " + t.sessions + (un < t.sessions ? ' <span class="cell-sub">· more unlock as the balance is paid</span>' : "") + "</dd>");
+      '<dt>Sessions</dt><dd data-pt-unlocked>Sessions unlocked ' + un + " of " + t.sessions + (un < t.sessions ? ' <span class="cell-sub">· more unlock as the balance is paid</span>' : "") + "</dd>" +
+      '<dt>Usable now</dt><dd data-pt-usable>' + App.ptUsable(p) + (App.ptOnHold(p) ? ' <span class="badge badge-warning">' + esc(App.ptHoldText(p)) + '</span><div class="cell-sub">Renew the membership: the same unlocked sessions become usable again. The PT end date keeps running.</div>' : "") + "</dd>");
   }
 
   // Collect a balance (decision #82). Same rules as the Payment step: method, amount (≤ balance), reference except Cash.

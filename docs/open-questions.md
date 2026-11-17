@@ -18,3 +18,4 @@ Every question we have not decided yet. When one is decided, move it to
 | Q13 | **Online payment failure** | Offline payments convert on save (#79). When online payment (gateway) comes, what does staff see if it fails mid-way? | Payment module owner | Offline methods only. |
 | Q18 | **Receipt numbering reset** | Does the per-branch receipt number restart each financial year (e.g. S31/26-27/000001)? | Accounts | Continuous per branch (S31-000124). |
 | P1 | **Call + WhatsApp integration setup** | Click-to-call and WhatsApp sending from the app (today: mockup toasts + timeline entries). | Product owner | Not built. |
+| P2 | **PT freeze while on hold** | PT end date keeps running while the membership is expired (c6, #83). A freeze (pause the PT end date) is a later-phase feature. | Product owner + PT head | No freeze. |

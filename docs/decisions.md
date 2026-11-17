@@ -89,6 +89,7 @@
     Changed by #101: re-opening someone else's lost lead (allowed by scope) makes you the owner; owner-change dialog (#99) if anything is open.
 27. Client NEXT STEP: green when more than 15 days left on the membership;
     amber "Renewal due soon" at 15 days or fewer; red when expired.
+    Changed 17 Nov (c6): Renewal due / Expired is worked out PER PACKAGE (membership and PT each on their own, <= 15 days = renewal due). The Clients "Renewal due" card counts clients with ANY package renewal due; the badge says which ("Membership renewal due" / "PT renewal due"). The profile shows a badge per package; NEXT STEP shows the most urgent package ("Membership renews in 12 days").
 28. Docs tab: upload placeholder with a type picker: ID proof,
     Waiver/consent form, Medical form, Photo, Other.
 29. Re-open: the lead returns to the stage it had before it was lost
@@ -104,6 +105,7 @@
 31. Client profiles hide the stage and temperature badges. They show
     "Client" plus a membership status badge: Active (> 15 days left),
     Renewal due (15 or fewer), Expired, the same rule as NEXT STEP (#27).
+    Changed 17 Nov (c6, #103): the CLIENT-level status (Active / Expired / Ex-client) uses the LATER of membership end and PT end; the Expired card stays client level.
 32. The timeline section for open follow-ups (including overdue ones) is
     called "Open follow-ups".
 33. Linkable profiles: opening a drawer sets the URL hash to
@@ -155,6 +157,7 @@
     Changed by #103 (Q1): start = today by default; FUTURE start dates are NOT allowed at sale ("up to 30 days ahead" removed); back date only within the CURRENT month and only with the grid row `sales.backDate` (CEO yes, locked; others No, CEO can grant). The running paid trial adjust (system-set start, #94) is exempt. Trial booking dates unchanged.
 42. PT longer than the membership: allowed with a warning; the seller must
     tick an acknowledge checkbox.
+    Changed 17 Nov (c6): the warning now says "After the membership ends on <date>, PT sessions can't be used until the membership is renewed." (text in App.ptLongerWarning; shown when PT is sold on its own in the client Sell mode, built with Renewals). Premium PT: same rule if the membership part ends first.
 43. Couple PT: both people must be clients with an active membership.
 44. Upgrade (membership and PT): only to a higher price, validity from the
     ORIGINAL start date, full paid amount adjusted. PT upgrade payout: past
@@ -342,6 +345,7 @@
 83. PT sessions unlock with payment: per-session price = (PT price −
     discount) / sessions; unlocked = floor(paid towards PT / per-session
     price). Shown as "Sessions unlocked 5 of 12" in the bill and profile.
+    Changed 17 Nov (c6): PT sessions need an active membership. Two numbers, never merged: UNLOCKED (by payment, unchanged) and USABLE now (unlocked AND the membership is active that day). Membership ended while PT runs: "PT on hold · membership expired · 5 of 12 unlocked"; NEXT STEP "Renew membership to continue PT"; renewing makes the same unlocked sessions usable again. The PT end date keeps running while on hold (no freeze; freeze parked). No booking / attendance screens: labels and status only.
 84. Sell mode layout: steps column max ~760px aligned with the stepper,
     content in headed cards (24px between, 16px inside), inputs max ~480px,
     bill fixed ~380px with grouped lines and a highlighted Total to pay,
@@ -628,3 +632,4 @@
     Q35 "Branch" scope also covers leads where I have an open follow-up. Q36 see #100. Q37 assign lists the lead's branch staff.
     Premium PT change: see #92, #93.
     Parked (later phase): Q2 (PT upgrade trainer change: MXM and above, not SE), Q4, Q6, Q10, Q13, Q18, call + WhatsApp integration setup.
+    Added 17 Nov (c6): client status by the later end, renewal per package (#27, #31) and PT on hold without an active membership (#42, #83).

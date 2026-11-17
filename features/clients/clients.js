@@ -3,7 +3,7 @@
 (function () {
   var D = window.DUMMY, esc = App.esc;
   var $ = function (id) { return document.getElementById(id); };
-  var CARDS = [["attention", "Needs attention", "pending items"], ["active", "Active", "more than 15 days left"], ["renewal", "Renewal due", "15 days or fewer"],
+  var CARDS = [["attention", "Needs attention", "pending items"], ["active", "Active", "more than 15 days left"], ["renewal", "Renewal due", "any package ≤ 15 days"],
     ["expired", "Expired", "counts in renewals"], ["ex", "Ex-client", "no active package"]];
   var PENDING_TYPES = [["addFf", "FF ID pending"], ["goFob", "Key fob pending"], ["issue", "Pending issue"], ["pay", "Payment due"]];
   var S = { card: "", search: "", rep: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, mode: "loading" };
@@ -18,7 +18,9 @@
     var ms = App.clientStatus(p);
     if (ms.key === "ex") return { key: "ex", text: "Ex-client", badge: "", left: ms.left };
     if (ms.cls === "red") return { key: "expired", text: "Expired", badge: "badge-danger", left: ms.left };
-    if (ms.cls === "amber") return { key: "renewal", text: "Renewal due", badge: "badge-warning", left: ms.left };
+    // Renewal due = ANY package (membership or PT) within 15 days, each on its own (c6); Expired / Ex-client stay client level.
+    var rd = App.renewalsDue(p);
+    if (rd.length) return { key: "renewal", text: rd.map(function (x) { return x.what + " renewal due"; }).join(" · "), badge: "badge-warning", left: Math.min.apply(null, rd.map(function (x) { return x.st.left; })), due: rd };
     return { key: "active", text: "Active", badge: "badge-success", left: ms.left };
   }
   function balances(p) {
@@ -104,13 +106,15 @@
   function endsCell(p) {
     var st = status(p), left = st.left, end = App.lastPackageEnd(p);
     return '<div class="when">' + esc(App.fmtDate(end)) + "</div>" + (st.key === "ex" ? '<span class="badge">Ex-client · ended ' + (-left) + " days ago</span>" :
-      '<span class="badge ' + st.badge + '">' + (left < 0 ? "Expired " + (-left === 1 ? "1 day" : -left + " days") + " ago" : left === 0 ? "Ends today" : left + (left === 1 ? " day" : " days") + " left") + "</span>") +
+      (st.key === "renewal" ? st.due.map(function (x) { return '<span class="badge badge-warning" data-renew="' + x.what + '">' + x.what + " renewal due · " + (x.st.left === 0 ? "today" : x.st.left + (x.st.left === 1 ? " day" : " days")) + "</span>"; }).join(" ") :
+      '<span class="badge ' + st.badge + '">' + (left < 0 ? "Expired " + (-left === 1 ? "1 day" : -left + " days") + " ago" : left === 0 ? "Ends today" : left + (left === 1 ? " day" : " days") + " left") + "</span>")) +
       (p.pt && p.pt.end && p.membership && p.membership.end && p.pt.end !== p.membership.end ? '<div class="cell-sub">Membership ' + esc(App.fmtDate(p.membership.end)) + " · PT " + esc(App.fmtDate(p.pt.end)) + "</div>" : "");
   }
   function ptCell(p) {
     if (!p.pt) return '<span class="muted">—</span>';
-    var t = p.pt, un = App.ptUnlocked(t.price, t.discount, t.sessions, t.payment ? t.payment.paid : 0);
-    return esc(t.package) + '<div class="cell-sub">' + un + " of " + t.sessions + " unlocked</div>";
+    var t = p.pt, un = App.ptUnlockedOf(p);
+    if (App.ptOnHold(p)) return esc(t.package) + '<div><span class="badge badge-warning" data-pt-hold>' + esc(App.ptHoldText(p)) + "</span></div>";
+    return esc(t.package) + '<div class="cell-sub">' + un + " of " + t.sessions + " unlocked · " + App.ptUsable(p) + " usable now</div>";
   }
   function balCell(p) {
     var b = balances(p); if (!b.length) return '<span class="muted">—</span>';

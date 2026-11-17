@@ -1,0 +1,68 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c6: renewal status per package (#27), client status by the later end (#31, #103), PT needs an active membership (#42, #83).
+var ROOT = "../../", CL = ROOT + "features/clients/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function A() { return W().App; } function person(id) { return A().byId(W().DUMMY.people, id); }
+function ids() { return Array.prototype.map.call(qa("#rows tr[data-id]"), function (r) { return r.dataset.id; }); }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+
+load(CL, function () {
+  ["mock.perms", "mock.settings"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(CL, function () {
+    step("A1 client level = later end", function () {
+      var k = person("p18");
+      ok("Kabir: membership 12 days left, PT longer -> client Active", A().daysFromToday(k.membership.end) === 12 && A().clientStatus(k).key !== "expired" && A().clientStatus(k).key !== "ex");
+      ok("Nikhil (membership expired, PT running) -> client level not Expired", ["expired", "ex"].indexOf(A().clientStatus(person("p40")).key) < 0);
+    });
+    step("A2 package level", function () {
+      var k = person("p18");
+      ok("Kabir: Membership renewal due, PT active (each on its own)", A().packageStatus(k.membership).key === "renewal" && A().packageStatus(k.pt).key === "active");
+      ok("renewalsDue(Kabir) = Membership only", A().renewalsDue(k).map(function (x) { return x.what; }).join() === "Membership");
+      ok("Nikhil: membership package Expired, PT active", A().packageStatus(person("p40").membership).key === "expired" && A().packageStatus(person("p40").pt).key === "active");
+    });
+    step("A clients list", function () {
+      click(q('[data-card="renewal"]'));
+      ok("Renewal due card includes Kabir (membership due, PT longer)", ids().indexOf("p18") > -1);
+      ok("badge says which: 'Membership renewal due · 12 days'", /Membership renewal due · 12 days/.test(text('#rows tr[data-id="p18"]')));
+      click(q('[data-card="renewal"]')); click(q('[data-card="expired"]'));
+      ok("Expired card stays client level: p21 only (not Nikhil, not Kabir)", ids().join() === "p21", ids().join());
+      click(q('[data-card="expired"]'));
+    });
+    step("B PT needs an active membership", function () {
+      var n = person("p40"), k = person("p18");
+      ok("unlocked unchanged by payment: Nikhil 12 of 12", A().ptUnlockedOf(n) === 12);
+      ok("usable 0 while the membership is expired (on hold)", A().ptOnHold(n) && A().ptUsable(n) === 0);
+      ok("Kabir: not on hold, usable = unlocked (5)", !A().ptOnHold(k) && A().ptUsable(k) === 5 && A().ptUnlockedOf(k) === 5);
+      ok("list PT cell: 'PT on hold · membership expired · 12 of 12 unlocked'", /PT on hold · membership expired · 12 of 12 unlocked/.test(text('#rows tr[data-id="p40"]')));
+      ok("Kabir PT cell: '5 of 12 unlocked · 5 usable now'", /5 of 12 unlocked · 5 usable now/.test(text('#rows tr[data-id="p18"]')));
+      var save = n.membership.end; n.membership.end = new Date(Date.now() + 30 * 864e5).toISOString();
+      ok("renewing the membership makes the same unlocked sessions usable", !A().ptOnHold(n) && A().ptUsable(n) === 12);
+      n.membership.end = save;
+      ok("#42 warning text", /After the membership ends on .+, PT sessions can't be used until the membership is renewed\./.test(A().ptLongerWarning(person("p18").membership.end)));
+    });
+    step("profile", function () {
+      A().openProfile("p18", { state: "normal" });
+      ok("Kabir: client Active + per-package badges", /Active/.test(text("[data-client-status]")) && /Membership · renewal due/.test(text('[data-pkg-status="Membership"]')) && /PT · active/.test(text('[data-pkg-status="PT"]')));
+      ok("NEXT STEP = most urgent package: 'Membership renews in 12 days'", /Membership renews in 12 days/.test(text(".next-step")));
+      A().openProfile("p40", { state: "normal" });
+      ok("Nikhil: 'PT on hold' badge, NEXT STEP 'Renew membership to continue PT'", /PT on hold/.test(text('[data-pkg-status="PT"]')) && /Renew membership to continue PT/.test(text(".next-step")) && /12 of 12 unlocked/.test(text(".next-step")));
+      click(q('[data-tab-k="membership"]'));
+      ok("Membership tab: unlocked 12 of 12, usable now 0", /Sessions unlocked 12 of 12/.test(text("[data-pt-unlocked]")) && /^0/.test(text("[data-pt-usable]").trim()));
+      ok("no bad text", !badText(), badText());
+      A().closeProfile();
+    });
+    document.getElementById("out").textContent = out.join("\n");
+  });
+});
+</script></body></html>

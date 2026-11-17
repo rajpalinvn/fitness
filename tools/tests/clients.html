@@ -38,7 +38,7 @@ load(TODAY, function () {
         ok("Renewal due 2+ (3 and 12 days left)", cnt("renewal") >= 2 && !!rowOf("p19") && !!rowOf("p20"));
         ok("Expired card counts 1 (5d); Ex-client 2 (45d, 60d); paid-trial leads are not clients", cnt("expired") === 1 && cnt("ex") === 2 && !rowOf("p6") && !rowOf("p23"), cnt("expired"));
         ok("default view hides Expired", !rowOf("p21") && !rowOf("p22"));
-        ok("ends-on column: '12 Nov 2026' + days left", /\d{1,2} [A-Z][a-z]{2} \d{4}/.test(text('#rows tr[data-id="p19"] .col-next')) && /3 days left/.test(text('#rows tr[data-id="p19"] .col-next')));
+        ok("ends-on column: '12 Nov 2026' + which package renews", /\d{1,2} [A-Z][a-z]{2} \d{4}/.test(text('#rows tr[data-id="p19"] .col-next')) && /Membership renewal due · 3 days/.test(text('#rows tr[data-id="p19"] .col-next')));
         ok("PT column: 5 of 12 unlocked", /PT 12 Sessions/.test(text('#rows tr[data-id="p18"]')) && /5 of 12 unlocked/.test(text('#rows tr[data-id="p18"]')));
         ok("balance column with date", /₹6,600\s*by \d{1,2} [A-Z][a-z]{2} \d{4}/.test(text('#rows tr[data-id="p7"]')));
         ok("branch column shown for All branches", !q("#clientTable").classList.contains("hide-branch"));

@@ -491,6 +491,34 @@
     if (left <= 15) return { key: "renewal", cls: "amber", badge: "badge-warning", text: "Renewal due soon", left: left, end: end };
     return { key: "active", cls: "green", badge: "badge-success", text: "Active", left: left, end: end };
   };
+  // Package level (#27 per package, c6): each package on its own. Renewal due <= 15 days left, Expired after its end.
+  App.packageStatus = function (line) {
+    if (!line || !line.end) return null;
+    var left = App.daysFromToday(line.end);
+    if (left < 0) return { key: "expired", cls: "red", badge: "badge-danger", text: "Expired", left: left };
+    if (left <= 15) return { key: "renewal", cls: "amber", badge: "badge-warning", text: "Renewal due", left: left };
+    return { key: "active", cls: "green", badge: "badge-success", text: "Active", left: left };
+  };
+  // Packages of a client with their own status: [{ what: "Membership" | "PT", line, st }].
+  App.packageStatuses = function (p) {
+    var out = [];
+    if (p && p.membership) out.push({ what: "Membership", line: p.membership, st: App.packageStatus(p.membership) });
+    if (p && p.pt) out.push({ what: "PT", line: p.pt, st: App.packageStatus(p.pt) });
+    return out.filter(function (x) { return x.st; });
+  };
+  App.renewalsDue = function (p) { return App.packageStatuses(p).filter(function (x) { return x.st.key === "renewal"; }); };
+  // PT needs an active membership (#83 + c6): UNLOCKED = by payment (unchanged); USABLE now = unlocked AND the membership is
+  // active today. Membership ended while PT still runs -> "PT on hold" (the PT end date keeps running; freeze is parked).
+  App.ptUnlockedOf = function (p) { var t = p && p.pt; return t ? App.ptUnlocked(t.price, t.discount, t.sessions, t.payment ? t.payment.paid : 0) : 0; };
+  App.ptOnHold = function (p) {
+    if (!p || !p.pt) return false;
+    var pt = App.packageStatus(p.pt), ms = App.packageStatus(p.membership);
+    return pt && pt.key !== "expired" && (!ms || ms.key === "expired");
+  };
+  App.ptUsable = function (p) { return App.ptOnHold(p) || (p && p.pt && App.packageStatus(p.pt).key === "expired") ? 0 : App.ptUnlockedOf(p); };
+  App.ptHoldText = function (p) { return "PT on hold · membership expired · " + App.ptUnlockedOf(p) + " of " + p.pt.sessions + " unlocked"; };
+  // #42 warning text (PT longer than the membership), used wherever PT is sold.
+  App.ptLongerWarning = function (memEndIso) { return "After the membership ends on " + App.fmtDate(memEndIso) + ", PT sessions can't be used until the membership is renewed."; };
   // Sale start date (#41 changed by #103, Q1): today by default; never in the future; back date only within the CURRENT month and
   // only with the grid row sales.backDate. Returns { min, max, canBack, hint }. The running paid trial adjust start is system-set (exempt).
   App.saleStartRange = function () {

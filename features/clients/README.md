@@ -82,5 +82,10 @@ Scope from Settings → Roles & permissions: default SE / SM / CM / RM = Branch 
 - Ends-on column shows the last end; when membership and PT end on different days: "Membership 6 Dec 2026 · PT 4 Feb 2027". Ex-client badge: "Ex-client · ended 45 days ago".
 - Dummy: p21 Pallavi Expired 5 days · p22 Tarun (60 days) and p39 Rekha (45 days) Ex-client · p40 Nikhil membership ended 5 days ago, PT runs 40 more → Active.
 
+### Renewal per package, PT on hold (c6)
+- "Renewal due" card / filter = clients with ANY package (membership or PT) <= 15 days; badges "Membership renewal due · 12 days" / "PT renewal due · N days". Expired / Ex-client stay client level (later end).
+- PT column: "5 of 12 unlocked · 5 usable now"; membership expired while PT runs: "PT on hold · membership expired · 12 of 12 unlocked".
+- Dummy: p18 Kabir (membership 12 days, PT longer), p40 Nikhil (membership expired, PT on hold).
+
 ## 5. Status
 Ready for review

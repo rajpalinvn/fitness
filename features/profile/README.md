@@ -108,5 +108,7 @@ Saving adds "<name> updated <fields>" to the timeline.
 ### Client status (#103)
 - Badge and NEXT STEP use the last package end: "Active · N days left", "Renewal due soon", "Expired · last package ended <date>", "Ex-client · last package ended <date>" (grey).
 
+- c6: badges = client level (Active / Expired / Ex-client) + one per package ("Membership · renewal due", "PT · active", "PT on hold"). NEXT STEP = the most urgent package ("Membership renews in 12 days") or "Renew membership to continue PT". Membership tab PT: "Sessions unlocked" (payment) and "Usable now" (0 while on hold).
+
 ## 5. Status
 Ready for review

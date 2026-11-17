@@ -38,7 +38,7 @@ load(LEADS, function () {
       step("client badges + label", function () {
         W().App.openProfile("p19", { state: "normal" });
         var b = txt(".pd-badges");
-        ok("client: Client + Renewal due, no stage/temperature", /Client/.test(b) && /Renewal due/.test(b) && !/Converted/.test(b) && !/Warm/.test(b), b);
+        ok("client: Client + per-package Membership · renewal due, no stage/temperature", /Client/.test(b) && /Membership · renewal due/.test(b) && !/Converted/.test(b) && !/Warm/.test(b), b);
         ok("client hash is #client-divya", W().location.hash === "#client-divya", W().location.hash);
         W().App.openProfile("p6", { state: "normal" });
         ok("Ananya (paid trial) is a Lead: Lead + Trial badges, hash #lead-ananya", /Lead/.test(txt(".pd-badges")) && /Trial/.test(txt(".pd-badges")) && W().location.hash === "#lead-ananya", W().location.hash);
