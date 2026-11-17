@@ -89,7 +89,11 @@
     { key: "trials.approve",        module: "Trials",   label: "Can be picked as trial approver (approve / reject)",    type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "trials.adjustAfterEnd", module: "Trials",   label: "Paid trial adjust after it ended (7-day buffer)",       type: "scope",  defaults: { CM: "Branch", CEO: "All" } },
     { key: "sales.convert",         module: "Sales",    label: "Convert to Client / Sell",                              type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
-    { key: "sales.discountMax",     module: "Sales",    label: "Max discount % (#77)",                                  type: "number", defaults: { SE: 10, SM: 20, CM: 30, RM: 50, CEO: 100 } },   // CEO 100% = placeholder (Q31)
+    // Max discount per role = % AND a ₹ cap; the LOWER applies; cap 0 = no ₹ cap; % 0 = no discount (#77, #103 Q22).
+    // Defaults keep the #77 % with no cap; demo: SM 20% · max ₹5,000. CEO set by the club in the grid (Q31 closed).
+    { key: "sales.discountMax",     module: "Sales",    label: "Max discount % · max ₹ (#77, #103)",                    type: "pctcap", defaults: { SE: { pct: 10, cap: 0 }, SM: { pct: 20, cap: 5000 }, CM: { pct: 30, cap: 0 }, RM: { pct: 50, cap: 0 }, CEO: { pct: 100, cap: 0 } } },
+    { key: "sales.backDate",        module: "Sales",    label: "Back-date a sale start (current month only, #103)",     type: "tick",   defaults: {} },
+    { key: "payments.refund",       module: "Payments", label: "Refund / cancel a payment (no screen yet, #103)",       type: "tick",   defaults: {} },
     { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.collectPayment", module: "Clients", label: "Collect payment",                                       type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.issueItems",    module: "Clients",  label: "Issue FF ID / key fob / item on a client",           type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
@@ -107,6 +111,7 @@
     { key: "paidTrialAdjustBufferDays", label: "Paid trial adjust buffer after it ends", def: 7, min: 0, max: 30, unit: "days", by: "CEO", hint: "Within this many days after a paid trial ended, the adjust is still offered (to roles with the grid row)." },
     { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
+    { key: "exClientAfterDays",        label: "Ex-client after (days without an active package)", def: 30, min: 0, max: 365, unit: "days", by: "CEO", hint: "Expired for this many days after the last package ends (membership or PT), then Ex-client (#103)." },
     { key: "newLeadAssignment",        label: "New-lead assignment",                    def: "Manual", options: ["Manual", "Round-robin"], by: "CEO", hint: "Round-robin comes later (Q10)." }
   ];
 
@@ -349,6 +354,24 @@
       note: "EDGE (#99 FIX): Priya owns it; Arjun (third person) has his own open follow-up -> an owner change moves only Priya's items, Arjun's stays" })
   );
 
+  // ---- Client status by the last package end (#103 Q25; Settings "Ex-client after" default 30 days). p21 = Expired 5 days, p22 = Ex-client (60). ----
+  people.push(
+    { id: "p39", kind: "Client", name: "Rekha Chawla", cc: "+91", mobile: "90000 01272", email: "rekha.c@example.com",
+      gender: "Female", birthDate: null, ffId: "FF-20706", source: "Walk-in", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
+      createdAt: day(-140), lastActivityAt: day(-45), clientNo: "CL-0925", homeBranchId: "b1", joinedAt: day(-135), keyFob: "KF-S31-0023", photo: null,
+      membership: { packageId: "pk5", package: "Quarterly Membership", saleType: "Paid", start: day(-135), end: day(-45), price: 8000,
+        discount: 0, discountReason: null, finalPrice: 8000, salesRepUserId: "u6", freeItems: [] },
+      note: "EDGE (#103): last package ended 45 days ago -> Ex-client (out of renewals)" },
+    { id: "p40", kind: "Client", name: "Nikhil Arora", cc: "+91", mobile: "90000 01273", email: "nikhil.a@example.com",
+      gender: "Male", birthDate: null, ffId: "FF-20707", source: "Referral", temperature: "Warm", stage: "Converted",
+      inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
+      createdAt: day(-70), lastActivityAt: day(-5), clientNo: "CL-0926", homeBranchId: "b1", joinedAt: day(-65), keyFob: "KF-S31-0024", photo: null,
+      membership: { packageId: "pk4", package: "Monthly Membership", saleType: "Paid", start: day(-35), end: day(-5), price: 3000,
+        discount: 0, discountReason: null, finalPrice: 3000, salesRepUserId: "u6", freeItems: [] },
+      note: "EDGE (#103): membership ended 5 days ago but PT runs 40 more days -> status by the LATER end = Active" }
+  );
+
   // ---------- Payments (decisions #79–#84). payment = { total, paid, dueDate, receipts: [{ no, at, by, rows: [{ method, amount, ref, slip }] }] }
   function rc(no, at, by, rows) { return { no: no, at: at, by: by, rows: rows.map(function (r) { return { method: r[0], amount: r[1], ref: r[2] || null, slip: r[3] || null }; }) }; }
   function pay(total, dueDate, receipts) {
@@ -374,6 +397,10 @@
   P("p22").membership.payment = pay(4200, null, [rc("S31-000077", day(-89), "u6", [["Cash", 4200]])]);
   P("p24").membership.payment = pay(25200, null, [rc("GC-000027", day(-40), "u11", [["Card", 25200, "CARD-6610"]])]);
   // EDGE: PT 24 sessions ₹22,000, paid ₹11,000 -> per session 916.67 -> 12 of 24 unlocked; balance ₹11,000 due in 10 days
+  P("p39").membership.payment = pay(9200, null, [rc("S31-000060", day(-135), "u6", [["Cash", 9200]])]);
+  P("p40").membership.payment = pay(4200, null, [rc("S31-000090", day(-35), "u6", [["UPI", 4200, "UPI-40012010"]])]);
+  P("p40").pt = { packageId: "pk9", package: "PT 12 Sessions", price: 12000, discount: 0, finalPrice: 12000, sessions: 12, start: day(-50), end: day(40),
+    salesRepUserId: "u6", payment: pay(12000, null, [rc("S31-000091", day(-50), "u6", [["Card", 12000, "CARD-7710"]])]) };
   P("p24").pt = { packageId: "pk10", package: "PT 24 Sessions", price: 22000, discount: 0, finalPrice: 22000, sessions: 24, start: day(-40), end: day(140),
     salesRepUserId: "u11", payment: pay(22000, dd(10), [rc("GC-000028", day(-40), "u11", [["UPI", 11000, "UPI-40012003"]])]) };
 
@@ -546,6 +573,10 @@
     // Premium PT (decision #92): one package = membership + PT; referenceMembershipPrice is part of each price entry (#50 rule).
     pk("pk17", "Quarterly + 12 PT",          "Premium PT", { subType: "One-on-one", days: 90, sessions: 12, priceHistory: [{ price: 30000, referenceMembershipPrice: 8000, from: dd(-120) }], soldCount: 2 }),
     pk("pk18", "Annual + 36 PT",             "Premium PT", { subType: "One-on-one", days: 365, sessions: 36, priceHistory: [{ price: 95000, referenceMembershipPrice: 24000, from: dd(-60) }] }),
+    // EDGE (#103): Premium PT with the membership FREE (reference ₹0) -> ₹0 membership line on the bill, no GST, drives status / renewal.
+    // EDGE (#103 Q27): ₹20,000 membership for the paid trial adjust GST check (₹20,000 − ₹800 trial = GST on ₹19,200).
+    pk("pk22", "Half-Yearly Membership", "Membership", { subType: "Regular", days: 180, priceHistory: [{ price: 20000, from: dd(-90) }] }),
+    pk("pk21", "Monthly + 8 PT (membership free)", "Premium PT", { subType: "One-on-one", days: 30, sessions: 8, priceHistory: [{ price: 12000, referenceMembershipPrice: 0, from: dd(-30) }] }),
     pk("pk12", "Couple PT 12 Sessions",     "PT", { subType: "One-on-one", people: 2, days: 90, sessions: 12, priceHistory: [{ price: 20000, from: dd(-60) }] }),  // EDGE: couple PT
     pk("pk13", "Branch transfer",           "Add-on", { subType: "Transfer", priceHistory: [{ price: 0, from: dd(-90) }], requiresMembership: true }),          // EDGE: free Add-on (allowed, decision #45)
     pk("pk14", "Student Monthly",           "Membership", { subType: "Student", days: 30, audience: "New", branchIds: ["b1", "b2"],
@@ -574,7 +605,9 @@
     { no: "KF-S65-0110", branchId: "b2", status: "Assigned", personId: "p20", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-78), text: "Assigned to Sameer Khan · deposit ₹1,200 collected", by: "u7" }] },
     { no: "KF-GC-0210",  branchId: "b3", status: "Assigned", personId: "p21", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-94), text: "Assigned to Pallavi Rao · deposit ₹1,200 collected", by: "u10" }] },
     { no: "KF-GC-0211",  branchId: "b3", status: "Assigned", personId: "p24", deposit: { amount: 1200, refunded: 0 }, history: [{ at: day(-40), text: "Assigned to Zoya Siddiqui · deposit ₹1,200 collected", by: "u11" }] },
-    { no: "KF-GC-0202",  branchId: "b3", status: "In stock", personId: null }
+    { no: "KF-GC-0202",  branchId: "b3", status: "In stock", personId: null },
+    { no: "KF-S31-0023", branchId: "b1", status: "Assigned", personId: "p39", deposit: { amount: 1200, refunded: 0 } },
+    { no: "KF-S31-0024", branchId: "b1", status: "Assigned", personId: "p40", deposit: { amount: 1200, refunded: 0 } }
   ];
   keyFobs.forEach(function (k) { if (!k.history) k.history = [{ at: day(-90), text: "Added to stock", by: "u1" }]; if (!k.deposit) k.deposit = null; });
 

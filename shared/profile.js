@@ -200,8 +200,8 @@
     return '<button class="btn btn-block" data-pd="trial"' + (cb.disabled ? ' disabled title="' + esc(cb.why) + '"' : "") + ">" + icon("clock") + "Book trial" + (cb.disabled ? ' <span class="cell-sub">· ' + esc(cb.why) + "</span>" : "") + "</button>";
   }
   function memberBadge(p) {
-    var ms = App.membershipStatus(p.membership); if (!ms) return "";
-    var label = ms.cls === "red" ? "Expired" : ms.cls === "amber" ? "Renewal due" : "Active";
+    var ms = App.clientStatus(p); if (!ms) return "";   // by the last package end; Ex-client after N days (#103 Q25)
+    var label = ms.key === "ex" ? "Ex-client" : ms.cls === "red" ? "Expired" : ms.cls === "amber" ? "Renewal due" : "Active";
     return '<span class="badge ' + ms.badge + '">' + label + "</span>";
   }
   function qa(act, ic, label, disabled, why) {
@@ -229,11 +229,12 @@
         '<div class="cell-sub">Re-open the lead to follow up again.</div></div>';
     }
     if (isClient(p)) {
-      var ms = App.membershipStatus(p.membership);
+      var ms = App.clientStatus(p);
       if (ms) {
-        var txt = ms.cls === "red" ? "<strong>Membership expired</strong> on " + esc(App.fmtDate(p.membership.end))
+        var txt = ms.key === "ex" ? "<strong>Ex-client</strong> · last package ended " + esc(App.fmtDate(ms.end))
+          : ms.cls === "red" ? "<strong>Expired</strong> · last package ended " + esc(App.fmtDate(ms.end))
           : ms.cls === "amber" ? "<strong>Renewal due soon</strong> · " + ms.left + (ms.left === 1 ? " day" : " days") + " left"
-          : "<strong>Membership active</strong> · " + ms.left + " days left";
+          : "<strong>Active</strong> · " + ms.left + " days left";
         out = '<div class="next-step ' + ms.cls + '"><div class="ns-label">Next step</div>' + txt +
           '<div class="cell-sub">' + esc(p.membership.package) + " · ends " + esc(App.fmtDate(p.membership.end)) + "</div>" +
           App.Trial.running(p).map(function (t) { return '<div class="cell-sub" data-trial-line>' + esc(t.type) + " trial · " + esc(t.package) + " · ends " + esc(App.fmtShortWhen(t.to)) + " · " + esc(t.approval) + "</div>"; }).join("") + pendingItems(p) +

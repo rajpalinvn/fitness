@@ -91,7 +91,7 @@
     if (F.price === "" || F.price == null) return '<div class="next-step grey" data-result><div class="ns-label">Result</div>Enter a price to see the result.</div>';
     if (r.error) return '<div class="next-step red" data-result role="alert"><div class="ns-label">Result</div><strong>Not allowed</strong> · ' + esc(r.error) + "</div>";
     var cls = r.saleType === "Trial" || r.saleType === "Trial Paid" ? "amber" : "green", parts = r.text.split(" · ");
-    var extra = isPrem() && Number(F.refPrice) > 0 && Number(F.refPrice) < Number(F.price)
+    var extra = isPrem() && F.refPrice !== "" && Number(F.refPrice) >= 0 && Number(F.refPrice) < Number(F.price)
       ? '<div class="cell-sub">At sale: Membership (included) ' + App.fmtMoney(Number(F.refPrice)) + " + PT " + App.fmtMoney(Number(F.price) - Number(F.refPrice)) + "</div>" : "";
     return '<div class="next-step ' + cls + '" data-result><div class="ns-label">Result</div><strong>' + esc(parts[0]) + "</strong>" +
       (parts.length > 1 ? " · " + esc(parts.slice(1).join(" · ")) : "") + extra + "</div>";
@@ -147,8 +147,8 @@
         (isPT || prem ? '<div class="field"><label for="pkSess">' + (prem ? "PT sessions" : "Sessions") + ' <span class="req">*</span></label><input class="input input-num' + (errors.sessions ? " invalid" : "") + '" id="pkSess" type="number" min="1" data-f="sessions" value="' + esc(F.sessions) + '"' + dis("sessions") + ">" + lockHint("sessions") + A.err(errors, "sessions") + "</div>" : "") +
         '<div class="field"><label for="pkPrice">Price incl. GST <span class="req">*</span></label><input class="input input-num' + (errors.price ? " invalid" : "") + '" id="pkPrice" type="number" min="0" data-f="price" value="' + esc(F.price) + '"' + dis("") + ">" +
           '<span class="hint" data-gst>' + esc(gstLine()) + "</span>" + A.err(errors, "price") + "</div>" +
-        (prem ? '<div class="field"><label for="pkRef">Reference membership price <span class="req">*</span></label><input class="input input-num' + (errors.refPrice ? " invalid" : "") + '" id="pkRef" type="number" min="1" data-f="refPrice" value="' + esc(F.refPrice) + '"' + dis("") + ">" +
-          '<span class="hint">Membership part of the price (incl. GST). At sale: Membership line = this, PT line = the rest. Part of each price entry.</span>' + A.err(errors, "refPrice") + "</div>" : "") +
+        (prem ? '<div class="field"><label for="pkRef">Reference membership price <span class="req">*</span></label><input class="input input-num' + (errors.refPrice ? " invalid" : "") + '" id="pkRef" type="number" min="0" data-f="refPrice" value="' + esc(F.refPrice) + '"' + dis("") + ">" +
+          '<span class="hint">Membership part of the price (incl. GST), 0 or more and less than the price; ₹0 = membership free (still a ₹0 line on the bill: it drives client status and renewal). At sale: Membership line = this (never discounted), PT line = the rest (discount applies here). Part of each price entry.</span>' + A.err(errors, "refPrice") + "</div>" : "") +
         '<div class="field"><label for="pkTax">GST category <span class="req">*</span></label><select class="input" id="pkTax" data-f="taxCategoryId"' + dis("") + ">" + taxes.map(function (t) {
           return '<option value="' + t.id + '"' + (t.id === F.taxCategoryId ? " selected" : "") + ">" + esc(t.name) + " · " + t.rate + "%</option>"; }).join("") + "</select></div>" +
         '<div class="field"><label for="pkFrom">Price effective from <span class="req">*</span></label><input class="input' + (errors.priceFrom ? " invalid" : "") + '" id="pkFrom" type="date" data-f="priceFrom" min="' + (F.id ? App.todayIso() : "") + '" value="' + esc(F.priceFrom) + '"' + dis("") + ">" +
@@ -189,7 +189,7 @@
     else if (r.error) e.price = r.error;
     if (isPrem()) {
       var rp = Number(F.refPrice);
-      if (F.refPrice === "" || !(rp > 0)) e.refPrice = "Enter the reference membership price (more than 0).";
+      if (F.refPrice === "" || !(rp >= 0)) e.refPrice = "Enter the reference membership price (0 or more; 0 = membership free).";
       else if (Math.floor(rp) !== rp) e.refPrice = "Whole rupees only.";
       else if (!e.price && rp >= Number(F.price)) e.refPrice = "Must be less than the package price (" + App.fmtMoney(Number(F.price)) + ").";
     }

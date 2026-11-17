@@ -152,6 +152,7 @@
     same client on the same date. Expiry is by calendar days with the start
     day included (7 days from Mon ends Sun).
     Changed by #94: staff can never back-date; only the system sets a past start date, only for the running paid trial adjust (membership start = trial start).
+    Changed by #103 (Q1): start = today by default; FUTURE start dates are NOT allowed at sale ("up to 30 days ahead" removed); back date only within the CURRENT month and only with the grid row `sales.backDate` (CEO yes, locked; others No, CEO can grant). The running paid trial adjust (system-set start, #94) is exempt. Trial booking dates unchanged.
 42. PT longer than the membership: allowed with a warning; the seller must
     tick an acknowledge checkbox.
 43. Couple PT: both people must be clients with an active membership.
@@ -318,6 +319,7 @@
     to the PACKAGE only, never accessories or the key fob deposit.
     Changed by #96: max discount % per role is a row in the Roles & permissions grid; the #77 numbers stay (SE 10, SM 20, CM 30, RM 50, CEO 50, SuperAdmin 100).
     Changed by #102: CEO max 100% (placeholder, Q31); SuperAdmin has no discount limit (platform role, sells nothing); edited by CEO only.
+    Changed by #103 (Q22): never above the limit. Limit per role = % AND a ₹ cap per package line; the LOWER of (% of the line) and the cap applies (e.g. 5%, max ₹5,000). Cap 0 = no ₹ cap; % 0 = no discount. `sales.discountMax` = { pct, capRupees } per role. CEO limit set by the club in the grid (Q31).
 78. GST: calculated per line with its own tax category (prices incl. GST),
     always shown with 2 decimals, and broken down by rate in the bill
     ("GST 5% ₹1,142.86 · GST 18% ₹53.24").
@@ -405,6 +407,7 @@
     from }); after the first sale it can't be edited in place, a new price
     entry with "effective from" carries a new reference price; past sales
     keep theirs. Built in c2 (packages, Convert, Clients list).
+    Changed by #103: Premium PT is a PT product; the membership inside it is an add-on (free or charged). Reference membership price 0 <= reference < price (₹0 = membership free; the ₹0 line still shows on the bill, no GST, because it drives client status, expiry and renewal). Discount applies ONLY to the PT line; the membership line always stays at the reference price (replaces the proportional split). ONE sales rep for the whole package (default = lead owner); the membership line stores it only as a reference, "incentive by scheme".
 93. Convert to Client (notes §1): offers Membership and Premium PT packages
     only (PT disabled #89; never trial packages). FF ID is mandatory; the
     key fob can be Pending; free items follow #67 (#46). Trials give
@@ -415,6 +418,7 @@
     membership line and the PT line. Payment allocation order: accessories
     → key fob deposit → membership line → PT line (PT sessions unlock from
     what reaches the PT line, #83). Built in c2.
+    Changed by #103: Premium PT discount limit = min(% of the PT part (price − reference), cap), never more than the PT line; one sales rep select; paid PT trial adjust still goes to the PT line; allocation accessories → fob → membership → PT (a ₹0 membership line takes nothing).
 94. Trials (notes §1, L1–L7, L1b, L1c). Book trial shows trial packages
     only, in two groups "Membership trials" and "PT trials". Who gets
     which (changed 16 Nov): open lead = membership trials + PT trials
@@ -555,6 +559,7 @@
     client's owner change and re-opening someone else's lost lead.
     Permission: leads.assign, label "Assign / reassign / change owner
     (leads and clients)".
+    Changed by #103 (Q32): if the earliest open due date is already past, the new follow-up (choice 2) is due TODAY, bulk too.
 100. Inactivity release and Unassigned (notes L18–L22), built now. A lead
     is inactive when its next follow-up is overdue or not set for N days
     (setting, default 7): owner removed → Unassigned, open follow-ups and
@@ -583,6 +588,7 @@
     system · Released (inactive)"; timeline "Released to Unassigned · no
     follow-up for 7 days". Setting "Release inactive leads after" (days).
     Mockup computes it on page load (real app: a daily job).
+    Changed by #103 (Q36): Today's Unassigned row shows "Assign" for users with `leads.assign` (CM / RM / CEO by default) and "Take this lead" only for users who have `leads.take` but not `leads.assign`.
 101. Lead stages stay 5 (notes L23–L24): New, Contacted, Trial (automatic),
     Negotiation, Lost. Converted = becomes a Client, not a stage.
     Situations are badges, not stages: Trial ended, Unassigned, Transferred
@@ -602,3 +608,23 @@
     roles only (View as defaults to CEO). CEO max discount 100% is a
     placeholder (Q31). The mockup shows one tenant ("Innovana Fitness
     Labs"): no tenant switcher, no SuperAdmin screens.
+103. Client answers to the open questions (17 Nov 2026, c5).
+    Q1 back date: see #41 (current month only, `sales.backDate`; no future start).
+    Q3 trainers may see package prices (no restriction now; a grid row can come later).
+    Q9 defaults confirmed: free-item rule "Once per client", package audience "Both".
+    Q14 Couple PT: both people need an existing club membership (#43).
+    Q17 FF ID: no format check, only unique.
+    Q19 overdue balance: access = what is paid (PT sessions, #83); overdue is shown; the system never blocks.
+    Q20 refund / cancel payment: grid row `payments.refund` (CEO yes, locked; others No, CEO can grant); no refund screen now.
+    Q21 GST: per line stays.
+    Q22 discount: % + ₹ cap, see #77.
+    Q25 Ex-client: Settings value "Ex-client after N days without an active package" (default 30, CEO only). The client is
+    Expired for N days after the LAST package ends (later of membership end and PT end; add-ons ignored), counted in
+    renewals; then Ex-client (own card / filter, out of renewals).
+    Q27 paid trial adjust GST: GST on the net amount (package price − trial paid), e.g. ₹20,000 − ₹800 = ₹19,200 incl. GST.
+    Q28 sales credit = the sales rep selected on the line (#36). Q29 not a feature. Q31 CEO limit set by the club in the grid.
+    Q30 SuperAdmin brings the tenant in and adds the basic staff; the CEO adds the rest later.
+    Q32 see #99. Q33 "Assigned to" = roles with `leads.view`. Q34 release closes all open follow-ups / tasks on the lead.
+    Q35 "Branch" scope also covers leads where I have an open follow-up. Q36 see #100. Q37 assign lists the lead's branch staff.
+    Premium PT change: see #92, #93.
+    Parked (later phase): Q2 (PT upgrade trainer change: MXM and above, not SE), Q4, Q6, Q10, Q13, Q18, call + WhatsApp integration setup.

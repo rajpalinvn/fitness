@@ -89,7 +89,10 @@ load(TODAY, function () {
       ok("pending: Rohit + Harsh", /Rohit Verma/.test(text("#sec-pending")) && /Harsh Vardhan/.test(text("#sec-pending")));
       ok("unassigned rows show the reason (New / Released)", /Unassigned · New/.test(text("#sec-unassigned")) && /Unassigned · Released/.test(text("#sec-unassigned")));
       click(rowOf("unassigned", "Neha").querySelector("button"));
-      ok("Take this lead: CEO owns Neha, she leaves unassigned (#100)", person("p14").ownerUserId === "u2" && !rowOf("unassigned", "Neha"));
+      ok("Q36: CEO (leads.assign) gets Assign -> shared modal", q("#assignModal").classList.contains("open"));
+      var sel = q("#assignUser"); sel.value = "u6"; sel.dispatchEvent(new (W().Event)("change", { bubbles: true }));
+      click(q("#assignModal [data-save]"));
+      ok("Neha assigned and leaves unassigned", person("p14").ownerUserId === "u6" && !rowOf("unassigned", "Neha"));
       click(rowOf("pending", "Rohit").querySelector("button"));
       ok("CEO can waive", !!q("#issueModal [data-wv]"));
       click(q("#issueModal [data-wv]")); click(q("#issueModal [data-wv]"));

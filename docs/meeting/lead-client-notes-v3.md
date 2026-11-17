@@ -19,6 +19,7 @@
 - One package = membership + PT. Fields: membership days, PT sessions, price, **reference membership price** (required).
 - At sale it **splits into 2 lines**: membership line (= reference price) + PT line (= rest). Client status, renewal, session unlock and incentives reuse the existing rules.
 - Incentive split (membership part to sales person or excluded) is set in the **incentive scheme**, not on the package.
+- **Changed 17 Nov (#103):** Premium PT is a **PT product**; the membership inside it is an add-on (free or charged). Discount on the **PT line only** (membership line always = reference price); reference may be **₹0** (0 ≤ ref < price; the ₹0 line still shows, no GST); **one sales rep** for the package (membership part: incentive by scheme).
 - **No trial** for Premium PT.
 - "Premium" membership sub-type label and the dummy "Annual + PT Premium Combo" package are removed.
 
@@ -83,7 +84,9 @@
 | Trials | Can be picked as trial approver (approve / reject) | — | Branch | Branch | Branch | All (locked, #102) |
 | Trials | Paid trial adjust after it ended (7-day buffer) | — | — | Branch | — | All |
 | Sales | Convert to Client / Sell | Own | Branch | Branch | Branch | All |
-| Sales | Max discount % (#77) | 10% | 20% | 30% | 50% | 100% (placeholder, Q31) |
+| Sales | Max discount % · max ₹ per package line (#77, #103; lower applies) | 10% · no cap | 20% · max ₹5,000 | 30% · no cap | 50% · no cap | 100% · no cap (set by the club) |
+| Sales | Back-date a sale start (current month only, #103) | — | — | — | — | ✓ |
+| Payments | Refund / cancel a payment (no screen yet, #103) | — | — | — | — | ✓ |
 | Clients | View clients | Branch | Branch | Branch | Branch | All |
 | Clients | Collect payment | Branch | Branch | Branch | Branch | All |
 | Clients | Issue FF ID / key fob / item on a client (pending items) | Branch | Branch | Branch | Branch | All |
@@ -112,6 +115,7 @@ Discount % numbers follow #77 (CEO 100% = placeholder Q31; "no limit" never show
 | Paid trial adjust buffer after it ends | 7 days | CEO |
 | Release inactive leads after | 7 days | grid row "Edit inactivity release days" |
 | Warn the owner before release | 1 day before | same |
+| Ex-client after (days without an active package, #103) | 30 days | CEO |
 | New-lead assignment | Manual (Round-robin later) | CEO |
 | Max discount % per role (#77) | see grid | CEO |
 
@@ -193,3 +197,5 @@ The mockup's grid (section 2) is the source; the build will sync to it. Please c
 | Q-R5 | Inactivity release built now → Unassigned. Pool = Unassigned leads, controlled by the grid (L18–L22). | 16 Nov 2026 |
 | T-TYPE | Trainer type = admin master list (GT, PT, GT-PT seeded, more later). All types can take PT sessions; type only changes payout (incentive scheme). Type snapshot stored on each session / sale line. | 16 Nov 2026 |
 | M1 | Fixed roles, one role per staff, permissions in a settings grid with defaults (Level 2). | 16 Nov 2026 |
+| #103 | Open questions answered: back date this month only with `sales.backDate`, no future start; discount % + ₹ cap (lower applies); `payments.refund`; Ex-client after N days (30); trial adjust GST on net; Q32 past due → today; Q36 Assign before Take; Q3, Q9, Q14, Q17, Q19, Q21, Q28–Q31, Q33–Q35, Q37 closed; Q2, Q4, Q6, Q10, Q13, Q18 + call / WhatsApp integration parked. | 17 Nov 2026 |
+| A5 / A7 (changed) | Premium PT = a PT product; membership inside = add-on (free or charged). Discount on the PT line only; reference 0 ≤ ref < price (₹0 line still on the bill); ONE sales rep for the package, membership incentive by scheme. | 17 Nov 2026 |

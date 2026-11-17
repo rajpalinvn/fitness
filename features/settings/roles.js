@@ -5,7 +5,7 @@
 (function () {
   var D = window.DUMMY, esc = App.esc, A = window.Admin, P = App.Perm;
   var TABS = [["permissions", "Permissions"], ["values", "Settings values"], ["roles", "Roles"], ["trainers", "Trainer types"], ["audit", "Audit log"]];
-  var MODULES = ["Leads", "Trials", "Sales", "Clients", "Settings"];
+  var MODULES = ["Leads", "Trials", "Sales", "Clients", "Payments", "Settings"];
   var SCOPES = ["None", "Own", "Branch", "All"];
   var SCOPE_HINT = { None: "No access", Own: "Own leads + leads with my open follow-up", Branch: "The staff's branch (all their branches for multi-branch roles)", All: "Every branch" };
   var S = {
@@ -21,6 +21,7 @@
   function cellText(d, v) {
     if (d.type === "tick") return v ? App.icon("check", "ico-sm") + "Yes" : "—";
     if (d.type === "number") return v + "%";
+    if (d.type === "pctcap") return esc(P.text(v, d));
     return v === "None" ? "—" : esc(v);
   }
   function pendingList() {
@@ -122,6 +123,12 @@
         var on = String(v) === o[0];
         return '<button type="button" class="dd-item" role="menuitemradio" aria-checked="' + on + '" data-pick="' + o[0] + '"><span class="dd-check">' + (on ? App.icon("check") : "") + "</span><span>" + o[1] + "</span></button>";
       }).join("");
+    } else if (d.type === "pctcap") {
+      var dv = P.defaultOf(short, d);
+      inner += '<div class="field"><label for="popNum">Max discount %</label><div class="row row-tight"><input class="input input-num input-xs" id="popNum" type="number" min="0" max="100" step="1" value="' + v.pct + '"><span>%</span></div></div>' +
+        '<div class="field"><label for="popCap">Max ₹ per package line</label><div class="row row-tight"><span>₹</span><input class="input input-num input-xs" id="popCap" type="number" min="0" step="1" value="' + v.cap + '">' +
+        '<button type="button" class="btn btn-primary btn-sm" data-pick="pctcap">OK</button></div><span class="error" id="popErr"></span>' +
+        '<span class="hint">The lower of the two applies. ₹ 0 = no cap (only the %). 0% = no discount. Default ' + esc(P.text(dv, d)) + ".</span></div>";
     } else {
       inner += '<div class="field"><label for="popNum">Max discount %</label><div class="row row-tight"><input class="input input-num input-xs" id="popNum" type="number" min="0" max="100" step="1" value="' + v + '"><span>%</span>' +
         '<button type="button" class="btn btn-primary btn-sm" data-pick="num">OK</button></div><span class="error" id="popErr"></span><span class="hint">Whole number 0–100. Default ' + P.defaultOf(short, d) + "%.</span></div>";
@@ -136,7 +143,7 @@
   }
   function pick(short, key, value) {
     var d = pdef(key), stored = P.get(short, key), k = short + "|" + key;
-    if (value === stored) delete S.pending[k]; else S.pending[k] = value;
+    if (P.same(value, stored)) delete S.pending[k]; else S.pending[k] = value;
     closePop(); refreshCell(k); saveBar();
   }
 
@@ -302,6 +309,12 @@
       var p = popCell.dataset.cell.split("|"), d = pdef(p[1]), v;
       if (d.type === "scope") v = t.dataset.pick;
       else if (d.type === "tick") v = t.dataset.pick === "true";
+      else if (d.type === "pctcap") {
+        var ip = document.getElementById("popNum"), ic = document.getElementById("popCap"), xp = Number(ip.value), xc = Number(ic.value);
+        if (ip.value === "" || !(xp >= 0 && xp <= 100) || Math.floor(xp) !== xp) { document.getElementById("popErr").textContent = "Enter a whole % between 0 and 100."; ip.classList.add("invalid"); ip.focus(); return; }
+        if (ic.value === "" || !(xc >= 0) || Math.floor(xc) !== xc) { document.getElementById("popErr").textContent = "Enter a whole ₹ amount (0 = no cap)."; ic.classList.add("invalid"); ic.focus(); return; }
+        v = { pct: xp, cap: xc };
+      }
       else {
         var inp = document.getElementById("popNum"), x = Number(inp.value);
         if (inp.value === "" || !(x >= 0 && x <= 100) || Math.floor(x) !== x) { document.getElementById("popErr").textContent = "Enter a whole number between 0 and 100."; inp.classList.add("invalid"); inp.focus(); return; }

@@ -85,3 +85,13 @@ Mockup names (`shared/data.js`) expected in the API. Not built yet; the screens 
 | WorkTask | `status` adds "Closed by system", `closeReason`, `closedAt` | Owner changed (choice "Close") / Released (inactive). |
 | Follow-up / WorkTask | `closeReason` adds "Owner changed", "Released (inactive)" | #99, #100. |
 
+## Client answers (#103, c5)
+| Entity | Field | Notes |
+|---|---|---|
+| Permission | `sales.discountMax` value = { `pct`, `capRupees` } (mockup: `{ pct, cap }`) | Lower of (pct % of the package line) and the cap; cap 0 = no cap; pct 0 = no discount. Premium PT: on the PT part. |
+| Permission | `sales.backDate` (tick), `payments.refund` (tick) | CEO yes (locked); others No by default. |
+| Setting | `exClientAfterDays` = 30 (0–365, CEO) | Client status by the LAST package end (later of membership / PT end): Active / Renewal due / Expired (N days) / Ex-client. Derived, not stored. |
+| Package (Premium PT) | `referenceMembershipPrice` 0 <= ref < price | ₹0 = membership free (₹0 line, no GST). |
+| Membership line (Premium PT) | `discount` always 0, `salesRepUserId` = package rep (reference only), `incentiveByScheme: true` | Discount lives on the PT line. |
+| Sale line GST | computed on the NET after the paid trial adjust | ₹20,000 − ₹800 = ₹19,200 incl. GST. |
+

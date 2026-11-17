@@ -105,5 +105,8 @@ Saving adds "<name> updated <fields>" to the timeline.
 - Tasks tab: a task can be "Closed by system · Owner changed / Released (inactive)".
 - Convert: default sales rep = me when I am a follow-up assignee (incl. the new-branch SE), else the owner (#97, L10, L15).
 
+### Client status (#103)
+- Badge and NEXT STEP use the last package end: "Active · N days left", "Renewal due soon", "Expired · last package ended <date>", "Ex-client · last package ended <date>" (grey).
+
 ## 5. Status
 Ready for review

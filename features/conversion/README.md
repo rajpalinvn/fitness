@@ -12,7 +12,7 @@
 
 Steps: **1 Details · 2 Package · 3 Sale & start · 4 Corporate entry · 5 Summary · 6 Payment**.
 Step 4 "**Corporate entry: FF ID & key fob**": **FF ID is required** to convert (#93); the key fob can be "Add later" (Key fob pending) — decisions #13, #67, #93.
-**Premium PT** (#92): the bill shows 2 lines, "Membership (included)" = reference membership price and "PT" = price − reference; GST per line; the discount is split proportionally; one sales rep per line (both default to the lead owner). The buyer becomes a Client with a membership AND a PT line (sessions unlock per #83).
+**Premium PT** (#92, changed by #103): a PT product; the membership inside it is an add-on (free or charged). The bill shows 2 lines, "Membership (included)" = reference membership price (may be ₹0: the line still shows, "free, no GST") and "PT" = price − reference; GST per line. The discount applies to the **PT line only**; the membership line always stays at the reference price. **One sales rep** for the whole package (default = lead owner); the membership line stores it only as a reference ("incentive by scheme"). The buyer becomes a Client with a membership AND a PT line (sessions unlock per #83).
 
 Layout (decision #65): steps on the LEFT, sticky **Bill summary** on the RIGHT:
 person (name, mobile, branch) · package line (price) · discount + reason (+ "Package after discount") ·
@@ -76,17 +76,17 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 | Search packages | search text | No | — | empty | Filters by name across all groups; groups with matches open; none → "No packages match "<text>"" (decision #66). |
 | Package | cards in accordions (+ / −) Membership / Premium PT (membership + PT) / Personal training, count per group; Membership open, others collapsed (#74) | Yes | No | none | Only active, non-trial packages sold at the lead's branch with audience New or Both; no Add-ons (#57, #93). Price = current price from the price history. PT disabled: "PT needs an active membership" (#89). Premium PT card shows "incl. membership ₹8,000 · PT ₹22,000". Couple package converts this person only (partner later). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
 | Price | read-only | — | — | package price | Locked (#14). |
-| Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Can't be negative or more than the price. **Limit = the role's max % from the Roles & permissions grid** (`sales.discountMax`, #77, #96): SE 10%, SM 20%, CM 30%, RM 50%, CEO 100% (placeholder, Q31). Never "no limit". Applies to the **package only** (note under the row), never accessories or the fob deposit. Premium PT: split proportionally across the two lines ("split ₹800 / ₹2,200"). Over the limit: inline "Your limit is 10%." while typing; Next blocked (#73). |
+| Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Can't be negative or more than the line (Premium PT: "more than the PT part"). **Limit = the role's "% · max ₹" from the grid** (`sales.discountMax`, #77, #103): the LOWER of (% of the package line) and the ₹ cap applies; cap 0 = no cap; % 0 = no discount (field disabled, "no discount for your role"). Defaults: SE 10% · no cap, SM 20% · max ₹5,000, CM 30%, RM 50%, CEO 100% (set by the club). Hint "Your limit (role): 20% · max ₹5,000 · here up to ₹4,800". Applies to the **package line only**, never accessories or the fob deposit. Premium PT: % computed on the PT part (price − reference), the cap applies to the PT line. Over the limit: inline "Max 20% · ₹5,000 for your role (here up to ₹4,800)." while typing; Next blocked (#73). |
 | Discount reason | select: Festive offer, Referral, Corporate, Staff family, Other | When discount > 0 | No | — | Shown as soon as the amount is above 0. "A reason is needed for a discount." |
 | Other reason | text | When reason = Other | No | — | "Write the reason." |
-| Sales rep (`salesRepUserId`) | select | Yes | No | lead owner (or you if unassigned) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. Premium PT shows two selects: "Sales rep · Membership line" and "Sales rep · PT line", both defaulting to the owner. |
+| Sales rep (`salesRepUserId`) | select | Yes | No | lead owner (or you if unassigned; a follow-up assignee = you, #97) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. Premium PT: ONE select for the whole package (#103); stored on the PT line and, as a reference only, on the membership line (`incentiveByScheme: true`). |
 
 ### Step 3 · Sale & start
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Sale type | derived from package | — | — | — | Paid (becomes a Client; next step Corporate entry). Premium PT: "Paid · becomes a Client with membership + PT". |
 | Paid trial adjust | checkbox per trial type | — | — | ticked + locked (running) / unticked (ended, in buffer, permitted) / absent | "Running paid membership trial · adjusted (locked) · membership start = trial start, set by system" / "ended N days ago · within the 7-day buffer" / "past the 7-day buffer, no adjust" / "only roles with 'Paid trial adjust after it ended' can adjust". |
-| Start date | date | Yes | No | today (running paid trial: trial start, disabled) | Today up to 30 days ahead; no back dates (#41) — the only exception is the system-set trial start. |
+| Start date | date | Yes | No | today (running paid trial: trial start, disabled) | #41 changed by #103: never in the future (max = today). Back date only within the CURRENT month and only with the grid row `sales.backDate` (CEO yes; others No by default). Hint: "Today. Back dates need the permission …" / "Today, or back to 1 Nov 2026 (this month only). No future dates." / on the 1st: "Back date only within this month (none today)." The running paid trial start is system-set and exempt. |
 | Ends | derived | — | — | — | Start + days − 1 ("365 days, start day included"). Overlap check (#41) applies to clients; a lead has no membership yet. |
 
 ### Step 4 · Corporate entry: FF ID & key fob
@@ -134,9 +134,9 @@ Leads can't buy a PT-only package (needs an active membership), so that dummy ca
 
 ## 4. States
 - **Validation**: "Choose a gender.", "Check the email format.", duplicate messages,
-  "Choose a package.", "FF ID is required to convert …", "Your limit is N%.", "A reason is needed for a discount.",
-  "Discount can't be more than the price.", "Back dates are not allowed.",
-  "Start can be at most 30 days ahead."
+  "Choose a package.", "FF ID is required to convert …", "Max 20% · ₹5,000 for your role (here up to ₹4,800).",
+  "No discount for your role.", "A reason is needed for a discount.", "Discount can't be more than the price / the PT part (₹22,000).",
+  "Start can't be in the future.", "Back date only within this month.", "You can't back-date a sale (needs \"Back-date a sale start\")."
 - **Empty**: no fobs in stock → warning callout, finish without fob.
 - **Loading / error**: none in the mockup (real app: payment in progress / payment failed
   are handled by the Payment module; the lead stays a lead on failure).
@@ -217,6 +217,11 @@ action area of an active client. Permission `trials.book` (scope). Source of eve
 | Ananya Desai / Ira Kapoor (Sec 65) | Paid trial running / ended 4 days ago (approver Vikram, RM). |
 | Divya Nair (client) | Used 2 membership free trials as a lead; can still book a free PT trial. |
 | Vivaan Joshi (client) | Books PT trials incl. "PT Trial · 3 Sessions" (clients only). |
+
+### GST with a paid trial adjust (#103, Q27)
+GST is worked out on the NET line amount after the trial adjust: ₹20,000 package − ₹800 paid trial = ₹19,200 incl. GST
+(GST 5% = ₹914.29). Dummy: Ananya (p6, running paid trial ₹800) + "Half-Yearly Membership" ₹20,000 (pk22).
+Premium PT with a free membership: "Monthly + 8 PT (membership free)" (pk21, reference ₹0) → ₹0 membership line, GST only on PT.
 
 ## 5. Status
 Ready for review

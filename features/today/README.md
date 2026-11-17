@@ -75,5 +75,7 @@ Roles with no `leads.view` (Trainer / MXM / Finance by default) see the note "Le
 - Overdue or not set rows also show "Releases tomorrow" / "Follow-up from <owner>" / "Transferred in" badges.
 - Empty: "Every lead has an owner" / "No transferred leads waiting".
 
+- Q36 (#103): Unassigned row action = "Assign" for users with `leads.assign` (CM / RM / CEO by default); "Take this lead" only for users with `leads.take` but not `leads.assign`.
+
 ## 5. Status
 Ready for review

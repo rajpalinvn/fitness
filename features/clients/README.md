@@ -75,5 +75,12 @@ Scope from Settings → Roles & permissions: default SE / SM / CM / RM = Branch 
 | Vivaan Joshi | Membership balance ₹6,600 by date. |
 | Rohit Verma | FF ID + Key fob + Pending issue · T-shirt. |
 
+### Expired vs Ex-client (#103, Q25)
+- Status by the LAST package end = later of membership end and PT end (add-ons ignored): Active (> 15 days), Renewal due (<= 15),
+  **Expired** for N days after it (counts in renewals), then **Ex-client** (own card "Ex-client · no active package" and status filter; out of the default list and renewals).
+- N = Settings value "Ex-client after" (default 30 days, CEO only; Settings › Roles & permissions › Settings values).
+- Ends-on column shows the last end; when membership and PT end on different days: "Membership 6 Dec 2026 · PT 4 Feb 2027". Ex-client badge: "Ex-client · ended 45 days ago".
+- Dummy: p21 Pallavi Expired 5 days · p22 Tarun (60 days) and p39 Rekha (45 days) Ex-client · p40 Nikhil membership ended 5 days ago, PT runs 40 more → Active.
+
 ## 5. Status
 Ready for review

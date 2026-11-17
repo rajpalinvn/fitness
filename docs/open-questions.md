@@ -5,31 +5,16 @@ Every question we have not decided yet. When one is decided, move it to
 
 | # | Question | Context | Who decides | Mockup does now |
 |---|---|---|---|---|
-| Q1 | **Back-dated start date** | Start date is today up to 30 days ahead (#41). Front desk sometimes enters a sale a day late. Allow a back date, how many days, and who approves? | Operations head | Not allowed. |
-| Q2 | **Trainer change on PT upgrade** | Upgrade keeps the original start and freezes past payouts (#44). If the client also switches trainer, who gets the remaining sessions and payout? | Operations head + PT head | Not built (Upgrade later). |
-| Q3 | **Can trainers see package prices?** | Trainers see the "Rate updated · upgrade" badge (#44). Should they see the client's package price or only their own rate? | Permission matrix owner | Trainers see no prices. |
+| — | No open questions right now | All answered in #103 (17 Nov 2026). | — | — |
+
+## Parked (later phase)
+
+| # | Question | Context | Who decides | Mockup does now |
+|---|---|---|---|---|
+| Q2 | **Trainer change on PT upgrade** (#103: not by SE; MXM and above) | Upgrade keeps the original start and freezes past payouts (#44). If the client also switches trainer, who gets the remaining sessions and payout? | Operations head + PT head | Not built (Upgrade later). |
 | Q4 | **Key fob on transfer** | Transfer changes the home branch (#45). Fobs belong to a branch's stock (#13). Keep the old fob, swap it for a new-branch fob, and what happens to the deposit? | Operations head | Not built (Transfer later). |
 | Q6 | **Fob on membership expiry / returning client** | When a membership ends, must the fob be returned (deposit refunded)? If the client renews or comes back later, do they keep the same fob and deposit? | Operations head | Fob stays Assigned after expiry. |
-| Q9 | **Free-item and audience defaults** | Free item rule default "Once per client" (#46) and package audience default "Both" (#47) are marked "Default, can change". Confirm? | Operations + marketing | Uses those defaults. |
 | Q10 | **Round-robin assignment (setting exists, Manual for now)** | Parked (notes v3 §5): the "New-lead assignment" setting is Manual (#96); round-robin comes later. Which branches, and skip people on leave? | Sales head | Manual assign by the roles the grid allows. |
 | Q13 | **Online payment failure** | Offline payments convert on save (#79). When online payment (gateway) comes, what does staff see if it fails mid-way? | Payment module owner | Offline methods only. |
-| Q14 | **Couple PT partner** | Couple PT needs both people as active clients (#43). How is the partner picked at sale, and who is the "main" client for the sale line? | Operations + PT head | Not built (PT sale later). |
-| Q17 | **FF ID format** | Is there a fixed FF ID format to check (e.g. "FF-" + 5 digits), or any text? | Operations | Any text, unique company-wide. |
 | Q18 | **Receipt numbering reset** | Does the per-branch receipt number restart each financial year (e.g. S31/26-27/000001)? | Accounts | Continuous per branch (S31-000124). |
-| Q19 | **Overdue balance** | What happens when a balance passes its due date: block entry, notify a manager, or only show red "Payment overdue"? | Operations + Accounts | Shown as "Payment due" with the date; follow-up turns overdue. |
-| Q20 | **Refund / cancel a payment** | Who can reverse a saved receipt (wrong amount, bounced UPI), and does it go back to a lead if nothing is paid? | Accounts | Not built. |
-| Q21 | **GST invoice rounding** | GST is calculated per line and summed (2 decimals). Should the tax invoice round per line or on the total, and is a GSTIN on the receipt needed? | Accounts | Per line, summed. |
-| Q22 | **Discount above the limit** | Today over the limit is blocked. Should a manager be able to approve a higher discount in the moment? | Management | Blocked (no approval flow). |
-| Q25 | **Ex-client** | When does an expired client become an "Ex-client" (the brief's search groups mention Ex-clients)? After N days expired, or never as a separate state? | Product owner + Operations | Expired badge only; no Ex-client state. |
-| Q27 | **Paid trial adjust and GST** | The paid trial price is subtracted on conversion (#94). Does the accountant treat it as a discount or as an adjustment / credit on the invoice? | Accountant | Not built (Book trial / adjust come with the lead flow update). |
-| Q28 | **Sales credit when a released lead is converted by someone else** | Priya owned the lead, it was released for inactivity (#100), Aman took it and converted. Credit only Aman's? | Management (incentive scheme) | Sales rep of the sale line gets the credit (#36). |
-| Q29 | **Max unassigned leads one SE can take** | Only if the client asks: a limit on how many Unassigned leads one Sales Executive can take (#100). | Sales head | No limit. |
-| Q30 | **What SuperAdmin sets up for a new tenant** | SuperAdmin creates the tenant and its first CEO account (#102). Also branches / packages / settings, or does the CEO do all of that? | Product owner | CEO login only; the CEO sets up branches, packages and the grid. |
-| Q31 | **CEO max discount** | With #102 the CEO column is locked to "everything", so the CEO's max discount is 100% (was 50% in #77). Confirm, or give the CEO a real limit? | Management | 100% (placeholder). |
-| Q32 | **"Close + new follow-up" when the earliest due is past** | Owner dialog choice 2 sets the new follow-up's due = earliest open due (#99). If that date is already past, the new follow-up starts overdue. Use today instead? | Sales head | Earliest due as is (editable for one lead; per lead in bulk). |
-| Q33 | **Who is in "Assigned to"** | Staff from any branch (#97). Which roles: only roles with lead access (`leads.view`), or also Trainer / MXM? | Sales head | Roles with `leads.view` not None (SE, SM, CM, RM, CEO by default). |
-| Q34 | **Release and other people's follow-ups** | On release (#100) ALL open follow-ups / tasks on the lead are closed, including one assigned to a third person. Keep the third person's open? | Sales head | All closed (notes L18 wording). |
-| Q35 | **Branch scope and assignees** | Scope "Own" includes leads where I have an open follow-up (#97). The mockup also lets "Branch" include them (an SM assigned a follow-up on another branch's lead sees it). Confirm. | Product owner | Included. |
-| Q36 | **Today: Take vs Assign** | Today rows have one action. For CM / RM / CEO (both Take and Assign) the row shows "Take this lead"; Assign is in Leads / the profile. OK? | Sales head | Take on Today. |
-| Q37 | **Assign / Change owner staff list** | Single assign lists SE / SM / CM of the lead's branch (as before). Should a cross-branch owner be pickable here too (owner can already be cross-branch via move / take)? | Sales head | Lead's branch only. |
-
+| P1 | **Call + WhatsApp integration setup** | Click-to-call and WhatsApp sending from the app (today: mockup toasts + timeline entries). | Product owner | Not built. |

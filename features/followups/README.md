@@ -87,5 +87,7 @@
 ### States
 - Validation errors inline (red text, field outlined). Toasts on success ("Kiran Joshi moved to Golf Course", "You own Yash Arora now").
 
+- Q32 (#103): owner dialog choice 2 — if the earliest open due date has already passed, the new follow-up is due TODAY (bulk too).
+
 ## 5. Status
 Ready for review (shared components). Follow-ups list screen: Draft.

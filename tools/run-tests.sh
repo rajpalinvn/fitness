@@ -30,7 +30,7 @@ run_chrome() { "$CHROME" --headless=new --disable-gpu --hide-scrollbars --allow-
 
 TOTAL_PASS=0; TOTAL_FAIL=0; STATUS=0
 echo "Mockup tests  $(date '+%Y-%m-%d %H:%M')"
-for suite in shell profile features convert masters today quicklead payments clients roles access trial ownership; do
+for suite in shell profile features convert masters today quicklead payments clients roles access trial ownership answers; do
   RES="$OUT/$suite.txt"
   run_chrome --window-size=1400,1000 --virtual-time-budget=30000 --dump-dom "$BASE/tools/tests/$suite.html" \
     | sed -n '/<pre id="out">/,/<\/pre>/p' | sed 's/<[^>]*>//g; s/&gt;/>/g; s/&lt;/</g; s/&amp;/\&/g' > "$RES"
@@ -79,5 +79,8 @@ shot ownership-leads-cm-1280 1280,800 "$BASE/tools/tests/shot.html#page,features
 shot ownership-leads-cm-900  900,800  "$BASE/tools/tests/shot.html#page,features%2Fleads%2Findex.html,900,Club%20Manager"
 shot ownership-transfer-1280 1280,800 "$BASE/tools/tests/shot.html#p34,1280,timeline"
 shot ownership-release-900   900,800  "$BASE/tools/tests/shot.html#p30,900,timeline"
+shot answers-clients-1280 1280,800 "$BASE/tools/tests/shot.html#page,features%2Fclients%2Findex.html,1280,CEO"
+shot answers-premium-1280  1280,800 "$BASE/tools/tests/shot.html#p2,1280,convert"
+shot answers-roles-900     900,800  "$BASE/tools/tests/shot.html#page,features%2Fsettings%2Froles.html,900,CEO"
 echo "Screenshots: tools/out/*.png"
 exit $STATUS

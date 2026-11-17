@@ -5,7 +5,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 
 - **Scope** cells: `None` / `Own` / `Branch` / `All`. Own = leads I own + leads where I have an open follow-up (#97).
   Branch = the staff's branch (all their branches for a multi-branch role). All = every branch of the tenant.
-- **Tick** cells: Yes / No. **Number** cells: whole number 0–100 (%).
+- **Tick** cells: Yes / No. **Number** cells: whole number 0–100 (%). **Pct + cap** cell (`sales.discountMax`): { pct 0–100, capRupees >= 0 }; the LOWER of (pct % of the package line) and the cap applies; cap 0 = no cap; pct 0 = no discount. Premium PT: on the PT part only.
 - **Roles** (8 tenant roles, #102): CEO, RM (Regional Manager), CM (Club Manager), SM (Sales Manager), SE (Sales Executive),
   MXM, TR (Trainer), FIN (Finance). SuperAdmin is a platform role (creates tenants + the first CEO account) and has no column.
 - **Locked**: CEO has every permission (whole column locked, top tenant role). `settings.rolesPermissions` is locked for every
@@ -31,7 +31,9 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `trials.approve` | Can be picked as trial approver (approve / reject) | Trials | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
 | `trials.adjustAfterEnd` | Paid trial adjust after it ended (7-day buffer) | Trials | scope | All | None | Branch | None | None | None | None | None | CEO |
 | `sales.convert` | Convert to Client / Sell | Sales | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `sales.discountMax` | Max discount % (#77) | Sales | number | 100 | 50 | 30 | 20 | 10 | 0 | 0 | 0 | CEO (100 = placeholder, Q31) |
+| `sales.discountMax` | Max discount % · max ₹ (#77, #103) | Sales | pct + cap | 100% · no cap | 50% · no cap | 30% · no cap | 20% · max ₹5,000 | 10% · no cap | 0 | 0 | 0 | CEO (set by the club, Q31 closed) |
+| `sales.backDate` | Back-date a sale start (current month only, #103) | Sales | tick | Yes | No | No | No | No | No | No | No | CEO |
+| `payments.refund` | Refund / cancel a payment (no screen yet, #103) | Payments | tick | Yes | No | No | No | No | No | No | No | CEO |
 | `clients.view` | View clients | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
 | `clients.collectPayment` | Collect payment | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
 | `clients.issueItems` | Issue FF ID / key fob / item on a client (pending items: add FF ID, assign fob, issue item) | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
@@ -54,6 +56,7 @@ The CEO never appears in that dropdown but can approve / reject any pending tria
 | `paidTrialAdjustBufferDays` | Paid trial adjust buffer after it ends | 7 | 0–30 days | CEO |
 | `inactivityReleaseDays` | Release inactive leads after | 7 | 1–90 days | grid row `settings.editInactivity` |
 | `releaseWarnDaysBefore` | Warn the owner before release | 1 | 0–89, < inactivity days | grid row `settings.editInactivity` |
+| `exClientAfterDays` | Ex-client after (days without an active package) | 30 | 0–365 days | CEO |
 | `newLeadAssignment` | New-lead assignment | Manual | Manual (Round-robin later, Q10) | CEO |
 
 Every saved change (permissions, settings values, trainer types) goes to the audit log: who, when, tab, what, old → new.

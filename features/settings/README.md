@@ -262,6 +262,7 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 | Free trials per person | number 0–10 | Yes | — | 2 | Whole number. |
 | Free trials per branch | number 0–10 | Yes | — | 1 | ≤ per person: "Per branch can't be more than per person (N)." |
 | Paid trial adjust buffer | number 0–30 days | Yes | — | 7 | Changed by CEO. |
+| Ex-client after | number 0–365 days | Yes | — | 30 | CEO only (#103). Days a client stays "Expired" after the last package ends (membership or PT), then "Ex-client". |
 | Release inactive leads after | number 1–90 days | Yes | — | 7 | Changed by roles with `settings.editInactivity`. Used by the inactivity release (#100, c4): next follow-up overdue (or none open) for N days → Unassigned · Released; warning N − "Warn the owner before release" days before. |
 | Warn the owner before release | number 0–89 days | Yes | — | 1 | < inactivity days: "Must be less than the inactivity days (N)." |
 | New-lead assignment | Manual / Round-robin | Yes | — | Manual | Round-robin disabled "Later" (Q10). |
@@ -286,4 +287,9 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 
 ## 5. Status
 Ready for review
+
+### Grid changes (#103)
+- `sales.discountMax` cell = "% · max ₹" (e.g. "20% · max ₹5,000", "10% · no cap"); the popup has two whole-number inputs (% 0–100, ₹ ≥ 0, 0 = no cap). Audit "10% · no cap → 15% · max ₹3,000". Sales rules › Discount limits shows the same text.
+- New rows: `sales.backDate` "Back-date a sale start (current month only)" (Sales) and `payments.refund` "Refund / cancel a payment (no screen yet)" (new Payments group). CEO yes (locked), others No.
+- Packages: Premium PT reference membership price 0 ≤ ref < price (₹0 = membership free).
 

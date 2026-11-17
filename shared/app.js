@@ -304,10 +304,18 @@
   };
   // ---------- Sales rules + payments (decisions #77–#84) ----------
   // ONE discount source: the grid row sales.discountMax (decisions #77, #96). Every role has a number; never "no limit".
-  App.discountLimit = function (role) {
-    var r = App.Perm.roleByName(role || App.state.role), l = r ? App.Perm.get(r.short, "sales.discountMax") : 0;
-    return typeof l === "number" ? l : 0;
+  // Value = { pct, cap } (#103, Q22): the LOWER of (pct % of the line) and the ₹ cap applies; cap 0 = no ₹ cap; pct 0 = no discount.
+  App.discountRule = function (role) {
+    var r = App.Perm.roleByName(role || App.state.role), l = r ? App.Perm.get(r.short, "sales.discountMax") : null;
+    return l && typeof l === "object" ? l : { pct: typeof l === "number" ? l : 0, cap: 0 };
   };
+  App.discountLimit = function (role) { return App.discountRule(role).pct; };   // the % part (kept for older callers)
+  // Highest ₹ discount on a line of this amount for the role.
+  App.discountMaxAmount = function (base, role) {
+    var r = App.discountRule(role), byPct = Math.floor(base * r.pct / 100);
+    return r.cap > 0 ? Math.min(byPct, r.cap) : byPct;
+  };
+  App.discountRuleText = function (role) { var r = App.discountRule(role); return "Max " + r.pct + "%" + (r.cap ? " · " + App.fmtMoney(r.cap) : "") + " for your role"; };
   App.minFirstPayPct = function () { var v = DUMMY.salesRules && DUMMY.salesRules.minFirstPayPct; return typeof v === "number" ? v : 0; };
   App.payBalance = function (pay) { return pay ? Math.max(0, Math.round((pay.total - pay.paid) * 100) / 100) : 0; };
   App.activePayMethods = function () { return DUMMY.paymentMethods.filter(function (m) { return m.active; }); };
@@ -338,18 +346,22 @@
   Perm.roleByKey = function (k) { return DUMMY.roles.filter(function (r) { return r.key === k; })[0] || null; };
   // Default for a role (short) × permission def: CEO = everything (top tenant role, #102); others from defs; else None / false / 0.
   Perm.defaultOf = function (short, d) {
-    if (short === "CEO") return d.type === "scope" ? "All" : d.type === "tick" ? true : (d.defaults.CEO != null ? d.defaults.CEO : 100);
+    if (short === "CEO") return d.type === "scope" ? "All" : d.type === "tick" ? true : d.type === "pctcap" ? pc(d.defaults.CEO || { pct: 100, cap: 0 }) : (d.defaults.CEO != null ? d.defaults.CEO : 100);
     var v = d.defaults[short];
-    if (v !== undefined) return v;
-    return d.type === "scope" ? "None" : d.type === "tick" ? false : 0;
+    if (v !== undefined) return d.type === "pctcap" ? pc(v) : v;
+    return d.type === "scope" ? "None" : d.type === "tick" ? false : d.type === "pctcap" ? { pct: 0, cap: 0 } : 0;
   };
+  // "% · max ₹" value (#103): { pct, cap }; an old plain number = that % with no cap.
+  function pc(v) { return typeof v === "number" ? { pct: v, cap: 0 } : { pct: Number(v && v.pct) || 0, cap: Number(v && v.cap) || 0 }; }
+  function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+  Perm.same = same;
   Perm.overrides = function () { return jget("perms", {}); };
   Perm.get = function (short, key) {
     var d = pdef(key); if (!d) return null;
-    var o = Perm.overrides(); if (o[short] && o[short][key] !== undefined) return o[short][key];
+    var o = Perm.overrides(); if (o[short] && o[short][key] !== undefined) return d.type === "pctcap" ? pc(o[short][key]) : o[short][key];
     return Perm.defaultOf(short, d);
   };
-  Perm.isDefault = function (short, key) { return Perm.get(short, key) === Perm.defaultOf(short, pdef(key)); };
+  Perm.isDefault = function (short, key) { return same(Perm.get(short, key), Perm.defaultOf(short, pdef(key))); };
   // Locked cells (#96 "locked" rules). Returns the reason text or "".
   Perm.lockReason = function (short, key) {
     var d = pdef(key); if (!d) return "";
@@ -364,7 +376,7 @@
     var o = Perm.overrides(), log = [];
     changes.forEach(function (c) {
       var d = pdef(c.key), old = Perm.get(c.short, c.key);
-      if (!d || old === c.value) return;
+      if (!d || same(old, c.value)) return;
       o[c.short] = o[c.short] || {}; o[c.short][c.key] = c.value;
       log.push({ tab: tab || "Permissions", what: Perm.roleByShort(c.short).name + " · " + d.label, from: Perm.text(old, d), to: Perm.text(c.value, d) });
     });
@@ -373,11 +385,14 @@
   Perm.resetAll = function () {
     var o = Perm.overrides(), log = [];
     Object.keys(o).forEach(function (s) { Object.keys(o[s]).forEach(function (k) {
-      var d = pdef(k); if (d && o[s][k] !== Perm.defaultOf(s, d)) log.push({ tab: "Permissions", what: Perm.roleByShort(s).name + " · " + d.label, from: Perm.text(o[s][k], d), to: Perm.text(Perm.defaultOf(s, d), d) + " (default)" });
+      var d = pdef(k); if (d && !same(o[s][k], Perm.defaultOf(s, d))) log.push({ tab: "Permissions", what: Perm.roleByShort(s).name + " · " + d.label, from: Perm.text(o[s][k], d), to: Perm.text(Perm.defaultOf(s, d), d) + " (default)" });
     }); });
     jset("perms", {}); Perm.audit(log); return log;
   };
-  Perm.text = function (v, d) { return d.type === "tick" ? (v ? "Yes" : "No") : d.type === "number" ? v + "%" : String(v); };
+  Perm.text = function (v, d) {
+    if (d.type === "pctcap") { v = pc(v); return v.pct + "% · " + (v.cap ? "max " + App.fmtMoney(v.cap) : "no cap"); }
+    return d.type === "tick" ? (v ? "Yes" : "No") : d.type === "number" ? v + "%" : String(v);
+  };
   // Settings values
   Perm.settings = function () { var s = {}; DUMMY.settingDefs.forEach(function (d) { s[d.key] = d.def; }); return Object.assign(s, jget("settings", {})); };
   Perm.saveSettings = function (values) {
@@ -461,6 +476,35 @@
     return DUMMY.people.filter(function (p) {
       return p.kind === "Client" && App.scopeAllows("clients.view", p) && (!branchId || branchId === "all" || p.branchId === branchId);
     });
+  };
+  // Client status by the LAST package end (later of membership end and PT end; add-ons ignored, #103 Q25):
+  // Active > 15 days left, Renewal due <= 15, Expired (counts in renewals) for N days, then Ex-client (Settings "Ex-client after").
+  App.lastPackageEnd = function (p) {
+    var e = null; [p && p.membership, p && p.pt].forEach(function (x) { if (x && x.end && (!e || new Date(x.end) > new Date(e))) e = x.end; });
+    return e;
+  };
+  App.clientStatus = function (p) {
+    var end = App.lastPackageEnd(p); if (!end) return null;
+    var left = App.daysFromToday(end), n = App.setting("exClientAfterDays");
+    if (left < 0 && -left >= n) return { key: "ex", cls: "grey", badge: "", text: "Ex-client", left: left, end: end };
+    if (left < 0) return { key: "expired", cls: "red", badge: "badge-danger", text: "Expired", left: left, end: end };
+    if (left <= 15) return { key: "renewal", cls: "amber", badge: "badge-warning", text: "Renewal due soon", left: left, end: end };
+    return { key: "active", cls: "green", badge: "badge-success", text: "Active", left: left, end: end };
+  };
+  // Sale start date (#41 changed by #103, Q1): today by default; never in the future; back date only within the CURRENT month and
+  // only with the grid row sales.backDate. Returns { min, max, canBack, hint }. The running paid trial adjust start is system-set (exempt).
+  App.saleStartRange = function () {
+    var t = App.todayIso(), first = t.slice(0, 8) + "01", can = App.can("sales.backDate") === true;
+    var hint = !can ? "Today. Back dates need the permission \"Back-date a sale start\"." : first === t ? "Back date only within this month (none today)." : "Today, or back to " + App.fmtIsoDate(first) + " (this month only). No future dates.";
+    return { min: can ? first : t, max: t, canBack: can, first: first, hint: hint };
+  };
+  App.saleStartError = function (iso) {
+    var r = App.saleStartRange();
+    if (!iso) return "Pick a start date.";
+    if (iso > r.max) return "Start can't be in the future.";
+    if (iso < r.first) return "Back date only within this month.";
+    if (iso < r.max && !r.canBack) return "You can't back-date a sale (needs \"Back-date a sale start\").";
+    return "";
   };
   App.clientNeedsAttention = function (p) { return !!(App.profilePending && App.profilePending(p).length); };
   App.nextFollowUp = function (personId) {

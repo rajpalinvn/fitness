@@ -26,12 +26,12 @@
         "must be paid, plus accessories and the key fob deposit in full. Later installments (Collect payment) can be any amount up to the balance.</div></div>" +
         '<div class="row row-tight">' + (can() ? '<input class="input input-num input-xs" type="number" min="0" max="100" value="' + mp + '" data-minpay aria-labelledby="mpT"><span>%</span>' : "<strong>" + mp + "%</strong>") +
         ' <span class="cell-sub">default ' + mpd + "%</span>" + (mp !== mpd ? ' <span class="badge badge-info">Changed</span>' : "") + ' <span class="badge badge-demo">Default, can change</span></div></div>' +
-      '<p class="muted">Highest discount each role can give on a <strong>package</strong> in Sell mode. Accessories and the key fob deposit are never discounted. ' +
-      'One source: the grid row "Max discount %"' + (can() ? ' · <a href="roles.html" data-edit-limits>Edit in Roles &amp; permissions</a>' : " (edited by the CEO in Roles &amp; permissions)") + "</p>" +
+      '<p class="muted">Highest discount each role can give on a <strong>package</strong> in Sell mode. The LOWER of the % and the ₹ cap applies per package line (Premium PT: on the PT part only). Accessories and the key fob deposit are never discounted. ' +
+      'One source: the grid row "Max discount % · max ₹"' + (can() ? ' · <a href="roles.html" data-edit-limits>Edit in Roles &amp; permissions</a>' : " (edited by the CEO in Roles &amp; permissions)") + "</p>" +
       '<div class="table-wrap"><table class="table table-admin"><thead><tr><th>Role</th><th>Max discount</th><th>Default</th></tr></thead><tbody>' +
       D.roles.map(function (r) {
-        var v = App.discountLimit(r.name), def = App.Perm.defaultOf(r.short, D.permissionDefs.filter(function (d) { return d.key === "sales.discountMax"; })[0]);
-        return '<tr data-limit-row="' + esc(r.name) + '"><td>' + esc(r.name) + "</td><td><strong>" + v + '%</strong></td><td class="muted">' + def + "%" + (v !== def ? ' <span class="badge badge-info">Changed</span>' : "") + "</td></tr>";
+        var dd = D.permissionDefs.filter(function (d) { return d.key === "sales.discountMax"; })[0], v = App.discountRule(r.name), def = App.Perm.defaultOf(r.short, dd);
+        return '<tr data-limit-row="' + esc(r.name) + '"><td>' + esc(r.name) + "</td><td><strong>" + esc(App.Perm.text(v, dd)) + '</strong></td><td class="muted">' + esc(App.Perm.text(def, dd)) + (!App.Perm.same(v, def) ? ' <span class="badge badge-info">Changed</span>' : "") + "</td></tr>";
       }).join("") + "</tbody></table></div>" + (S.err ? '<p class="error">' + esc(S.err) + "</p>" : "");
   }
   function methods() {

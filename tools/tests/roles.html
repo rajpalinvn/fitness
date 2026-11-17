@@ -36,7 +36,9 @@ var DOC = {
   "trials.approve": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
   "trials.adjustAfterEnd": ["All", "None", "Branch", "None", "None", "None", "None", "None"],
   "sales.convert": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
-  "sales.discountMax": [100, 50, 30, 20, 10, 0, 0, 0],
+  "sales.discountMax": [{ pct: 100, cap: 0 }, { pct: 50, cap: 0 }, { pct: 30, cap: 0 }, { pct: 20, cap: 5000 }, { pct: 10, cap: 0 }, { pct: 0, cap: 0 }, { pct: 0, cap: 0 }, { pct: 0, cap: 0 }],
+  "sales.backDate": [true, false, false, false, false, false, false, false],
+  "payments.refund": [true, false, false, false, false, false, false, false],
   "clients.view": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
   "clients.collectPayment": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
   "clients.issueItems": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
@@ -62,11 +64,11 @@ load(SET, function () {
     load(RP, function () {
       step("defaults = docs/permissions.md", function () {
         var bad = [];
-        Object.keys(DOC).forEach(function (k) { SHORTS.forEach(function (s, i) { if (P().get(s, k) !== DOC[k][i]) bad.push(s + "." + k + "=" + P().get(s, k)); }); });
-        ok("24 permission keys, 8 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 26 && D().roles.length === 8 && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
+        Object.keys(DOC).forEach(function (k) { SHORTS.forEach(function (s, i) { if (JSON.stringify(P().get(s, k)) !== JSON.stringify(DOC[k][i])) bad.push(s + "." + k + "=" + JSON.stringify(P().get(s, k))); }); });
+        ok("28 permission keys (incl. sales.backDate, payments.refund), 8 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 28 && D().roles.length === 8 && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
         ok("tenant: one tenant, tenantId on branches, users, people, packages", D().tenants.length === 1 && D().branches.every(function (b) { return b.tenantId === "t1"; }) && D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.tenantId === "t1"; }) && D().people.every(function (p) { return p.tenantId === "t1"; }) && D().packages.every(function (p) { return p.tenantId === "t1"; }));
         ok("every default matches docs/permissions.md", !bad.length, bad.join(" "));
-        ok("App.can for CEO: rolesPermissions true, leads.view All, discount 100", W().App.can("settings.rolesPermissions") === true && W().App.can("leads.view") === "All" && W().App.can("sales.discountMax") === 100);
+        ok("App.can for CEO: rolesPermissions true, leads.view All, discount 100", W().App.can("settings.rolesPermissions") === true && W().App.can("leads.view") === "All" && W().App.can("sales.discountMax").pct === 100);
         ok("App.setting defaults", W().App.setting("freeTrialsPerPerson") === 2 && W().App.setting("inactivityReleaseDays") === 7 && W().App.setting("newLeadAssignment") === "Manual");
         ok("users: every tenant user has roleKey + branchIds; trainers have trainerTypeId", D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.roleKey && u.branchIds && u.branchIds.length && (u.roleKey !== "TRAINER" || u.trainerTypeId); }));
         ok("Finance user + 2 trainers", D().users.some(function (u) { return u.roleKey === "FINANCE"; }) && D().users.filter(function (u) { return u.roleKey === "TRAINER"; }).length === 2);
@@ -75,7 +77,7 @@ load(SET, function () {
       step("grid", function () {
         ok("5 tabs, Permissions active", qa("#rpTabs .tab").length === 5 && /Permissions/.test(text("#rpTabs .tab.active")));
         ok("8 role columns in order, no SA", Array.prototype.map.call(qa("#permTable thead th.perm-col"), function (t) { return t.textContent; }).join() === SHORTS.join());
-        ok("5 module groups, 26 rows", qa("#permTable .perm-group").length === 5 && qa("#permTable tr[data-perm]").length === 26);
+        ok("6 module groups (incl. Payments), 28 rows", qa("#permTable .perm-group").length === 6 && qa("#permTable tr[data-perm]").length === 28);
         ok("chip shows value, not an open dropdown", /Branch/.test(chip("SM", "leads.view").textContent) && !q(".perm-pop") && !qa("#permTable select").length);
         ok("CEO column locked with reason", SHORTS.length === 8 && Object.keys(DOC).every(function (k) { return chip("CEO", k).classList.contains("locked"); }) && /every permission/.test(chip("CEO", "leads.view").dataset.tip));
         ok("Roles & permissions row locked for every role", SHORTS.every(function (s) { return chip(s, "settings.rolesPermissions").classList.contains("locked"); }));
@@ -101,10 +103,14 @@ load(SET, function () {
         click(q('#saveBar [data-rp="discard"]')); ok("Discard clears all", q("#saveBar").hidden && !qa(".perm-chip.changed").length);
       });
       step("discount number", function () {
-        click(chip("SE", "sales.discountMax")); type("#popNum", "150"); click(q('.perm-pop [data-pick="num"]'));
+        ok("SE cell '10% · no cap', SM default '20% · max ₹5,000'", /10% · no cap/.test(chip("SE", "sales.discountMax").textContent) && /20% · max ₹5,000/.test(chip("SM", "sales.discountMax").textContent));
+        click(chip("SE", "sales.discountMax"));
+        ok("popup has % and max ₹", !!q("#popNum") && !!q("#popCap"));
+        type("#popNum", "150"); click(q('.perm-pop [data-pick="pctcap"]'));
         ok("150 rejected inline", /between 0 and 100/.test(text("#popErr")) && !!q(".perm-pop"));
-        type("#popNum", "12.5"); click(q('.perm-pop [data-pick="num"]')); ok("12.5 rejected (whole number)", !!q(".perm-pop"));
-        type("#popNum", "15"); click(q('.perm-pop [data-pick="num"]')); ok("15 accepted", !q(".perm-pop") && /15%/.test(chip("SE", "sales.discountMax").textContent));
+        type("#popNum", "12.5"); click(q('.perm-pop [data-pick="pctcap"]')); ok("12.5 rejected (whole number)", !!q(".perm-pop"));
+        type("#popNum", "15"); type("#popCap", "-1"); click(q('.perm-pop [data-pick="pctcap"]')); ok("cap -1 rejected", /0 = no cap/.test(text("#popErr")) && !!q(".perm-pop"));
+        type("#popCap", "3000"); click(q('.perm-pop [data-pick="pctcap"]')); ok("15% · max ₹3,000 accepted", !q(".perm-pop") && /15% · max ₹3,000/.test(chip("SE", "sales.discountMax").textContent));
       });
       step("save with confirm + audit", function () {
         pickScope("SE", "leads.viewUnassigned", "Branch");
@@ -115,8 +121,8 @@ load(SET, function () {
       });
       setTimeout(function () {
         step("after save", function () {
-          ok("saved: App.Perm.get updated, chips plain", P().get("SE", "sales.discountMax") === 15 && P().get("SE", "leads.viewUnassigned") === "Branch" && !qa(".perm-chip.changed").length && q("#saveBar").hidden);
-          ok("App.can for Sales Executive reads the saved value", (W().App.setRole("Sales Executive"), W().App.can("sales.discountMax") === 15 && W().App.can("leads.viewUnassigned") === "Branch"));
+          ok("saved: App.Perm.get updated, chips plain", P().get("SE", "sales.discountMax").pct === 15 && P().get("SE", "sales.discountMax").cap === 3000 && P().get("SE", "leads.viewUnassigned") === "Branch" && !qa(".perm-chip.changed").length && q("#saveBar").hidden);
+          ok("App.can for Sales Executive reads the saved value", (W().App.setRole("Sales Executive"), W().App.discountRule().pct === 15 && W().App.discountMaxAmount(100000) === 3000 && W().App.can("leads.viewUnassigned") === "Branch"));
           ok("Sales Executive: no access to the page", /don't have access/.test(text("#panel")));
           W().App.setRole("CEO");
           var log = P().auditLog();
@@ -130,11 +136,11 @@ load(SET, function () {
           type("#rpSearch", "discount"); ok("search filters rows", qa("#permTable tr[data-perm]").length === 1 && qa("#permTable .perm-group").length === 1);
           type("#rpSearch", "zzz"); ok("no match state", /No actions match/.test(text("#permTable")));
           type("#rpSearch", "");
-          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 15); click(q('[data-module="Leads"]'));
+          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 17); click(q('[data-module="Leads"]'));
         });
         step("settings values", function () {
           click(q('[data-rtab="values"]'));
-          ok("6 fields with default + Changed by", qa(".set-row").length === 6 && /Default 2 trials · Changed by: CEO, Regional Manager, Club Manager/.test(text("#panel")) && /Changed by: CEO/.test(text("#panel")));
+          ok("7 fields with default + Changed by (incl. Ex-client after)", qa(".set-row").length === 7 && /Ex-client after/.test(text("#panel")) && /Default 2 trials · Changed by: CEO, Regional Manager, Club Manager/.test(text("#panel")) && /Changed by: CEO/.test(text("#panel")));
           ok("Round-robin disabled 'Later'", !!q('[data-setopt="newLeadAssignment"][data-val="Round-robin"]:disabled') && /Later/.test(text('[data-setopt="newLeadAssignment"][data-val="Round-robin"]')));
           type("#set-freeTrialsPerBranch", "5"); ok("per branch > per person error", /more than per person/.test(text("#panel")) && q('#saveBar [data-rp="save"]').disabled);
           type("#set-freeTrialsPerBranch", "1");
@@ -168,7 +174,7 @@ load(SET, function () {
           });
           step("reset all", function () {
             click(q('[data-rtab="permissions"]')); click(q('[data-rp="reset"]')); click(q('[data-rp="confirmReset"]'));
-            ok("reset → defaults, audit entry", P().get("SE", "sales.discountMax") === 10 && /default/.test(P().auditLog()[0].to));
+            ok("reset → defaults, audit entry", P().get("SE", "sales.discountMax").pct === 10 && /default/.test(P().auditLog()[0].to));
           });
           load(RP + "?debug", function () {
             step("debug states", function () {

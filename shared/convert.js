@@ -3,8 +3,11 @@
      App.Convert.open(personId)
    Steps: 1 Details · 2 Package · 3 Sale & start · 4 Corporate entry (FF ID required, key fob may be Pending) · 5 Summary · 6 Payment.
    Offers Membership and Premium PT only (#93); trials are booked with "Book trial" (c3), never here. PT stays disabled (#89).
-   Premium PT = 2 lines at sale: "Membership (included)" = reference price, "PT" = the rest; discount split proportionally;
-   one sales rep per line (#36). Allocation of a payment: accessories → fob deposit → membership line → PT line.
+   Premium PT (#92, #93 changed by #103) = a PT product; the membership inside it is an add-on (free or charged). 2 lines at sale:
+   "Membership (included)" = reference price (may be ₹0, never discounted), "PT" = the rest; the discount applies to the PT line ONLY.
+   ONE sales rep for the whole package; the membership line stores it as a reference ("incentive by scheme").
+   Discount limit (#103 Q22): the LOWER of (% of the package line) and the role's ₹ cap.
+   Start date (#103 Q1): today; no future; back date only this month with sales.backDate. Allocation: accessories → fob deposit → membership line → PT line.
    The person becomes a client when the first payment is saved (#79).
    Load after profile.js. */
 (function () {
@@ -24,7 +27,7 @@
   function isoDay(d) { var x = new Date(d); return x.getFullYear() + "-" + ("0" + (x.getMonth() + 1)).slice(-2) + "-" + ("0" + x.getDate()).slice(-2); }
   function plus(iso, n) { var d = new Date(iso + "T00:00"); d.setDate(d.getDate() + n); return d; }
   function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-  function limitPct() { return App.discountLimit(); }   // every role has a number (decision #77); never "no limit"
+  function limitPct() { return App.discountLimit(); }   // the % part of the role's limit (#77, #103)
   function sec(title, body, attrs) { return '<section class="cv-card"' + (attrs || "") + '><h3 class="cv-card-title">' + title + "</h3>" + body + "</section>"; }
   function stock(p) { return D.keyFobs.filter(function (k) { return k.branchId === p.branchId && k.status === "In stock"; }); }
   function reps(p) { return D.users.filter(function (u) { return u.branches.indexOf(p.branchId) > -1 && REP_ROLES.indexOf(u.role) > -1; }); }
@@ -50,17 +53,15 @@
     });
   }
   function depositDue() { return needsFob() && C.fob && !C.fobFree ? App.fobDeposit() : 0; }
-  // Discount money + percent from what was typed. Premium PT: the package splits into a membership line (reference price)
-  // and a PT line (the rest); the discount is split proportionally (#93).
+  // Discount money + percent from what was typed. The discount base = the package line the user sees; Premium PT: the PT part
+  // only (price − reference). The membership line of a Premium PT always stays at the reference price (#103).
   function money() {
-    var k = pkg(); if (!k) return { price: 0, disc: 0, pct: 0, final: 0, mem: 0, pt: 0, memDisc: 0, ptDisc: 0, memFinal: 0, ptFinal: 0 };
-    var v = Number(C.disc) || 0, disc = C.mode === "%" ? Math.round(k.price * v / 100) : Math.round(v);
-    var o = { price: k.price, disc: disc, pct: k.price ? disc / k.price * 100 : 0, final: k.price - disc };
-    if (k.type === "Premium PT") {
-      o.mem = k.referenceMembershipPrice || 0; o.pt = k.price - o.mem;
-      o.memDisc = k.price ? Math.round(disc * o.mem / k.price) : 0; o.ptDisc = disc - o.memDisc;
-      o.memFinal = o.mem - o.memDisc; o.ptFinal = o.pt - o.ptDisc;
-    } else { o.mem = k.price; o.pt = 0; o.memDisc = disc; o.ptDisc = 0; o.memFinal = o.final; o.ptFinal = 0; }
+    var k = pkg(); if (!k) return { price: 0, base: 0, disc: 0, pct: 0, final: 0, mem: 0, pt: 0, memDisc: 0, ptDisc: 0, memFinal: 0, ptFinal: 0 };
+    var prem = k.type === "Premium PT", mem = prem ? (k.referenceMembershipPrice || 0) : k.price, base = prem ? k.price - mem : k.price;
+    var v = Number(C.disc) || 0, disc = C.mode === "%" ? Math.round(base * v / 100) : Math.round(v);
+    var o = { price: k.price, base: base, disc: disc, pct: base ? disc / base * 100 : 0, final: k.price - disc };
+    if (prem) { o.mem = mem; o.pt = base; o.memDisc = 0; o.ptDisc = disc; o.memFinal = mem; o.ptFinal = base - disc; }
+    else { o.mem = k.price; o.pt = 0; o.memDisc = disc; o.ptDisc = 0; o.memFinal = o.final; o.ptFinal = 0; }
     return o;
   }
   // Extra accessories added in the bill (decision #71): price locked from the item master; "Free" = complimentary with a reason.
@@ -97,7 +98,7 @@
   function open(pid) {
     var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
-      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: defaultRep(p), repPtId: defaultRep(p), start: isoDay(new Date()), adjustMem: false, adjustPt: false,
+      pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: defaultRep(p), start: isoDay(new Date()), adjustMem: false, adjustPt: false,
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
       pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "" };
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
@@ -196,7 +197,9 @@
     var k = pkg(), mo = money(), dep = depositDue(), by = {};
     var fobItem = D.items.filter(function (i) { return i.kind === "Key fob"; })[0];
     function add(amount, taxId) { if (!amount) return; var g = App.gstSplit(amount, taxId); if (g.gst) by[g.rate] = Math.round(((by[g.rate] || 0) + g.gst) * 100) / 100; }
-    if (k.type === "Premium PT") { add(mo.memFinal, k.taxCategoryId); add(mo.ptFinal, k.taxCategoryId); } else add(mo.final, k.taxCategoryId);
+    // GST on the NET amount after the paid trial adjust (#103 Q27): e.g. ₹20,000 − ₹800 = ₹19,200 incl. GST. A ₹0 line has no GST.
+    if (k.type === "Premium PT") { add(mo.memFinal - adjAmount("Membership"), k.taxCategoryId); add(mo.ptFinal - adjAmount("PT"), k.taxCategoryId); }
+    else add(mo.final - adjAmount("Membership"), k.taxCategoryId);
     C.extras.forEach(function (x) { var l = extraLine(x); add(l.amount, l.it.taxCategoryId); });
     add(dep, fobItem && fobItem.taxCategoryId);
     return Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).map(function (r) { return { rate: r, gst: by[r] }; });
@@ -265,9 +268,9 @@
     if (!k) return html + '<p class="muted bill-empty">Choose a package to see the bill.</p>';
     if (isPrem()) {
       html += '<div class="bill-group"><div class="bill-group-label">' + esc(k.name) + ' · 2 lines</div>' +
-        bline("Membership (included)", App.fmtMoney(mo.mem), k.days + " days · reference membership price · rep " + esc(App.firstName(App.byId(D.users, C.repId))), "", ' data-line="mem"') +
-        bline("PT", App.fmtMoney(mo.pt), k.sessions + " sessions · price − reference · rep " + esc(App.firstName(App.byId(D.users, C.repPtId))), "", ' data-line="pt"');
-      if (mo.disc) html += bline("Discount", "− " + App.fmtMoney(mo.disc), (reasonText() ? esc(reasonText()) : '<span class="warn-text">Reason needed</span>') + " · split " + App.fmtMoney(mo.memDisc) + " / " + App.fmtMoney(mo.ptDisc));
+        bline("Membership (included)", App.fmtMoney(mo.mem), k.days + " days · reference membership price" + (mo.mem ? "" : " · free, no GST") + " · incentive by scheme", "", ' data-line="mem"') +
+        bline("PT", App.fmtMoney(mo.pt), k.sessions + " sessions · price − reference · rep " + esc(App.firstName(App.byId(D.users, C.repId))), "", ' data-line="pt"');
+      if (mo.disc) html += bline("Discount on PT", "− " + App.fmtMoney(mo.disc), (reasonText() ? esc(reasonText()) : '<span class="warn-text">Reason needed</span>') + " · PT line only", "", ' data-line="disc"');
       html += "</div>";
     } else {
       html += '<div class="bill-group">' + bline(esc(k.name), k.price ? App.fmtMoney(k.price) : "Free", k.days + (k.days === 1 ? " day" : " days") + (k.sessions ? " · " + k.sessions + " sessions" : ""));
@@ -354,12 +357,14 @@
     var mo = money();
     return mo.disc > 0 ? "Discount " + App.fmtMoney(mo.disc) + " · Final " + App.fmtMoney(mo.final) : "No discount · Final " + App.fmtMoney(mo.final);
   }
+  // Limit (#103 Q22): the LOWER of (pct % of the line) and the ₹ cap; % 0 = no discount; never above the line (PT part for Premium PT).
   function discError() {
-    var k = pkg(), mo = money(), lim = limitPct();
+    var k = pkg(), mo = money(), r = App.discountRule();
     if (!k || !k.price) return "";
     if (Number(C.disc) < 0) return "Discount can't be negative.";
-    if (mo.disc > k.price) return "Discount can't be more than the price.";
-    if (lim != null && mo.pct > lim + 1e-9) return "Your limit is " + lim + "%.";
+    if (mo.disc > mo.base) return isPrem() ? "Discount can't be more than the PT part (" + App.fmtMoney(mo.base) + ")." : "Discount can't be more than the price.";
+    if (mo.disc > 0 && !r.pct) return "No discount for your role.";
+    if (mo.disc > App.discountMaxAmount(mo.base)) return App.discountRuleText() + " (here up to " + App.fmtMoney(App.discountMaxAmount(mo.base)) + ").";
     return "";
   }
   function s2(p) {
@@ -376,20 +381,17 @@
         // Discount (decision #73): [% | ₹] + amount in one row, live line under it, limit note small.
         '<div class="field"><label for="cvDisc">Discount</label><div class="disc-row"><div class="seg seg-join" role="radiogroup" aria-label="Discount type">' +
           ["%", "₹"].map(function (x) { return '<button type="button" class="seg-btn' + (C.mode === x ? " active" : "") + '" role="radio" aria-checked="' + (C.mode === x) + '" data-disc="' + x + '">' + x + "</button>"; }).join("") +
-          '</div><input class="input input-num' + (de ? " invalid" : "") + '" id="cvDisc" data-k="disc" type="number" min="0" value="' + esc(C.disc) + '" placeholder="0"></div>' +
+          '</div><input class="input input-num' + (de ? " invalid" : "") + '" id="cvDisc" data-k="disc" type="number" min="0" value="' + esc(C.disc) + '" placeholder="0"' + (App.discountRule().pct ? "" : " disabled") + "></div>" +
           '<div class="disc-live" data-disc-line>' + discLine() + "</div>" +
           '<span class="error" data-disc-err' + (de ? "" : " hidden") + ">" + de + "</span>" +
-          '<span class="hint">Discount applies to the package only, not accessories or the key fob deposit.</span>' +
-          '<span class="hint">Your limit (' + esc(App.state.role) + "): " + lim + '% <span class="badge badge-demo">Default, can change</span></span></div>' +
+          '<span class="hint">' + (k.type === "Premium PT" ? "Discount on the PT part only (" + App.fmtMoney(mo.base) + "); the membership stays at " + App.fmtMoney(mo.mem) + "." : "Discount applies to the package only, not accessories or the key fob deposit.") + "</span>" +
+          '<span class="hint" data-disc-limit>Your limit (' + esc(App.state.role) + "): " + (App.discountRule().pct ? esc(App.Perm.text(App.discountRule(), { type: "pctcap" })) + " · here up to " + App.fmtMoney(App.discountMaxAmount(mo.base)) : "no discount for your role") + "</span></div>" +
         (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><select class="input' + inv("reason") + '" id="cvReason" data-k="reason">' +
             '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
             (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
-        '<div class="field"><label for="cvRep">Sales rep' + (k.type === "Premium PT" ? " · Membership line" : "") + ' <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
+        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") +
-          '</select><span class="hint">Gets the credit for this sale line. Defaults to the lead owner.</span></div>' +
-        (k.type === "Premium PT" ? '<div class="field"><label for="cvRepPt">Sales rep · PT line <span class="req">*</span></label><select class="input" id="cvRepPt" data-k="repPtId">' + reps(p).map(function (u) {
-          return '<option value="' + u.id + '"' + (u.id === C.repPtId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") +
-          '</select><span class="hint">One rep per line (#36). The membership part\'s incentive split is set in the incentive scheme (#92).</span></div>' : "") +
+          '</select><span class="hint">' + (k.type === "Premium PT" ? "One sales rep for the whole Premium PT package. Whether the membership part pays any incentive, and to whom, is set by the incentive scheme." : "Gets the credit for this sale line. Defaults to the lead owner.") + "</span></div>" +
         "</div></section>";
     }
     return html;
@@ -444,18 +446,16 @@
     }).join(""));
   }
   function s3(p) {
-    var k = pkg(), today = isoDay(new Date()), max = isoDay(plus(today, 30)), e = endDate(), locked = startLocked();
+    var k = pkg(), r = App.saleStartRange(), e = endDate(), locked = startLocked();
     return sec("Sale type", saleBox(k)) + adjustBox() + sec("Dates",
       '<div class="form-grid"><div class="field"><label for="cvStart">Start date <span class="req">*</span></label>' +
-        '<input class="input' + inv("start") + '" id="cvStart" data-k="start" type="date" min="' + (locked ? C.start : today) + '" max="' + max + '" value="' + esc(C.start) + '"' + (locked ? " disabled" : "") + ">" +
-        (C.errors.start ? err("start") : locked ? '<span class="hint" data-start-locked>Set by system = the paid trial\'s start date (' + esc(App.fmtIsoDate(C.start)) + "). Staff can never back-date (#41).</span>" : '<span class="hint">Today up to 30 days ahead. No back dates.</span>') + "</div>" +
+        '<input class="input' + inv("start") + '" id="cvStart" data-k="start" type="date" min="' + (locked ? C.start : r.min) + '" max="' + (locked ? C.start : r.max) + '" value="' + esc(C.start) + '"' + (locked ? " disabled" : "") + ">" +
+        (C.errors.start ? err("start") : locked ? '<span class="hint" data-start-locked>Set by system = the paid trial\'s start date (' + esc(App.fmtIsoDate(C.start)) + "). Exempt from the back-date rule (#94, #103).</span>" : '<span class="hint" data-start-hint>' + esc(r.hint) + "</span>") + "</div>" +
       '<div class="field"><label>Ends</label><div class="input input-static" data-end>' + (e ? esc(App.fmtDate(e.toISOString())) + ' <span class="muted">· ' + k.days + (k.days === 1 ? " day" : " days") + ", start day included</span>" : "—") + "</div></div></div>");
   }
   function check3() {
-    var e = {}, today = isoDay(new Date()), max = isoDay(plus(today, 30));
-    if (!C.start) e.start = "Pick a start date.";
-    else if (C.start < today && !startLocked()) e.start = "Back dates are not allowed.";
-    else if (C.start > max) e.start = "Start can be at most 30 days ahead.";
+    var e = {}, msg = startLocked() ? "" : App.saleStartError(C.start);
+    if (msg) e.start = msg;
     return e;
   }
 
@@ -490,8 +490,7 @@
     var rows = [["Person", p.name + " · " + p.cc + " " + p.mobile], ["Package", k.name + (prem ? " · 2 lines: Membership (included) " + App.fmtMoney(mo.mem) + " + PT " + App.fmtMoney(mo.pt) : "")], ["Sale type", k.saleType + (prem ? " · membership + PT" : "")],
       ["Start – end", App.fmtDate(new Date(C.start + "T00:00").toISOString()) + " – " + App.fmtDate(e.toISOString())]];
     // Money lines (price, discount, free items, accessories, deposit, GST, total) are in the bill summary on the right.
-    rows.push([prem ? "Sales rep · Membership line" : "Sales rep", App.userName(C.repId)]);
-    if (prem) rows.push(["Sales rep · PT line", App.userName(C.repPtId)]);
+    rows.push(["Sales rep", App.userName(C.repId) + (prem ? " · whole package (membership part: incentive by scheme)" : "")]);
     if (mo.disc) rows.push(["Discount reason", reasonText()]);
     adjusts().forEach(function (a) { rows.push(["Paid " + App.Trial.label(a.type) + " trial adjusted", "− " + App.fmtMoney(a.amount) + " · " + a.t.package + (a.locked ? " · start = trial start (set by system)" : " · start = today")]); });
     rows.push([CORP, "FF ID: " + C.ffId.trim() + " · Key fob: " + (C.fob ? C.fob + (C.fobFree ? " (free)" : "") : "Pending")]);
@@ -646,7 +645,8 @@
     // Premium PT (#92, #93): membership line = reference price, PT line = the rest; discount split proportionally; one rep per line.
     var adjM = adjAmount("Membership"), adjP = adjAmount("PT"), adjList = adjusts();
     p.membership = { packageId: k.id, package: prem ? k.name + " · Membership (included)" : k.name, saleType: k.saleType, start: startIso, end: endIso, price: mo.mem,
-      discount: mo.memDisc, discountReason: mo.disc ? why : null, finalPrice: mo.memFinal - adjM, salesRepUserId: C.repId, premium: prem || undefined,
+      discount: mo.memDisc, discountReason: mo.memDisc ? why : null, finalPrice: mo.memFinal - adjM, salesRepUserId: C.repId, premium: prem || undefined,
+      incentiveByScheme: prem || undefined,   // Premium PT membership line: rep stored only as a reference (#103)
       trialAdjust: adjM ? { trialId: adjustInfo("Membership").t.id, amount: adjM } : undefined,
       freeItems: freeLines(p, k).map(function (f) { return { itemId: f.itemId, name: f.name, qty: f.qty, status: f.status }; }),
       items: C.extras.map(function (x) { var l = extraLine(x); return { itemId: x.itemId, name: l.it.name, qty: x.qty, price: l.amount, free: x.free, reason: x.free ? x.why.trim() : null }; }) };
@@ -672,7 +672,7 @@
     p.membership.payment = { total: T.total - al.ptDue, paid: T.paid - al.pt, dueDate: T.balance && (T.total - al.ptDue) > (T.paid - al.pt) ? C.payDue : null, receipts: [receipt] };
     if (prem) {
       p.pt = { packageId: k.id, package: k.name + " · PT (included)", premium: true, price: mo.pt, discount: mo.ptDisc, finalPrice: mo.ptFinal - adjP, sessions: k.sessions,
-        start: startIso, end: endIso, salesRepUserId: C.repPtId, trialAdjust: adjP ? { trialId: adjustInfo("PT").t.id, amount: adjP } : undefined,
+        start: startIso, end: endIso, salesRepUserId: C.repId, discountReason: mo.ptDisc ? why : null, trialAdjust: adjP ? { trialId: adjustInfo("PT").t.id, amount: adjP } : undefined,
         payment: { total: al.ptDue, paid: al.pt, dueDate: al.ptDue > al.pt ? C.payDue : null, receipts: [receipt] } };
     }
     // The adjusted trial ends at conversion (#94); other running trials keep running until their end date.
@@ -684,7 +684,7 @@
     App.addTimeline(p.id, "milestone", "Converted to Client · " + k.name + (prem ? " (membership " + App.fmtMoney(mo.memFinal - adjM) + " + PT " + App.fmtMoney(mo.ptFinal - adjP) + ", " + k.sessions + " sessions)" : "") + " · " + App.fmtMoney(mo.final - adjM - adjP) +
       (mo.disc ? " (" + App.fmtMoney(mo.disc) + " off: " + why + ")" : "") + (p.keyFob ? " · key fob " + p.keyFob + (C.fobFree ? " (free)" : "") : "") +
       (p.membership.items.length ? " · " + p.membership.items.map(function (x) { return x.name + " × " + x.qty + (x.free ? " (free)" : ""); }).join(", ") : "") +
-      " · sales rep " + App.firstName(App.byId(D.users, C.repId)) + (prem && C.repPtId !== C.repId ? " (PT line: " + App.firstName(App.byId(D.users, C.repPtId)) + ")" : ""));
+      " · sales rep " + App.firstName(App.byId(D.users, C.repId)));
     var pend = App.profilePending ? App.profilePending(p) : [];
     C.done = true;
     C.doneHtml = '<div class="state">' + icon("check") + "<h3>" + esc(p.name) + " is now a client (" + esc(clientNo) + ")</h3>" +

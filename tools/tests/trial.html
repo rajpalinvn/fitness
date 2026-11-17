@@ -213,7 +213,7 @@ load(LEADS, function () {
             ok("PT (not trial): requires membership checked + locked", q('[data-f="requiresMembership"]').checked && q('[data-f="requiresMembership"]').disabled);
             click(q('[data-seg="isTrial"][data-val="true"]'));
             ok("PT trial: default OFF, editable, hint 'ON = clients only; OFF = leads and clients'", !q('[data-f="requiresMembership"]').checked && !q('[data-f="requiresMembership"]').disabled && /ON = clients only; OFF = leads and clients/.test(text("#pkgDrawer")));
-            ok("18 packages incl. 2 PT trials", D().packages.length === 18 && D().packages.filter(function (x) { return x.isTrial && x.category === "PT"; }).length === 2);
+            ok("20 packages incl. 2 PT trials", D().packages.length === 20 && D().packages.filter(function (x) { return x.isTrial && x.category === "PT"; }).length === 2);
             ok("settings labels say 'each trial type'", /each trial type/.test(D().settingDefs[0].label));
           });
           document.getElementById("out").textContent = out.join("\n");

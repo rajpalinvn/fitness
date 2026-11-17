@@ -106,8 +106,9 @@
     { k: "unassigned", area: "u", t: "Unassigned leads", ic: "user", tone: "amber", get: unassigned, words: "without an owner (New / Released)",
       empty: "Every lead has an owner", all: "../leads/index.html?owner=none", show: unassignedRole,
       row: function (p) {
-        var rel = p.unassignedReason === "Released", act = App.Lead.canTake(p) ? btn("take", "Take this lead", { p: p.id })
-          : App.scopeAllows("leads.assign", p, { strictOwn: true }) ? btn("assign", "Assign", { p: p.id }) : "";
+        // Q36 (#103): "Assign" for users with leads.assign; "Take this lead" only for users with leads.take but not leads.assign.
+        var rel = p.unassignedReason === "Released", act = App.scopeAllows("leads.assign", p, { strictOwn: true }) ? btn("assign", "Assign", { p: p.id })
+          : App.Lead.canTake(p) ? btn("take", "Take this lead", { p: p.id }) : "";
         return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : ""),
           sub: esc(p.source) + " · " + esc(App.branchName(p.branchId)) + (rel ? " · released " + esc(App.fmtShortWhen(p.releasedAt)) : " · received " + esc(App.fmtShortWhen(p.createdAt)) + ", " + esc(App.fmtTime(p.createdAt))),
           status: '<span class="badge badge-warning">Unassigned · ' + esc(p.unassignedReason || "New") + "</span>", action: act });

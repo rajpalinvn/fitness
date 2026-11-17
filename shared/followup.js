@@ -339,11 +339,12 @@
     return ids.reduce(function (n, id) { var p = person(id); if (!p) return n; var it = Owner.itemsOf(p); return n + it.fus.length + it.tasks.length; }, 0);
   };
   // Earliest open due date (follow-ups dueDate, tasks dueAt) among the old owner's items, "YYYY-MM-DD".
+  // Q32 (#103): if that date is already past, the new follow-up is due TODAY (bulk too).
   Owner.earliestDue = function (p) {
     var it = Owner.itemsOf(p), d = null;
     it.fus.forEach(function (f) { if (!d || f.dueDate < d) d = f.dueDate; });
     it.tasks.forEach(function (t) { var x = isoDate(t.dueAt); if (!d || x < d) d = x; });
-    return d;
+    return d && d < App.todayIso() ? App.todayIso() : d;
   };
   // choice: "move" (default) | "close" (closed by system + ONE new follow-up for the new owner) | "keep" (old owner keeps them).
   Owner.apply = function (ids, newOwnerId, choice, o) {
@@ -405,12 +406,12 @@
       '<div class="field"><label>Open follow-ups and tasks (' + n + ") <span class=\"req\">*</span></label>" +
         '<div class="radio-list" role="radiogroup">' +
           opt("move", "Move to the new owner", "They become " + App.firstName(App.byId(D.users, newOwnerId)) + "'s, with the same dates.", true) +
-          opt("close", "Close them and create one new follow-up", "Closed by system · Owner changed. One new follow-up for " + App.firstName(App.byId(D.users, newOwnerId)) + (many ? " per lead (due = that lead's earliest open due date)." : "."), false) +
+          opt("close", "Close them and create one new follow-up", "Closed by system · Owner changed. One new follow-up for " + App.firstName(App.byId(D.users, newOwnerId)) + (many ? " per lead (due = that lead's earliest open due date, or today if it has passed)." : "."), false) +
           opt("keep", "Keep with the old owner", oldName + " keeps them and still sees the lead while they stay open.", false) +
         "</div>" +
         (many ? '<span class="hint">One choice applies to all ' + ids.length + " leads.</span>" : "") +
       "</div>" +
-      (many ? "" : '<div class="field" data-due hidden><label for="ownerDue">New follow-up due</label><input class="input" type="date" id="ownerDue" value="' + esc(earliest || App.todayIso()) + '"><span class="hint">Earliest open due date. You can change it.</span></div>') +
+      (many ? "" : '<div class="field" data-due hidden><label for="ownerDue">New follow-up due</label><input class="input" type="date" id="ownerDue" value="' + esc(earliest || App.todayIso()) + '"><span class="hint">Earliest open due date (today if that date has passed). You can change it.</span></div>') +
       '<p class="hint">Only items assigned to the old owner are counted. Follow-ups other staff hold stay with them. History, notes, timeline and trial approvals never move.</p>';
     m.body.onchange = function () { var d = m.body.querySelector("[data-due]"); if (d) d.hidden = m.body.querySelector('input[name="ownerChoice"]:checked').value !== "close"; };
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Change owner</button>';

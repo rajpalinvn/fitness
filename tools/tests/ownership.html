@@ -128,14 +128,14 @@ function s3() {
     ok("history kept", person("p38").ownerHistory.some(function (h) { return h.from === "u6" && h.to === "u5"; }));
   });
   step("close + one new follow-up", function () {
-    var due = fu("f1").dueDate;
+    var due = W().App.todayIso();   // Q32 (#103): f1's earliest due is past -> today
     openP("p1"); click(q('.pd-kv [data-pd="assign"]')); pickSel("assignUser", "u5"); click(q("#assignModal [data-save]"));
     radio("close");
-    ok("due field shown = earliest open due", !q("#ownerModal [data-due]").hidden && q("#ownerDue").value === due);
+    ok("due field shown = today (earliest due has passed, Q32)", !q("#ownerModal [data-due]").hidden && q("#ownerDue").value === due);
     click(q("#ownerModal [data-save]"));
     var nf = D().followUps.filter(function (f) { return f.personId === "p1" && f.status === "Open"; });
     ok("old closed 'Owner changed'", fu("f1").status === "Closed by system" && fu("f1").closeReason === "Owner changed");
-    ok("one new follow-up for Karan, due = earliest", nf.length === 1 && nf[0].assignedToUserId === "u5" && nf[0].dueDate === due);
+    ok("one new follow-up for Karan, due = today", nf.length === 1 && nf[0].assignedToUserId === "u5" && nf[0].dueDate === due);
   });
   step("keep with the old owner", function () {
     A().Owner.apply(["p17"], "u5", "keep");
@@ -201,7 +201,7 @@ function s4() {
   load(TODAY, function () {
     step("Today (CM)", function () {
       ok("Unassigned leads section with reasons", /Unassigned · New/.test(text("#sec-unassigned")) && /Unassigned · Released/.test(text("#sec-unassigned")));
-      ok("row action 'Take this lead'", /Take this lead/.test(text("#sec-unassigned")));
+      ok("Q36: CM has leads.assign -> row action 'Assign', not Take", /Assign/.test(text("#sec-unassigned")) && !/Take this lead/.test(text("#sec-unassigned")));
       ok("Transferred in section lists Kiran", /Kiran Joshi/.test(text("#sec-transferred")) && /Pick person/.test(text("#sec-transferred")));
       ok("null scan (today, CM)", !badText(), badText());
     });

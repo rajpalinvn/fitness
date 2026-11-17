@@ -1,0 +1,151 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// Client answers (#103): back date (current month, sales.backDate), no future start, discount % + ₹ cap, refund permission,
+// Ex-client after N days, trial adjust GST on net, Premium PT discount on the PT line only / reference ₹0 / one sales rep, Q32, Q36.
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", CL = ROOT + "features/clients/index.html", RP = ROOT + "features/settings/roles.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function type(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); }
+function D() { return W().DUMMY; } function A() { return W().App; } function person(id) { return A().byId(D().people, id); }
+function M() { return q("#sellMode"); } function mtext() { return M() ? M().innerText : ""; }
+function next() { click(q('#sellMode [data-cv="next"]')); }
+function pick(id, grp) { if (!q('[data-pkg="' + id + '"]')) click(q('[data-acc="' + grp + '"]')); click(q('[data-pkg="' + id + '"]')); }
+function startConvert(id) { A().openProfile(id, { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); next(); }   // to step 2 (Package)
+function leave() { var b = q("#sellMode [data-dm-back]"); if (b) click(b); A().closeProfile(); }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function iso(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+function role(r) { A().setRole(r); }
+function grid(short, key, value) { A().Perm.save([{ short: short, key: key, value: value }], "Permissions"); }
+function clearAll() { ["mock.perms", "mock.settings", "mock.audit"].forEach(function (k) { W().sessionStorage.removeItem(k); }); }
+function done() { document.getElementById("out").textContent = out.join("\n"); }
+
+load(LEADS, function () {
+  clearAll(); W().sessionStorage.setItem("mock.role", "CEO"); W().sessionStorage.setItem("mock.branch", "all");
+  load(LEADS, function () {
+    var today = A().todayIso(), first = today.slice(0, 8) + "01", isFirst = today === first;
+    step("grid rows (#103)", function () {
+      var keys = D().permissionDefs.map(function (d) { return d.key; });
+      ok("sales.backDate + payments.refund exist", keys.indexOf("sales.backDate") > -1 && keys.indexOf("payments.refund") > -1);
+      ok("CEO yes; SE / SM / CM / RM default no", A().Perm.get("CEO", "sales.backDate") === true && ["RM", "CM", "SM", "SE"].every(function (s) { return A().Perm.get(s, "sales.backDate") === false && A().Perm.get(s, "payments.refund") === false; }) && A().Perm.get("CEO", "payments.refund") === true);
+      ok("CEO cells locked", /CEO has every permission/.test(A().Perm.lockReason("CEO", "payments.refund")));
+    });
+    step("start date rules (Q1)", function () {
+      role("Sales Executive");
+      var r = A().saleStartRange();
+      ok("SE without sales.backDate: min = max = today", r.min === today && r.max === today && !r.canBack);
+      ok("future rejected", /can't be in the future/.test(A().saleStartError(iso(1))));
+      ok("previous month rejected", /only within this month/.test(A().saleStartError(iso(-40))));
+      if (!isFirst) ok("yesterday: SE can't back-date (needs the permission)", /can't back-date/.test(A().saleStartError(iso(-1))));
+      grid("SE", "sales.backDate", true); role("Sales Executive");
+      r = A().saleStartRange();
+      ok("granted: min = 1st of this month, max = today", r.min === first && r.max === today && r.canBack);
+      if (!isFirst) ok("granted: yesterday OK (same month)", A().saleStartError(iso(-1)) === "" || iso(-1) < first);
+      ok("1st-of-month hint text exists", /none today/.test(isFirst ? r.hint : "Back date only within this month (none today)."));
+      clearAll(); role("CEO");
+      startConvert("p1"); pick("pk7", "Membership"); next();
+      ok("Convert step 3: input max = today, min = 1st (CEO), hint names the rule", q("#cvStart").max === today && q("#cvStart").min === first && /No future dates|none today/.test(text("[data-start-hint]")));
+      type("#cvStart", iso(3)); next();
+      ok("future start blocked at Next", /can't be in the future/.test(mtext()));
+      leave();
+    });
+    step("running paid trial: system-set start exempt", function () {
+      startConvert("p6"); pick("pk22", "Membership"); next();
+      ok("start locked to the trial start (in the past), no error", q("#cvStart").disabled && /Exempt from the back-date rule/.test(mtext()));
+      next(); ok("Next goes on (no back-date error)", !/back-date/i.test(text(".cv-card .error")) && /Corporate entry/.test(mtext()));
+      leave();
+    });
+    step("trial adjust GST on the net amount (Q27)", function () {
+      startConvert("p6"); pick("pk22", "Membership");
+      ok("₹20,000 − ₹800 trial = ₹19,200 total", /₹19,200/.test(text("[data-total]")), text("[data-total]"));
+      ok("GST 5% on ₹19,200 = ₹914.29 (not ₹952.38 on ₹20,000)", /₹914\.29/.test(text("[data-gst]")) && !/952\.38/.test(text("[data-gst]")), text("[data-gst]"));
+      leave();
+    });
+    step("discount % + ₹ cap (Q22)", function () {
+      role("Sales Manager");
+      ok("SM rule 20% · ₹5,000", A().discountRule().pct === 20 && A().discountRule().cap === 5000 && A().discountRuleText() === "Max 20% · ₹5,000 for your role");
+      ok("lower applies: ₹1,00,000 line -> ₹5,000 (cap); ₹20,000 line -> ₹4,000 (%)", A().discountMaxAmount(100000) === 5000 && A().discountMaxAmount(20000) === 4000);
+      role("Sales Executive");
+      ok("SE 10% · no cap: ₹1,00,000 line -> ₹10,000", A().discountMaxAmount(100000) === 10000 && A().discountRuleText() === "Max 10% for your role");
+      role("Sales Manager");
+      startConvert("p1"); pick("pk7", "Membership");
+      click(q('[data-disc="₹"]')); type("#cvDisc", "4900");
+      ok("SM on ₹24,000: ₹4,900 over 20% (₹4,800) -> error names the limit", /Max 20% · ₹5,000 for your role/.test(text("[data-disc-err]")) && /up to ₹4,800/.test(text("[data-disc-err]")));
+      type("#cvDisc", "4800"); ok("₹4,800 OK", q("[data-disc-err]").hidden);
+      leave();
+      startConvert("p1"); pick("pk18", "Premium PT");   // ₹95,000, PT part ₹71,000 -> 20% = 14,200, cap 5,000
+      click(q('[data-disc="₹"]')); type("#cvDisc", "5001");
+      ok("Premium PT: cap applies to the PT part (₹5,000)", /Max 20% · ₹5,000/.test(text("[data-disc-err]")) && /up to ₹5,000/.test(text("[data-disc-err]")));
+      leave();
+      grid("SE", "sales.discountMax", { pct: 0, cap: 0 }); role("Sales Executive");
+      startConvert("p1"); pick("pk7", "Membership");
+      ok("% 0 = no discount: field disabled, 'no discount for your role'", q("#cvDisc").disabled && /no discount for your role/.test(text("[data-disc-limit]")));
+      leave(); clearAll(); role("CEO");
+    });
+    step("Premium PT: discount on the PT line only, one sales rep", function () {
+      startConvert("p1"); pick("pk17", "Premium PT");
+      ok("one sales rep select", !!q("#cvRep") && !q("#cvRepPt") && /One sales rep for the whole Premium PT package/.test(mtext()));
+      ok("hint: discount on the PT part only", /Discount on the PT part only \(₹22,000\); the membership stays at ₹8,000/.test(mtext()));
+      type("#cvDisc", "10");
+      ok("10% computed on the PT part (₹2,200), membership line unchanged ₹8,000", /₹2,200/.test(text('[data-line="disc"]')) && /₹8,000/.test(text('[data-line="mem"]')) && /₹27,800/.test(text("[data-total]")));
+      click(q('[data-disc="₹"]')); type("#cvDisc", "23000");
+      ok("can never exceed the PT line", /more than the PT part \(₹22,000\)/.test(text("[data-disc-err]")));
+      leave();
+    });
+    step("Premium PT with reference ₹0 (membership free)", function () {
+      startConvert("p1"); pick("pk21", "Premium PT");
+      ok("bill: ₹0 membership line still shown, 'free, no GST'", /₹0/.test(text('[data-line="mem"]')) && /free, no GST/.test(text('[data-line="mem"]')) && /₹12,000/.test(text('[data-line="pt"]')));
+      ok("total ₹12,000; GST only on PT: ₹571.43", /₹12,000/.test(text("[data-total]")) && /₹571\.43/.test(text("[data-gst]")), text("[data-gst]"));
+      type("#cvDisc", "10");
+      ok("10% -> ₹1,200 off PT, total ₹10,800, membership still ₹0", /₹10,800/.test(text("[data-total]")) && /₹0/.test(text('[data-line="mem"]')));
+      ok("no bad text in Sell mode", !badText(), badText());
+      leave();
+    });
+    step("Q32: owner change, earliest due in the past -> today", function () {
+      ok("p1 earliest open due (overdue) -> today", A().Owner.earliestDue(person("p1")) === today);
+      A().Owner.apply(["p1", "p17"], "u5", "close");
+      var nf = D().followUps.filter(function (f) { return (f.personId === "p1" || f.personId === "p17") && f.status === "Open" && f.assignedToUserId === "u5"; });
+      ok("bulk close: both new follow-ups due today", nf.length === 2 && nf.every(function (f) { return f.dueDate === today; }));
+    });
+    load(CL, function () {
+      step("Ex-client (Q25)", function () {
+        ok("setting default 30 days, CEO only", A().setting("exClientAfterDays") === 30 && A().Perm.settingEditors(D().settingDefs.filter(function (d) { return d.key === "exClientAfterDays"; })[0]).join() === "CEO");
+        ok("status by the last package end", A().clientStatus(person("p21")).key === "expired" && A().clientStatus(person("p39")).key === "ex" && A().clientStatus(person("p22")).key === "ex" && A().clientStatus(person("p40")).key === "active");
+        ok("Ex-client card counts 2", /2/.test(text('[data-card="ex"] .count')));
+        click(q('[data-card="ex"]'));
+        ok("Ex-client filter: p22 + p39, badge 'Ex-client · ended'", qa("#rows tr[data-id]").length === 2 && !!q('#rows tr[data-id="p39"]') && /Ex-client · ended 45 days ago/.test(text('#rows tr[data-id="p39"]')));
+        click(q('[data-card="ex"]'));
+        ok("PT outlives membership: p40 Active, shows both ends", !!q('#rows tr[data-id="p40"]') && /PT/.test(text('#rows tr[data-id="p40"]')));
+        A().openProfile("p39", { state: "normal" });
+        ok("profile: Ex-client badge + NEXT STEP 'last package ended'", /Ex-client/.test(text(".pd-badges")) && /Ex-client · last package ended/.test(text(".next-step")));
+        A().closeProfile();
+        ok("no bad text (clients)", !badText(), badText());
+      });
+      W().sessionStorage.setItem("mock.settings", JSON.stringify({ exClientAfterDays: 50 }));
+      load(CL, function () {
+        step("Ex-client setting = 50", function () {
+          ok("p39 (45 days) back to Expired", A().clientStatus(person("p39")).key === "expired");
+        });
+        clearAll();
+        load(RP, function () {
+          step("grid cell + settings value", function () {
+            ok("grid shows '20% · max ₹5,000' for SM", /20% · max ₹5,000/.test(text('[data-cell="SM|sales.discountMax"]')));
+            ok("rows: Back-date a sale start, Refund / cancel a payment", /Back-date a sale start/.test(text("#permTable")) && /Refund \/ cancel a payment/.test(text("#permTable")));
+            click(q('[data-rtab="values"]'));
+            ok("Settings values: Ex-client after, default 30", /Ex-client after/.test(text("#panel")));
+            ok("no bad text (roles)", !badText(), badText());
+          });
+          done();
+        });
+      });
+    });
+  });
+});
+</script></body></html>

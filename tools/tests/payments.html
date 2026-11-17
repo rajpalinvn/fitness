@@ -24,7 +24,7 @@ load(SALES, function () {
     step("Settings → Sales rules · Discount limits (CEO edits)", function () {
       ok("every role's limit shown read-only from the grid (8 rows, SE 10, CEO 100, CM 30)", qa("[data-limit-row]").length === 8 && !q("[data-limit]") && /10%/.test(text('[data-limit-row="Sales Executive"]')) && /100%/.test(text('[data-limit-row="CEO"]')) && /30%/.test(text('[data-limit-row="Club Manager"]')));
       ok("link to edit in Roles & permissions (CEO)", !!q("[data-edit-limits]") && /roles\.html/.test(q("[data-edit-limits]").getAttribute("href")) && !D().discountLimits);
-      ok("one source: App.discountLimit = grid value", W().App.discountLimit("Sales Executive") === W().App.Perm.get("SE", "sales.discountMax"));
+      ok("one source: App.discountLimit = grid value", W().App.discountLimit("Sales Executive") === W().App.Perm.get("SE", "sales.discountMax").pct);
       ok("Minimum first payment: 30% default", q("[data-minpay]").value === "30" && /Minimum first payment on packages/.test(text("#panel")));
       change("[data-minpay]", "120"); ok("min %: 0-100 only", /between 0 and 100/.test(text("#panel")) && D().salesRules.minFirstPayPct === 30);
       change("[data-minpay]", "40"); ok("min % saved", D().salesRules.minFirstPayPct === 40 && W().App.minFirstPayPct() === 40);

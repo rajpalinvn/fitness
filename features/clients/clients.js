@@ -4,7 +4,7 @@
   var D = window.DUMMY, esc = App.esc;
   var $ = function (id) { return document.getElementById(id); };
   var CARDS = [["attention", "Needs attention", "pending items"], ["active", "Active", "more than 15 days left"], ["renewal", "Renewal due", "15 days or fewer"],
-    ["expired", "Expired", "membership ended"]];
+    ["expired", "Expired", "counts in renewals"], ["ex", "Ex-client", "no active package"]];
   var PENDING_TYPES = [["addFf", "FF ID pending"], ["goFob", "Key fob pending"], ["issue", "Pending issue"], ["pay", "Payment due"]];
   var S = { card: "", search: "", rep: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, mode: "loading" };
   if (/[?&]view=attention\b/.test(location.search)) S.card = "attention";
@@ -12,9 +12,11 @@
 
   // ---------- data helpers ----------
   function noLeadsRole() { return App.can("clients.view") === "None"; }   // grid row clients.view (#96)
-  // Status (#27, #31): Active > 15 days left, Renewal due <= 15, Expired. (Paid trials are leads, #92: never on this list.)
+  // Status by the LAST package end (membership or PT, #103 Q25): Active > 15 days, Renewal due <= 15, Expired for N days
+  // (Settings "Ex-client after"), then Ex-client (own card, out of renewals). (Paid trials are leads, #92: never on this list.)
   function status(p) {
-    var ms = App.membershipStatus(p.membership);
+    var ms = App.clientStatus(p);
+    if (ms.key === "ex") return { key: "ex", text: "Ex-client", badge: "", left: ms.left };
     if (ms.cls === "red") return { key: "expired", text: "Expired", badge: "badge-danger", left: ms.left };
     if (ms.cls === "amber") return { key: "renewal", text: "Renewal due", badge: "badge-warning", left: ms.left };
     return { key: "active", text: "Active", badge: "badge-success", left: ms.left };
@@ -46,7 +48,7 @@
     return status(p).key === k;
   }
   function applyCard(list) {
-    return list.filter(function (p) { return S.card ? inCard(p, S.card) : status(p).key !== "expired"; });   // default: Active + Renewal due
+    return list.filter(function (p) { return S.card ? inCard(p, S.card) : ["expired", "ex"].indexOf(status(p).key) < 0; });   // default: Active + Renewal due
   }
   // Sort: needs attention first, then fewest days left.
   function sortList(list) {
@@ -100,9 +102,10 @@
 
   // ---------- rows ----------
   function endsCell(p) {
-    var st = status(p), left = st.left;
-    return '<div class="when">' + esc(App.fmtDate(p.membership.end)) + "</div>" +
-      '<span class="badge ' + st.badge + '">' + (left < 0 ? "Expired " + (-left === 1 ? "1 day" : -left + " days") + " ago" : left === 0 ? "Ends today" : left + (left === 1 ? " day" : " days") + " left") + "</span>";
+    var st = status(p), left = st.left, end = App.lastPackageEnd(p);
+    return '<div class="when">' + esc(App.fmtDate(end)) + "</div>" + (st.key === "ex" ? '<span class="badge">Ex-client · ended ' + (-left) + " days ago</span>" :
+      '<span class="badge ' + st.badge + '">' + (left < 0 ? "Expired " + (-left === 1 ? "1 day" : -left + " days") + " ago" : left === 0 ? "Ends today" : left + (left === 1 ? " day" : " days") + " left") + "</span>") +
+      (p.pt && p.pt.end && p.membership && p.membership.end && p.pt.end !== p.membership.end ? '<div class="cell-sub">Membership ' + esc(App.fmtDate(p.membership.end)) + " · PT " + esc(App.fmtDate(p.pt.end)) + "</div>" : "");
   }
   function ptCell(p) {
     if (!p.pt) return '<span class="muted">—</span>';
