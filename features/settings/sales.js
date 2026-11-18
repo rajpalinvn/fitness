@@ -11,7 +11,7 @@
     document.getElementById("srTabs").innerHTML = TABS.map(function (t) {
       var on = t[0] === S.tab; return '<button class="tab' + (on ? " active" : "") + '" role="tab" aria-selected="' + on + '" data-stab="' + t[0] + '">' + t[1] + "</button>";
     }).join("");
-    var panel = document.getElementById("panel"), view = App.access.viewMasters();
+    var panel = document.getElementById("panel"), view = App.access.viewMaster("salesRules");
     A.banner(document.getElementById("banner"), !view ? "none" : can() ? "edit" : "view", S.tab === "limits" ? "discount limits" : "payment methods");
     document.getElementById("headActions").innerHTML = S.tab === "methods" && can() && !S.adding ? '<button class="btn btn-primary" data-sr="add">' + App.icon("plus") + "Payment method</button>" : "";
     if (!view) { panel.innerHTML = A.noAccess("sales rules"); return; }

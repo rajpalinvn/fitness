@@ -26,7 +26,7 @@
       var on = t[0] === S.tab; return '<button class="tab' + (on ? " active" : "") + '" role="tab" aria-selected="' + on + '" data-itab="' + t[0] + '">' + t[1] + "</button>";
     }).join("");
     var masters = S.tab === "items" || S.tab === "tax", panel = document.getElementById("panel"), head = document.getElementById("headActions");
-    var can = masters ? App.access.viewMasters() : App.access.stock();
+    var can = masters ? App.access.viewMaster(S.tab) : App.access.stock();
     A.banner(document.getElementById("banner"), !can ? "none" : masters ? (admin() ? "edit" : "view") : "edit", S.tab === "tax" ? "tax categories" : "items");
     head.innerHTML = "";
     if (!can) { panel.innerHTML = A.noAccess(masters ? "this master" : "stock and key fobs (grid row \"Accessory / key fob stock\")"); return; }

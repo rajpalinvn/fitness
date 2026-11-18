@@ -76,7 +76,7 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 
 ## 4. States
 - **Loading**: skeleton rows (`?debug` → Loading). **Error**: "Couldn't load this list" + Retry. **Empty**: "No packages yet" + Package button. **No results**: "No packages match these filters" + Clear filters.
-- **View only** (grid row `settings.viewMasters`: SM / CM / RM by default): banner "View only"; no + Package, no Copy, read-only form.
+- **View only** (grid row `settings.viewPackages`: SM / CM / RM by default): banner "View only"; no + Package, no Copy, read-only form.
 - **No access** (other roles): "You don't have access to packages".
 - **Locked** (sold): amber callout "Sold N times. … are locked" + Copy as new; locked fields disabled with "Locked: sold".
 - **Validation**: "Enter a name.", "Enter the number of days (1 or more).", "Enter the number of sessions.", "Enter a price (0 or more).", "A price of 0 is only allowed for a trial.", "A new price can't start in the past.", "Choose at least one branch.", "Each free item can be added once."
@@ -156,7 +156,7 @@ Ready for review
 
 ## 4. States
 - **Loading / Error / Empty** via `?debug` on every tab. Empty: "No items yet", "No accessories yet", "No fobs at this branch", "No tax categories yet". No results (fobs filter): "No fobs match" + Clear filters.
-- **No access**: masters (Items, Tax) for roles without `settings.viewMasters`; stock / fobs for roles without `settings.stock` (see docs/permissions.md). "None of your branches is selected" when the top-bar branch isn't one of yours.
+- **No access**: Items for roles without `settings.viewItems`, Tax for roles without `settings.viewTax`; stock / fobs for roles without `settings.stock` (see docs/permissions.md). "None of your branches is selected" when the top-bar branch isn't one of yours.
 - **Stock**: 0 → red "Out of stock" (colour + words).
 - **Success**: toasts ("T-shirt: +10 at Sec 31 · now 10", "9 fobs added to Golf Course · 2 skipped", "Refunded ₹600 · KF-S65-0102").
 
@@ -177,7 +177,7 @@ Ready for review
 
 # Settings → Sales rules (`sales.html`)
 Decisions #77, #80, #96 (Default, can change). Access from the grid (docs/permissions.md): edit = `settings.packages` (CEO);
-view = `settings.viewMasters` (SM / CM / RM); others "You don't have access to sales rules".
+view = `settings.viewSalesRules` (SM / CM / RM); others "You don't have access to sales rules".
 
 ## 1. Screens
 | Screen | File | Purpose |
@@ -193,7 +193,7 @@ Methods: **+ Payment method** opens an inline form (name, reference required); t
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Minimum first payment on packages | number % | Yes | — | 30 | 0–100. At conversion: accessories + fob deposit in full + this % of the package after discount (#85). Not used for later installments. |
-| Max discount (per role) | read-only (grid row `sales.discountMax`) | — | — | SE 10, SM 20, CM 30, RM 50, CEO 100 (Q31), Trainer / MXM / Finance 0 | Edited only in Roles & permissions (0–100, whole number). "Changed" badge when it differs from the default. Package only. |
+| Max discount (per role) | read-only (grid row `sales.discountMax`) | — | — | SE 10, SM 20, CM 30, RM 50, CEO 100 (Q31), Trainer / MXM / Finance / Marketing / HR 0 | Edited only in Roles & permissions (0–100, whole number). "Changed" badge when it differs from the default. Package only. |
 | Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Net banking, Card | "Enter a name." / "This method already exists." |
 | Reference no. required | switch | — | — | On (Cash: off) | Payment step asks for a reference when on. |
 | Active | switch | — | — | On (Cheque: off, dummy) | At least one method stays active. Online payment (gateway) later. |
@@ -213,9 +213,9 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 ## 1. Screens
 | Screen / part | File | Purpose |
 |---|---|---|
-| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 26 actions grouped by module (Leads, Trials, Sales, Clients, Settings) × 8 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN). |
+| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 43 actions grouped by module (Leads, Trials, Sales, Payments, Clients, Settings) × 10 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN, MKT, HR). |
 | Settings values tab | `?tab=values` | 6 numbers / choices (free-trial limits, adjust buffer, inactivity days, warning days, new-lead assignment). |
-| Roles tab | `?tab=roles` | Read-only: the 8 fixed tenant roles, short, key, reports to, single / multi branch, staff count. |
+| Roles tab | `?tab=roles` | Read-only: the 10 fixed tenant roles, short, key, reports to, single / multi branch (multi: CEO, RM, Finance, HR), staff count. HR: nothing in the mockup yet (staff screens are real-app only). |
 | Trainer types tab | `?tab=trainers` | Admin master list (GT, PT, GT-PT); add / edit in the shared form drawer. |
 | Audit log tab | `?tab=audit` | Every saved change: who, when, tab, what, old → new; newest first; filter by tab. |
 | Shared helpers | `shared/app.js` → `App.Perm`, `App.can(key)`, `App.setting(key)` | Defaults from `DUMMY.permissionDefs` / `settingDefs` + session-storage overrides (`mock.perms`, `mock.settings`, `mock.trainerTypes`, `mock.audit`), same pattern as Display prefs. |
@@ -246,7 +246,7 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
   | Collect payment (profile, Today, Clients list) | `clients.collectPayment` |
   | Waive a pending free item | `clients.waive` |
   | Packages / Items / Tax / Sales rules: edit | `settings.packages` (Sales rules edit has no row of its own: mapping) |
-  | Packages / Items / Tax / Sales rules: view only | `settings.viewMasters` |
+  | Packages / Items / Tax / Sales rules / Trainer types / Lead sources / Lost reasons: view only | one row each: `settings.viewPackages`, `viewItems`, `viewTax`, `viewSalesRules`, `viewTrainerTypes`, `viewLeadSources`, `viewLostReasons` (#114) |
   | Accessory stock, key fobs (and their branches) | `settings.stock` (Branch = my branches, All = every branch) |
   | Max discount in Sell mode | `sales.discountMax` (one source; `App.discountLimit`) |
   | This page | `settings.rolesPermissions` |
@@ -282,6 +282,7 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 |---|---|
 | CEO column | Every cell locked, All / Yes / 100%. |
 | Finance (Nisha Bhatia, Sec 65) | Column of "—" (None), editable; appears in View as. |
+| Marketing (Kavya Menon, Sec 31) / HR (Farhan Ali, Sec 31 + Golf Course) | All None except Marketing: Lead sources view + edit; both appear in View as. |
 | Trainer types in use | PT (Deepak), GT-PT (Sanjay): no Delete. GT unused: Delete allowed. |
 | Audit "who" | Anita Kapoor (CEO) when viewing as CEO. |
 

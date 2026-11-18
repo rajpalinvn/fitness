@@ -2,9 +2,9 @@
 
 Gym CRM for multi-branch gyms. Users are front desk, sales staff, trainers
 and managers. Multi-tenant (decision #102): one tenant = one gym business
-with its branches. 8 fixed tenant roles (#95): CEO (top), Regional
+with its branches. 10 fixed tenant roles (#95, #114): CEO (top), Regional
 Manager, Club Manager, Sales Manager, Sales Executive, MXM, Trainer,
-Finance. SuperAdmin is a platform role (creates tenants and their first
+Finance, Marketing, HR. SuperAdmin is a platform role (creates tenants and their first
 CEO account), not a tenant role. Front desk work is done by Sales
 Executive and Sales Manager (no separate role). Goal: no lead is ever forgotten, and a lead becomes a client
 in a few clicks.

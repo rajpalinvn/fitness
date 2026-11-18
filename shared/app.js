@@ -467,10 +467,12 @@
     return [];
   };
   App.access = {
-    // Sales rules edit has no row of its own → settings.packages (accepted mapping). View-only masters = settings.viewMasters.
+    // Sales rules edit has no row of its own → settings.packages (accepted mapping). View-only = one View row per master (#114).
     salesRules: function () { return App.can("settings.packages") === true; },
     editMasters: function () { return App.can("settings.packages") === true; },
-    viewMasters: function () { return App.can("settings.packages") === true || App.can("settings.viewMasters") !== "None"; },
+    // One View row per master (#114): view(key) where key = packages | items | tax | salesRules.
+    viewMaster: function (k) { var r = { packages: "settings.viewPackages", items: "settings.viewItems", tax: "settings.viewTax", salesRules: "settings.viewSalesRules" }[k];
+      return App.can("settings.packages") === true || App.can(r) !== "None"; },
     stock: function () { return App.can("settings.stock") !== "None"; },
     stockBranches: function () { return App.scopeBranches("settings.stock"); },
     // Pending items on a client (#62): Add FF ID / Assign fob / Issue item → clients.issueItems; Collect payment → clients.collectPayment.

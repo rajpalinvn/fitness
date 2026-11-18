@@ -56,12 +56,15 @@ load(LEADS, function () {
             });
             load(PK, function () {
               step("Settings masters · settings.packages / settings.stock", function () {
-                W().App.setRole("Club Manager"); ok("CM: view only (settings.viewMasters Branch)", /View only/.test(text("#banner")));
-                W().App.setRole("Sales Manager"); ok("SM: view only too (settings.viewMasters)", /View only/.test(text("#banner")) && q("#btnNew").hidden);
+                W().App.setRole("Club Manager"); ok("CM: view only (settings.viewPackages Branch)", /View only/.test(text("#banner")));
+                W().App.setRole("Sales Manager"); ok("SM: view only too (settings.viewPackages)", /View only/.test(text("#banner")) && q("#btnNew").hidden);
                 W().App.setRole("Sales Executive"); ok("SE: no access", /don't have access/.test(text("#content")));
                 W().App.setRole("CEO"); ok("CEO edits", !q("#btnNew").hidden);
-                P().save([{ short: "SM", key: "settings.viewMasters", value: "None" }], "Permissions"); W().App.setRole("Sales Manager");
-                ok("SM with viewMasters None: no access", /don't have access/.test(text("#content")));
+                P().save([{ short: "SM", key: "settings.viewPackages", value: "None" }], "Permissions"); W().App.setRole("Sales Manager");
+                ok("SM with viewPackages None: no access to Packages", /don't have access/.test(text("#content")));
+                ok("…but still views Items / Tax / Sales rules (own rows, #114)", W().App.access.viewMaster("items") && W().App.access.viewMaster("tax") && W().App.access.viewMaster("salesRules"));
+                W().App.setRole("Marketing"); ok("Marketing: no Packages, nothing on leads / sales / clients by default", !W().App.access.viewMaster("packages") && ["leads.view", "trials.book", "sales.convert", "clients.view"].every(function (k) { return W().App.can(k) === "None"; }) && W().App.can("settings.editLeadSources") === true);
+                W().App.setRole("HR"); ok("HR: nothing in the mockup", !W().App.access.viewMaster("items") && W().App.can("leads.view") === "None" && W().App.can("settings.editLeadSources") === false);
                 clear();
               });
               step("issue items vs collect payment (clients.issueItems / clients.collectPayment)", function () {

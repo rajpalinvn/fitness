@@ -93,7 +93,7 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
   - Sales rep list → `sales.rep`.
   - Trial approver list → `trials.approve` at **Branch** scope in the lead's branch. All-scope users (e.g. CEO) are never listed, but they can approve any trial.
 - A trainer is a user with a trainer type, not a role name.
-- We add new roles (e.g. Finance Manager, HR) as needed; tenants don't create roles.
+- We add new roles as needed (Marketing and HR added, #114); tenants don't create roles.
 
 **Debt (demo-only role-name checks, left as they are):**
 - The View-as demo user map (`roleDemoUser`).

@@ -521,7 +521,7 @@
     100; "no limit" never shows; CEO edits). Replaces every "Placeholder"
     visibility rule (#15, #56, #62, #63, #91). Added later: rows
     `clients.issueItems` (FF ID / fob / item on a client; SE–RM Branch,
-    CEO All) and `settings.viewMasters` (read-only Packages / Items / Tax /
+    CEO All) and `settings.viewMasters` (split per master by #114; read-only Packages / Items / Tax /
     Sales rules; SM–RM Branch, CEO All); Sales rules edit maps to
     `settings.packages`. Closes Q7 (no separate
     Front desk role: front desk work = Sales Executive and Sales
@@ -697,3 +697,11 @@
     PT INCENTIVE and is the SESSION trainer until a trainer change. Incentive and session payout stay two separate
     things: the session payout goes by the trainer who takes each session and that trainer's type (#95). On save the
     quote becomes Used.
+114. Permissions: masters, Finance / HR, new roles (18 Nov 2026, c11). (a) `settings.viewMasters` is dropped; EVERY master has
+    its own View row with the same defaults (SM / CM / RM Branch, CEO All locked, others None): `settings.viewPackages`,
+    `viewItems`, `viewTax`, `viewSalesRules`, `viewTrainerTypes`, `viewLeadSources`, `viewLostReasons`. Edit rules unchanged
+    (Packages / Items / Tax / Sales rules: `settings.packages`; Trainer types: `settings.rolesPermissions`); new
+    `settings.editLeadSources` (CEO + Marketing). (b) Finance and HR are MULTI-branch: branches chosen when the user is
+    created (one or many). Only CEO = All. (c) Two fixed roles: MARKETING (MKT) and HR, each a grid column; None / No / 0
+    on every lead, trial, sales and client key. Marketing: View + edit Lead sources. HR: nothing in the mockup yet (staff
+    screens are real-app only). No role-specific code paths.

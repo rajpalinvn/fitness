@@ -53,7 +53,7 @@
       "</div></td></tr>";
   }
   function render() {
-    var content = document.getElementById("content"), view = App.access.viewMasters();
+    var content = document.getElementById("content"), view = App.access.viewMaster("packages");
     document.getElementById("btnNew").hidden = !canEdit();
     A.banner(document.getElementById("banner"), !view ? "none" : canEdit() ? "edit" : "view", "packages");
     if (!view) { content.dataset.noaccess = "1"; content.innerHTML = A.noAccess("packages"); return; }

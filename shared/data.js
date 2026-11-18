@@ -24,7 +24,7 @@
 
   // Roles are FIXED (decisions #95, #102; notes v3 §2a): seeded, locked rows. Code uses `key`, never a row id.
   // `name` is the label used everywhere on screen (and in users[].role); `short` is the grid column header.
-  // 8 TENANT roles; CEO is the top role inside a tenant. SuperAdmin is a PLATFORM role (platformRoles below):
+  // 10 TENANT roles (Marketing + HR added, #114); CEO is the top role inside a tenant. SuperAdmin is a PLATFORM role (platformRoles below):
   // it creates tenants and their first CEO account, has no tenant, does no gym work, and is not in the grid or "View as".
   var platformRoles = [
     { key: "SUPER_ADMIN", name: "SuperAdmin", short: "SA", reportsTo: null, multiBranch: true, platform: true }
@@ -37,7 +37,11 @@
     { key: "SALES_EXECUTIVE",  name: "Sales Executive",  short: "SE",  reportsTo: "SALES_MANAGER",    multiBranch: false },
     { key: "MXM",              name: "MXM",              short: "MXM", reportsTo: "CLUB_MANAGER",     multiBranch: false },
     { key: "TRAINER",          name: "Trainer",          short: "TR",  reportsTo: "MXM",              multiBranch: false },
-    { key: "FINANCE",          name: "Finance",          short: "FIN", reportsTo: "CLUB_MANAGER",     multiBranch: false }
+    // Finance / HR: branches picked when the user is created, one or many (#114). Only CEO has every branch (All).
+    { key: "FINANCE",          name: "Finance",          short: "FIN", reportsTo: "CLUB_MANAGER",     multiBranch: true  },
+    // Marketing / HR (#114): no lead / trial / sales / client access by default. HR has nothing in the mockup yet (staff screens are real-app only).
+    { key: "MARKETING",        name: "Marketing",        short: "MKT", reportsTo: "CEO",              multiBranch: false },
+    { key: "HR",               name: "HR",               short: "HR",  reportsTo: "CEO",              multiBranch: true  }
   ];
 
   // Trainer types: admin master list, not a role (decision #95). Any type can take PT sessions; the type only changes the payout.
@@ -66,7 +70,10 @@
     { id: "u13", name: "Sanjay Pillai", role: "Trainer",          roleKey: "TRAINER",          branches: ["b3"],             branchIds: ["b3"], trainerTypeId: "tt3" },
     // c9: every real branch has an MXM and a trainer (PT quotes, #110).
     { id: "u14", name: "Rakesh Yadav",  role: "MXM",              roleKey: "MXM",              branches: ["b2"],             branchIds: ["b2"] },
-    { id: "u15", name: "Imran Khan",    role: "Trainer",          roleKey: "TRAINER",          branches: ["b2"],             branchIds: ["b2"], trainerTypeId: "tt2" }
+    { id: "u15", name: "Imran Khan",    role: "Trainer",          roleKey: "TRAINER",          branches: ["b2"],             branchIds: ["b2"], trainerTypeId: "tt2" },
+    // c11 (#114): Marketing + HR demo staff.
+    { id: "u16", name: "Kavya Menon",   role: "Marketing",        roleKey: "MARKETING",        branches: ["b1"],             branchIds: ["b1"] },
+    { id: "u17", name: "Farhan Ali",    role: "HR",               roleKey: "HR",               branches: ["b1", "b3"],       branchIds: ["b1", "b3"] }
   ];
 
   users.forEach(function (u) { if (u.tenantId === undefined) u.tenantId = "t1"; });
@@ -111,7 +118,15 @@
     { key: "clients.issueItems",    module: "Clients",  label: "Issue FF ID / key fob / item on a client",           type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.waive",         module: "Clients",  label: "Waive pending item",                              type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.packages",     module: "Settings", label: "Packages",                                              type: "tick",   defaults: { CEO: true } },
-    { key: "settings.viewMasters",  module: "Settings", label: "View Packages / Items / Tax / Sales rules (read-only)", type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    // One View row per master (#114; replaces the old single "view masters" row, same defaults). Edit rule stays as before.
+    { key: "settings.viewPackages",     module: "Settings", label: "View Packages (edit: Packages row)",                  type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.viewItems",        module: "Settings", label: "View Items (edit: Packages row)",                     type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.viewTax",          module: "Settings", label: "View Tax categories (edit: Packages row)",            type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.viewSalesRules",   module: "Settings", label: "View Sales rules (edit: Packages row)",               type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.viewTrainerTypes", module: "Settings", label: "View Trainer types (edit: Roles & permissions row)",  type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.viewLeadSources",  module: "Settings", label: "View Lead sources (no screen yet)",                   type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", MKT: "Branch", CEO: "All" } },
+    { key: "settings.editLeadSources",  module: "Settings", label: "Edit Lead sources (no screen yet)",                   type: "tick",  defaults: { MKT: true, CEO: true } },
+    { key: "settings.viewLostReasons",  module: "Settings", label: "View Lost reasons (no screen yet)",                   type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.stock",        module: "Settings", label: "Accessory / key fob stock",                       type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.editInactivity", module: "Settings", label: "Edit inactivity release days",                        type: "tick",   defaults: { CM: true, RM: true, CEO: true } },
     { key: "settings.rolesPermissions", module: "Settings", label: "Roles & permissions",                               type: "tick",   defaults: { CEO: true }, lock: "all" }
@@ -636,7 +651,7 @@
 
   // Demo person shown for each "View as" role (placeholder until the permission matrix).
   var roleDemoUser = { "CEO": "u2", "Regional Manager": "u3", "Club Manager": "u4",
-    "Sales Manager": "u5", "Sales Executive": "u6", "Trainer": "u8", "MXM": "u9", "Finance": "u12" };
+    "Sales Manager": "u5", "Sales Executive": "u6", "Trainer": "u8", "MXM": "u9", "Finance": "u12", "Marketing": "u16", "HR": "u17" };
 
   var notifications = [
     { id: "n1", text: "New lead from Meta: Fatima Shaikh · Golf Course", at: day(0, 8, 15), unread: true },

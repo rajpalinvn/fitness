@@ -6,51 +6,63 @@ Keys are stable dotted strings; the grid stores role × key → value.
 - **Scope** cells: `None` / `Own` / `Branch` / `All`. Own = leads I own + leads where I have an open follow-up (#97).
   Branch = the staff's branch (all their branches for a multi-branch role). All = every branch of the tenant.
 - **Tick** cells: Yes / No. **Number** cells: whole number 0–100 (%). **Pct + cap** cell (`sales.discountMax`): { pct 0–100, capRupees >= 0 }; the LOWER of (pct % of the package line) and the cap applies; cap 0 = no cap; pct 0 = no discount. Premium PT: on the PT part only.
-- **Roles** (8 tenant roles, #102): CEO, RM (Regional Manager), CM (Club Manager), SM (Sales Manager), SE (Sales Executive),
-  MXM, TR (Trainer), FIN (Finance). SuperAdmin is a platform role (creates tenants + the first CEO account) and has no column.
+- **Roles** (10 tenant roles, #102, #114): CEO, RM (Regional Manager), CM (Club Manager), SM (Sales Manager), SE (Sales Executive),
+  MXM, TR (Trainer), FIN (Finance), MKT (Marketing), HR. Multi-branch roles (branches picked when the user is created, one or
+  many): RM, Finance, HR. Only CEO has All. SuperAdmin is a platform role (creates tenants + the first CEO account) and has no column.
 - **Locked**: CEO has every permission (whole column locked, top tenant role). `settings.rolesPermissions` is locked for every
   role (CEO only). `leads.view` can't go below Own for CEO / RM / CM / SM / SE ("an owner can always see and log follow-ups on
   their own leads"). Validation, not a lock: at least one role besides CEO keeps `leads.assign`.
 - Trainer, MXM and Finance have no lead / sales access by default (PT and payment rows come later); their cells are editable.
+- Marketing and HR (#114): None / No / 0 on every lead, trial, sales and client key. Marketing views + edits Lead sources.
+  HR has nothing in the mockup yet (staff screens are in the real app only). No role-specific code paths: only grid rows.
+- Masters (#114): every master has its OWN View row (old single `settings.viewMasters` dropped, same defaults: SM / CM / RM
+  Branch, CEO All locked, others None) plus its existing edit rule. Read-only for SM works as before (banner "View only").
 
-| Key | Label | Module | Values | CEO | RM | CM | SM | SE | MXM | TR | FIN | Locked |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `leads.view` | View leads | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO; floor Own for CEO–SE |
-| `leads.viewUnassigned` | View unassigned leads (the "pool") | Leads | scope | All | Branch | Branch | None | None | None | None | None | CEO |
-| `leads.take` | Take an unassigned lead ("Take this lead") | Leads | scope | All | Branch | Branch | None | None | None | None | None | CEO |
-| `leads.viewLost` | View lost leads | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `leads.own` | Can own leads (owner lists, follow-up person, release / pick lists, #104) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
-| `leads.crossBranchFollowUp` | Add a follow-up for myself on another branch's lead (walk-in / inquiry, #105) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
-| `leads.create` | Create lead | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
-| `leads.assign` | Assign / reassign / change owner (leads and clients) | Leads | scope | All | Branch | Branch | Branch | None | None | None | None | CEO; at least one other role keeps it |
-| `leads.assignFollowUp` | Assign a follow-up to another staff (any branch) | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `leads.markLost` | Mark lost | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `leads.reopen` | Re-open lost lead | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `leads.move` | Move lead to another branch | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `leads.movePickPerson` | While moving, pick the follow-up person in the new branch directly | Leads | scope | All | Branch | Branch | None | None | None | None | None | CEO |
-| `trials.book` | Book trial | Trials | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `trials.editLimits` | Edit free-trial limit settings (per person, per branch) | Trials | tick | Yes | Yes | Yes | No | No | No | No | No | CEO |
-| `trials.approve` | Can be picked as trial approver (approve / reject) | Trials | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
-| `trials.adjustAfterEnd` | Paid trial adjust after it ended (7-day buffer) | Trials | scope | All | None | Branch | None | None | None | None | None | CEO |
-| `sales.sellMembership` | Sell membership packages (#110) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
-| `pt.quote` | Create PT quote / book PT trial (#110–#112) | Sales | scope | All | Branch | Branch | None | None | Branch | None | None | CEO |
-| `sales.sellPTDirect` | Sell PT / Premium PT without a quote (#110) | Sales | tick | Yes | No | No | No | No | No | No | No | CEO |
-| `sales.sellFromQuote` | Bill a PT quote (#113) | Sales | tick | Yes | No | Yes | Yes | Yes | No | No | No | CEO |
-| `sales.rep` | Can be sales rep (#104, #107) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
-| `sales.sellCrossBranch` | "Sell here" on another branch's lead (needs `leads.crossBranchFollowUp`, #106) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
-| `sales.convert` | Convert to Client / Sell | Sales | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
-| `sales.discountMax` | Max discount % · max ₹ (#77, #103) | Sales | pct + cap | 100% · no cap | 50% · no cap | 30% · no cap | 20% · max ₹5,000 | 10% · no cap | 0 | 0 | 0 | CEO (set by the club, Q31 closed) |
-| `sales.backDate` | Back-date a sale start (current month only, #103) | Sales | tick | Yes | No | No | No | No | No | No | No | CEO |
-| `payments.refund` | Refund / cancel a payment (no screen yet, #103) | Payments | tick | Yes | No | No | No | No | No | No | No | CEO |
-| `clients.view` | View clients | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
-| `clients.collectPayment` | Collect payment | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
-| `clients.issueItems` | Issue FF ID / key fob / item on a client (pending items: add FF ID, assign fob, issue item) | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | CEO |
-| `clients.waive` | Waive pending item (#67) | Clients | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
-| `settings.packages` | Packages | Settings | tick | Yes | No | No | No | No | No | No | No | CEO |
-| `settings.viewMasters` | View Packages / Items / Tax / Sales rules (read-only) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
-| `settings.stock` | Accessory / key fob stock (#56) | Settings | scope | All | Branch | Branch | None | None | None | None | None | CEO |
-| `settings.editInactivity` | Edit inactivity release days | Settings | tick | Yes | Yes | Yes | No | No | No | No | No | CEO |
-| `settings.rolesPermissions` | Roles & permissions | Settings | tick | Yes | No | No | No | No | No | No | No | every cell (CEO only) |
+| Key | Label | Module | Values | CEO | RM | CM | SM | SE | MXM | TR | FIN | MKT | HR | Locked |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `leads.view` | View leads | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO; floor Own for CEO–SE |
+| `leads.viewUnassigned` | View unassigned leads (the "pool") | Leads | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `leads.take` | Take an unassigned lead ("Take this lead") | Leads | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `leads.viewLost` | View lost leads | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
+| `leads.own` | Can own leads (owner lists, follow-up person, release / pick lists, #104) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `leads.crossBranchFollowUp` | Add a follow-up for myself on another branch's lead (walk-in / inquiry, #105) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `leads.create` | Create lead | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `leads.assign` | Assign / reassign / change owner (leads and clients) | Leads | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO; at least one other role keeps it |
+| `leads.assignFollowUp` | Assign a follow-up to another staff (any branch) | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
+| `leads.markLost` | Mark lost | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
+| `leads.reopen` | Re-open lost lead | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
+| `leads.move` | Move lead to another branch | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
+| `leads.movePickPerson` | While moving, pick the follow-up person in the new branch directly | Leads | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `trials.book` | Book trial | Trials | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
+| `trials.editLimits` | Edit free-trial limit settings (per person, per branch) | Trials | tick | Yes | Yes | Yes | No | No | No | No | No | No | No | CEO |
+| `trials.approve` | Can be picked as trial approver (approve / reject) | Trials | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `trials.adjustAfterEnd` | Paid trial adjust after it ended (7-day buffer) | Trials | scope | All | None | Branch | None | None | None | None | None | None | None | CEO |
+| `sales.sellMembership` | Sell membership packages (#110) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `pt.quote` | Create PT quote / book PT trial (#110–#112) | Sales | scope | All | Branch | Branch | None | None | Branch | None | None | None | None | CEO |
+| `sales.sellPTDirect` | Sell PT / Premium PT without a quote (#110) | Sales | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
+| `sales.sellFromQuote` | Bill a PT quote (#113) | Sales | tick | Yes | No | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `sales.rep` | Can be sales rep (#104, #107) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `sales.sellCrossBranch` | "Sell here" on another branch's lead (needs `leads.crossBranchFollowUp`, #106) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `sales.convert` | Convert to Client / Sell | Sales | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
+| `sales.discountMax` | Max discount % · max ₹ (#77, #103) | Sales | pct + cap | 100% · no cap | 50% · no cap | 30% · no cap | 20% · max ₹5,000 | 10% · no cap | 0 | 0 | 0 | 0 | 0 | CEO (set by the club, Q31 closed) |
+| `sales.backDate` | Back-date a sale start (current month only, #103) | Sales | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
+| `payments.refund` | Refund / cancel a payment (no screen yet, #103) | Payments | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
+| `clients.view` | View clients | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
+| `clients.collectPayment` | Collect payment | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
+| `clients.issueItems` | Issue FF ID / key fob / item on a client (pending items: add FF ID, assign fob, issue item) | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
+| `clients.waive` | Waive pending item (#67) | Clients | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.packages` | Packages | Settings | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
+| `settings.viewPackages` | View Packages (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.viewItems` | View Items (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.viewTax` | View Tax categories (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.viewSalesRules` | View Sales rules (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.viewTrainerTypes` | View Trainer types (edit: `settings.rolesPermissions`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.viewLeadSources` | View Lead sources (no screen yet) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | Branch | None | CEO |
+| `settings.editLeadSources` | Edit Lead sources (no screen yet) | Settings | tick | Yes | No | No | No | No | No | No | No | Yes | No | CEO |
+| `settings.viewLostReasons` | View Lost reasons (no screen yet; edit rule open, Q) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.stock` | Accessory / key fob stock (#56) | Settings | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `settings.editInactivity` | Edit inactivity release days | Settings | tick | Yes | Yes | Yes | No | No | No | No | No | No | No | CEO |
+| `settings.rolesPermissions` | Roles & permissions | Settings | tick | Yes | No | No | No | No | No | No | No | No | No | every cell (CEO only) |
 
 Note on `trials.approve`: this is who CAN approve / reject a pending trial (CEO = All, locked). The "Approval asked from"
 dropdown at booking (L1b, #94) is a separate rule: it lists only the SM, CM and RM of the lead's branch who have `trials.approve`.
