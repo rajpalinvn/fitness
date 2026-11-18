@@ -110,5 +110,13 @@ Saving adds "<name> updated <fields>" to the timeline.
 
 - c6: badges = client level (Active / Expired / Ex-client) + one per package ("Membership · renewal due", "PT · active", "PT on hold"). NEXT STEP = the most urgent package ("Membership renews in 12 days") or "Renew membership to continue PT". Membership tab PT: "Sessions unlocked" (payment) and "Usable now" (0 while on hold).
 
+### Read-only profile + cross-branch (c8, #105, #106)
+| Field / part | Type | Notes |
+|---|---|---|
+| Read-only box | callout | "Owner: Arjun Nair (Sec 65)" + why it is visible (full mobile matched). Shown when the lead is not in the user's scope. Only the Timeline tab, no composer, no quick actions. |
+| Add a follow-up for myself | modal: due date (required, today+), remark (optional) | Needs `leads.crossBranchFollowUp`. Creates my follow-up (lead becomes "Own" for me, #97), event FollowUpAssigned · CrossBranch, notifies the owner (+ rule roles). |
+| Sell here | modal: remark (required) → Convert work mode | Needs `sales.sellCrossBranch`. Event SellHereStarted; Back without saving = SellHereCancelled, nothing else changes. |
+| Takeover (setting) | system | Lead moves to my branch, I become owner, old owner's open follow-ups "Closed by system · Taken over by <branch>"; timeline "Taken over by Priya (Sec 31) from Arjun (Sec 65)". |
+
 ## 5. Status
 Ready for review

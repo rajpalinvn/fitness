@@ -293,3 +293,11 @@ Ready for review
 - New rows: `sales.backDate` "Back-date a sale start (current month only)" (Sales) and `payments.refund` "Refund / cancel a payment (no screen yet)" (new Payments group). CEO yes (locked), others No.
 - Packages: Premium PT reference membership price 0 ≤ ref < price (₹0 = membership free).
 
+### Notification rules + lifecycle settings (c8, #104–#108)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Notification rules (tab) | checkbox per event × role (RM, CM, SM) | No | — | CM only | Events: Lead transferred in, Lead released (inactive), Cross-branch work on a lead. CEO edits; saves at once, audited ("Notification rules"). Each role only for its own branch(es). Locked note: owner, old owner, approver are always notified. |
+| When another branch's staff works on a lead, owner changes | On sale / On first follow-up / Never | Yes | — | On sale | CEO (Settings values). |
+| New-lead assignment | Manual / Round-robin / Round-robin among on-shift staff | Yes | — | Manual | Round-robin options disabled ("Later"). |
+- New grid rows: `leads.own`, `leads.crossBranchFollowUp` (Leads), `sales.rep`, `sales.sellCrossBranch` (Sales). See docs/permissions.md.
+

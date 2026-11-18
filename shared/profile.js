@@ -128,13 +128,35 @@
         '<button class="btn btn-primary" data-pd="retry">Retry</button></div>';
       return;
     }
-    body.innerHTML = '<div class="pd-grid"><div class="pd-left">' + left(p) + '</div><div class="pd-right">' + right(p) + "</div></div>";
+    var ro = App.Cross.readOnly(p);
+    body.innerHTML = '<div class="pd-grid"><div class="pd-left">' + (ro ? roLeft(p) : left(p)) + '</div><div class="pd-right">' + right(p, ro) + "</div></div>";
     App.fillIcons(body);
-    if (S.tab === "timeline") mountComposer(p);
+    if (S.tab === "timeline" && !ro) mountComposer(p);
     body.querySelectorAll("select").forEach(function (s) { App.enhanceSelect(s); });
     body.querySelectorAll('input[type="date"]').forEach(App.enhanceDate);
   }
   function skel(n) { var h = ""; for (var k = 0; k < n; k++) h += '<div class="skeleton"></div>'; return h; }
+
+  // ---------- READ-ONLY (#105): another branch's lead found by the full mobile. Shows everything, no actions. ----------
+  function roLeft(p) {
+    var owner = p.ownerUserId ? App.userName(p.ownerUserId) + " (" + App.branchName(p.branchId) + ")" : "Unassigned (" + App.branchName(p.branchId) + ")";
+    var fu = App.Cross.canFollowUp(p), sell = App.Cross.canSellHere(p);
+    return '<div class="pd-id"><span class="avatar avatar-xl">' + esc(App.initials(p.name)) + "</span>" +
+        '<h2 class="pd-name">' + esc(p.name) + "</h2>" +
+        '<div class="pd-mobile">' + esc(p.cc + " " + p.mobile) + "</div>" +
+        '<div class="cell-sub">' + esc(App.branchName(p.branchId)) + " · Created " + esc(App.fmtDay(p.createdAt)) + "</div></div>" +
+      '<div class="stack pd-badges"><span class="badge badge-info">Lead</span><span class="badge' + (p.stage === "Lost" ? " badge-danger" : "") + '">' + esc(p.stage) + "</span>" +
+        '<span class="badge" data-ro>Read only · another branch</span></div>' +
+      '<div class="callout" data-ro-box>' + icon("lock") + "<div><strong>Owner: " + esc(owner) + "</strong>" +
+        '<div class="cell-sub">This lead belongs to ' + esc(App.branchName(p.branchId)) + ". You can see it because the full mobile number matched." +
+        (fu ? " Add a follow-up for yourself to work on it (walk-in / inquiry)." : App.Cross.isOpenLead(p) ? " Your role can't add follow-ups on other branches' leads." : "") + "</div></div></div>" +
+      '<dl class="kv pd-kv"><dt>Owner</dt><dd data-ro-owner>' + esc(owner) + "</dd><dt>Branch</dt><dd>" + esc(App.branchName(p.branchId)) + "</dd>" +
+        "<dt>Stage</dt><dd>" + esc(p.stage) + "</dd><dt>Source</dt><dd>" + esc(p.source) + "</dd>" +
+        "<dt>Last activity</dt><dd>" + esc(App.fmtShortWhen(p.lastActivityAt)) + "</dd></dl>" +
+      '<div class="pd-bottom">' +
+        (sell ? '<button class="btn btn-primary btn-block" data-pd="sellHere">Sell here</button>' : "") +
+        (fu ? '<button class="btn btn-block" data-pd="crossFu">' + icon("plus") + "Add a follow-up for myself</button>" : "") + "</div>";
+  }
 
   // ---------- LEFT column ----------
   function left(p) {
@@ -364,15 +386,15 @@
     if (isClient(p)) t.push({ k: "membership", t: "Membership" });
     return t;
   }
-  function right(p) {
-    var tabs = tabsFor(p);
+  function right(p, ro) {
+    var tabs = ro ? tabsFor(p).filter(function (t) { return t.k === "timeline"; }) : tabsFor(p);
     if (!tabs.some(function (t) { return t.k === S.tab; })) S.tab = "timeline";
     var html = '<div class="tabs pd-tabs" role="tablist">' + tabs.map(function (t) {
       return '<button class="tab' + (t.k === S.tab ? " active" : "") + '" role="tab" aria-selected="' + (t.k === S.tab) + '" data-tab-k="' + t.k + '">' +
         t.t + (t.n ? ' <span class="tab-count">' + t.n + "</span>" : "") + "</button>";
     }).join("") + "</div>";
     var panel = { timeline: timelinePanel, tasks: tasksPanel, details: detailsPanel, docs: docsPanel, membership: membershipPanel }[S.tab](p);
-    return html + '<div class="pd-scroll" role="tabpanel">' + panel + "</div>" + (S.tab === "timeline" ? '<div class="composer" data-composer></div>' : "");
+    return html + '<div class="pd-scroll" role="tabpanel">' + panel + "</div>" + (S.tab === "timeline" && !ro ? '<div class="composer" data-composer></div>' : "");
   }
 
   // ---------- Timeline ----------
@@ -712,6 +734,8 @@
       case "take": App.Lead.take(p.id); break;
       case "reopen": App.Lead.reopen(p.id); break;
       case "convert": App.Convert.open(p.id); break;
+      case "crossFu": App.Lead.crossFollowUp(p.id); break;
+      case "sellHere": App.Lead.crossFollowUp(p.id, { sellHere: true }); break;
       case "trial": App.Trial.open(p.id); break;
       case "addFf": App.addFfId(p.id); break;
       case "goFob": S.tab = "membership"; render(); fobAction("assign"); break;
@@ -747,7 +771,6 @@
 
   // ---------- Quick lead (app brief screen 4; decisions #5, #11, #19, #38) ----------
   //   App.QuickLead.open({ mobile })   opens in a drawer (not a modal). Top-bar "+ Lead" and search "Create lead with this number".
-  var OWNER_ROLES = ["Sales Executive", "Sales Manager", "Club Manager", "Regional Manager"];
   var QL = null, ql = null;
   function qlBuild() {
     var d = document.createElement("aside");
@@ -760,7 +783,7 @@
     return d;
   }
   function qlOwners(branchId) {
-    var me = App.me(), list = D.users.filter(function (u) { return u.branches.indexOf(branchId) > -1 && OWNER_ROLES.indexOf(u.role) > -1 && u.id !== me.id; });
+    var me = App.me(), list = App.usersWith("leads.own", branchId).filter(function (u) { return u.id !== me.id; });   // #104
     return [me].concat(list);
   }
   function qlBranches() { var me = App.me(); return D.branches.filter(function (b) { return me.branches.indexOf(b.id) > -1; }); }

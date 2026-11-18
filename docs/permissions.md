@@ -19,6 +19,8 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `leads.viewUnassigned` | View unassigned leads (the "pool") | Leads | scope | All | Branch | Branch | None | None | None | None | None | CEO |
 | `leads.take` | Take an unassigned lead ("Take this lead") | Leads | scope | All | Branch | Branch | None | None | None | None | None | CEO |
 | `leads.viewLost` | View lost leads | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
+| `leads.own` | Can own leads (owner lists, follow-up person, release / pick lists, #104) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
+| `leads.crossBranchFollowUp` | Add a follow-up for myself on another branch's lead (walk-in / inquiry, #105) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
 | `leads.create` | Create lead | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
 | `leads.assign` | Assign / reassign / change owner (leads and clients) | Leads | scope | All | Branch | Branch | Branch | None | None | None | None | CEO; at least one other role keeps it |
 | `leads.assignFollowUp` | Assign a follow-up to another staff (any branch) | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
@@ -30,6 +32,8 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `trials.editLimits` | Edit free-trial limit settings (per person, per branch) | Trials | tick | Yes | Yes | Yes | No | No | No | No | No | CEO |
 | `trials.approve` | Can be picked as trial approver (approve / reject) | Trials | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
 | `trials.adjustAfterEnd` | Paid trial adjust after it ended (7-day buffer) | Trials | scope | All | None | Branch | None | None | None | None | None | CEO |
+| `sales.rep` | Can be sales rep (#104, #107) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
+| `sales.sellCrossBranch` | "Sell here" on another branch's lead (needs `leads.crossBranchFollowUp`, #106) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
 | `sales.convert` | Convert to Client / Sell | Sales | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
 | `sales.discountMax` | Max discount % · max ₹ (#77, #103) | Sales | pct + cap | 100% · no cap | 50% · no cap | 30% · no cap | 20% · max ₹5,000 | 10% · no cap | 0 | 0 | 0 | CEO (set by the club, Q31 closed) |
 | `sales.backDate` | Back-date a sale start (current month only, #103) | Sales | tick | Yes | No | No | No | No | No | No | No | CEO |
@@ -57,7 +61,8 @@ The CEO never appears in that dropdown but can approve / reject any pending tria
 | `inactivityReleaseDays` | Release inactive leads after | 7 | 1–90 days | grid row `settings.editInactivity` |
 | `releaseWarnDaysBefore` | Warn the owner before release | 1 | 0–89, < inactivity days | grid row `settings.editInactivity` |
 | `exClientAfterDays` | Ex-client after (days without an active package) | 30 | 0–365 days | CEO |
-| `newLeadAssignment` | New-lead assignment | Manual | Manual (Round-robin later, Q10) | CEO |
+| `crossBranchOwnerChange` | When another branch's staff works on a lead, owner changes (#106) | On sale | On sale / On first follow-up / Never | CEO |
+| `newLeadAssignment` | New-lead assignment | Manual | Manual (Round-robin and on-shift round-robin later) | CEO |
 
 Every saved change (permissions, settings values, trainer types) goes to the audit log: who, when, tab, what, old → new.
 
@@ -70,3 +75,8 @@ Every saved change (permissions, settings values, trainer types) goes to the aud
   asks for the new branch's Sales Executive + due date.
 - `leads.viewUnassigned` / `leads.take`: Unassigned leads (reason New / Released) in Leads and Today; "Take this lead".
 - `leads.reopen`: re-opening someone else's lost lead makes you the owner (owner dialog if anything is open).
+
+## Lifecycle rows and notification rules (c8, #104–#109)
+- Logic never checks a role name. Owner / follow-up person / release / pick lists = `leads.own`; sales rep list = `sales.rep` (any branch); trial approvers = `trials.approve` at **Branch** scope in the lead's branch (All-scope never listed).
+- Cross-branch: `leads.crossBranchFollowUp`, `sales.sellCrossBranch` (needs the first). Without them, another branch's lead (found by the full mobile) is read-only.
+- Notification rules (Roles & permissions › Notification rules, CEO): event × RM / CM / SM, default CM only, own branch(es) only; directly involved people always notified. Spec: docs/lead-lifecycle.md.

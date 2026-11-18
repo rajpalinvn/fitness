@@ -86,6 +86,10 @@
 | Sales | Convert to Client / Sell | Own | Branch | Branch | Branch | All |
 | Sales | Max discount % · max ₹ per package line (#77, #103; lower applies) | 10% · no cap | 20% · max ₹5,000 | 30% · no cap | 50% · no cap | 100% · no cap (set by the club) |
 | Sales | Back-date a sale start (current month only, #103) | — | — | — | — | ✓ |
+| Leads | Can own leads (`leads.own`, #104) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Sales | Can be sales rep (`sales.rep`, #104) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Leads | Follow-up for myself on another branch's lead (#105) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Sales | "Sell here" on another branch's lead (#106) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Payments | Refund / cancel a payment (no screen yet, #103) | — | — | — | — | ✓ |
 | Clients | View clients | Branch | Branch | Branch | Branch | All |
 | Clients | Collect payment | Branch | Branch | Branch | Branch | All |
@@ -116,6 +120,7 @@ Discount % numbers follow #77 (CEO 100% = placeholder Q31; "no limit" never show
 | Release inactive leads after | 7 days | grid row "Edit inactivity release days" |
 | Warn the owner before release | 1 day before | same |
 | Ex-client after (days without an active package, #103) | 30 days | CEO |
+| When another branch's staff works on a lead, owner changes (#106) | On sale (On first follow-up / Never) | CEO |
 | New-lead assignment | Manual (Round-robin later) | CEO |
 | Max discount % per role (#77) | see grid | CEO |
 
@@ -198,4 +203,5 @@ The mockup's grid (section 2) is the source; the build will sync to it. Please c
 | T-TYPE | Trainer type = admin master list (GT, PT, GT-PT seeded, more later). All types can take PT sessions; type only changes payout (incentive scheme). Type snapshot stored on each session / sale line. | 16 Nov 2026 |
 | M1 | Fixed roles, one role per staff, permissions in a settings grid with defaults (Level 2). | 16 Nov 2026 |
 | #103 | Open questions answered: back date this month only with `sales.backDate`, no future start; discount % + ₹ cap (lower applies); `payments.refund`; Ex-client after N days (30); trial adjust GST on net; Q32 past due → today; Q36 Assign before Take; Q3, Q9, Q14, Q17, Q19, Q21, Q28–Q31, Q33–Q35, Q37 closed; Q2, Q4, Q6, Q10, Q13, Q18 + call / WhatsApp integration parked. | 17 Nov 2026 |
+| #104–#109 | Lead lifecycle: stage + ownership, every change an event (docs/lead-lifecycle.md); `leads.own` / `sales.rep` replace role lists; approvers at Branch scope only; cross-branch follow-up (read-only without it) + Sell here; setting On sale / On first follow-up / Never; rep default = the creator, any branch; notification rules (CM default, involved always); Make them owner on transfer pick. | 18 Nov 2026 |
 | A5 / A7 (changed) | Premium PT = a PT product; membership inside = add-on (free or charged). Discount on the PT line only; reference 0 ≤ ref < price (₹0 line still on the bill); ONE sales rep for the package, membership incentive by scheme. | 17 Nov 2026 |

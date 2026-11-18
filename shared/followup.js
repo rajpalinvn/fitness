@@ -15,7 +15,6 @@
    Load after shell.js. */
 (function () {
   var D = window.DUMMY, L = D.lists, esc = App.esc;
-  var ASSIGNABLE_ROLES = ["Sales Executive", "Sales Manager", "Club Manager"];
   var PICKS = [{ k: "1", t: "Tomorrow", d: 1 }, { k: "3", t: "In 3 days", d: 3 }, { k: "7", t: "In 1 week", d: 7 }, { k: "c", t: "Custom" }];
   var VERB = { "Call": "called", "WhatsApp": "messaged on WhatsApp", "Visit planned": "had the visit",
     "Free trial planned": "followed up on the free trial", "Payment expected": "followed up on payment" };
@@ -283,7 +282,7 @@
   }
   function assign(personId) {
     var p = person(personId), m = App.makeModal("assignModal");
-    var staff = D.users.filter(function (u) { return u.branches.indexOf(p.branchId) > -1 && ASSIGNABLE_ROLES.indexOf(u.role) > -1; });
+    var staff = App.usersWith("leads.own", p.branchId);   // #104: grid row, not role names
     m.title.textContent = p.ownerUserId ? "Change owner" : "Assign owner";
     m.body.innerHTML = '<p class="muted">' + esc(p.name) + " · " + esc(App.branchName(p.branchId)) + "</p>" +
       '<div class="field"><label for="assignUser">Staff member <span class="req">*</span></label>' +
@@ -306,7 +305,7 @@
   function assignMany(ids) {
     var people = ids.map(person).filter(Boolean), m = App.makeModal("assignManyModal"), branches = {};
     people.forEach(function (p) { branches[p.branchId] = true; });
-    var staff = D.users.filter(function (u) { return ASSIGNABLE_ROLES.indexOf(u.role) > -1 && u.branches.some(function (b) { return branches[b]; }); });
+    var staff = App.usersWith("leads.own").filter(function (u) { return u.branchIds.some(function (b) { return branches[b]; }); });
     m.title.textContent = "Change owner of " + people.length + (people.length === 1 ? " lead" : " leads");
     m.body.innerHTML = '<p class="muted">' + esc(people.map(function (p) { return p.name; }).join(", ")) + "</p>" +
       '<div class="field"><label for="assignManyUser">New owner <span class="req">*</span></label>' +
@@ -363,6 +362,9 @@
       p.ownerHistory = p.ownerHistory || [];
       p.ownerHistory.push({ from: old || null, to: newOwnerId, at: now, by: me ? me.id : null, how: o.reason === "reopen" ? "Re-opened" : o.reason === "take" ? "Taken" : "Changed" });
       p.ownerUserId = newOwnerId; p.unassignedReason = null; p.releaseWarnedAt = null;
+      // Event (#104): reason Assigned / Taken / Reopened / TransferPick / CrossBranch / BulkChange.
+      var why = { reopen: "Reopened", take: "Taken", transferPick: "TransferPick", crossBranch: "CrossBranch" }[o.reason] || (ids.length > 1 ? "BulkChange" : "Assigned");
+      App.Event.log(p.id, { type: "OwnerChanged", from: old || null, to: newOwnerId, reason: why });
       if (choice === "close" && n) {
         var due = (ids.length === 1 && o.due) || earliest || App.todayIso();
         D.followUps.push({ id: "f" + Date.now() + Math.floor(Math.random() * 100000), personId: p.id, type: "Call", dueDate: due, dueTime: null, ownerUserId: newOwnerId,
@@ -423,7 +425,7 @@
   };
 
   // ---------- Move to another branch (#98, notes L12–L15) ----------
-  function sesOf(branchId) { return D.users.filter(function (u) { return u.role === "Sales Executive" && u.branchIds.indexOf(branchId) > -1; }); }
+  function sesOf(branchId) { return App.usersWith("leads.own", branchId); }   // #104: access by grid row leads.own
   function canMove(p) { return isOpenLead(p) && App.scopeAllows("leads.move", p); }
   function canPickOnMove(p) { return !!p.ownerUserId && App.scopeAllows("leads.movePickPerson", p); }
   function seField(id, branchId) {
@@ -438,7 +440,7 @@
       '<div class="field"><label for="moveBranch">New branch <span class="req">*</span></label><select class="input" id="moveBranch"><option value="">Choose…</option>' +
         others.map(function (b) { return '<option value="' + b.id + '">' + esc(b.name) + "</option>"; }).join("") + "</select></div>" +
       '<div class="field"><label for="moveRemark">Remark <span class="req">*</span></label><textarea class="input" id="moveRemark" rows="2" placeholder="Why is the lead moving? e.g. lives near Golf Course now"></textarea></div>' +
-      (pick ? '<div data-pick hidden><div class="field"><label for="movePerson">Follow-up person <span class="req">*</span></label><span data-pick-sel></span><span class="hint">A Sales Executive of the new branch. They get a follow-up now.</span></div>' +
+      (pick ? '<div data-pick hidden><div class="field"><label for="movePerson">Follow-up person <span class="req">*</span></label><span data-pick-sel></span><span class="hint">Staff of the new branch who can own leads. They get a follow-up now.</span></div>' +
         '<div class="field"><label for="moveDue">Follow-up due <span class="req">*</span></label><input class="input" type="date" id="moveDue" value="' + isoDate(plusDays(1)) + '" min="' + isoDate(new Date()) + '"></div></div>' : "") +
       '<p class="hint">' + (p.ownerUserId ? "The owner stays " + esc(App.firstName(App.byId(D.users, p.ownerUserId))) + " and keeps their open follow-ups." +
         (pick ? "" : " The new branch's Club Manager picks the follow-up person (\"Transferred in\").") : "The lead stays Unassigned; only the branch changes.") + "</p>" +
@@ -466,15 +468,21 @@
     var p = person(personId), from = p.branchId, me = App.me();
     p.branchId = toBranchId;
     App.addTimeline(p.id, "milestone", "Moved " + App.branchName(from) + " → " + App.branchName(toBranchId) + " by " + App.firstName(me) + " · " + remark);
+    App.Event.log(p.id, { type: "BranchMoved", from: from, to: toBranchId, remark: remark, branchId: toBranchId });
     if (!p.ownerUserId) { p.transferredIn = null; App.dataChanged(); return; }       // unassigned stays unassigned, only the branch changes
     if (pickOpt && pickOpt.seId) { p.transferredIn = null; givePerson(p, pickOpt.seId, pickOpt.due); }
-    else p.transferredIn = { from: from, by: me ? me.id : null, at: new Date().toISOString() };
+    else {
+      p.transferredIn = { from: from, by: me ? me.id : null, at: new Date().toISOString() };
+      // Notification rules (#108): "Lead transferred in" -> ticked roles of the NEW branch + the owner (directly involved).
+      App.Notify.send("transferIn", toBranchId, p.name + " transferred in to " + App.branchName(toBranchId) + " · pick the follow-up person", [p.ownerUserId]);
+    }
     App.dataChanged();
   }
   function givePerson(p, seId, due) {
     D.followUps.push({ id: "f" + Date.now() + Math.floor(Math.random() * 1000), personId: p.id, type: "Call", dueDate: due || isoDate(plusDays(1)), dueTime: null,
       ownerUserId: p.ownerUserId, assignedToUserId: seId, status: "Open", outcome: null, note: "Transferred in · first call from " + App.branchName(p.branchId), createdAt: new Date().toISOString() });
     App.addTimeline(p.id, "milestone", "Follow-up person: " + App.firstName(App.byId(D.users, seId)) + " (" + App.branchName(p.branchId) + ") · picked by " + App.firstName(App.me()));
+    App.Event.log(p.id, { type: "FollowUpAssigned", to: seId, reason: "TransferPick" });
   }
   // Transferred in (#98, L13): picking needs leads.assign at Branch or higher on the lead (new branch).
   function canPick(p) { var s = App.can("leads.assign"); return !!p && !!p.transferredIn && (s === "Branch" || s === "All") && App.scopeAllows("leads.assign", p, { strictOwn: true }); }
@@ -483,16 +491,20 @@
     var m = App.makeModal("pickModal"), t = p.transferredIn;
     m.title.textContent = "Pick the follow-up person";
     m.body.innerHTML = '<p class="muted">' + esc(p.name) + " · moved from " + esc(App.branchName(t.from)) + " by " + esc(App.firstName(App.byId(D.users, t.by))) + " · owner stays " + esc(App.userName(p.ownerUserId)) + "</p>" +
-      '<div class="field"><label for="pickSe">Sales Executive (' + esc(App.branchName(p.branchId)) + ') <span class="req">*</span></label>' + seField("pickSe", p.branchId) + "</div>" +
+      '<div class="field"><label for="pickSe">Follow-up person (' + esc(App.branchName(p.branchId)) + ') <span class="req">*</span></label>' + seField("pickSe", p.branchId) + "</div>" +
       '<div class="field"><label for="pickDue">Follow-up due <span class="req">*</span></label><input class="input" type="date" id="pickDue" value="' + isoDate(plusDays(1)) + '" min="' + isoDate(new Date()) + '"></div>' +
+      '<div class="field"><label><input type="checkbox" id="pickOwner" checked> Make them owner</label>' +
+        '<span class="hint">Owner change rules apply (#99): you choose what happens to ' + esc(App.firstName(App.byId(D.users, p.ownerUserId))) + "'s open follow-ups. Untick: the owner stays.</span></div>" +
       '<span class="error" data-perr hidden></span>';
     App.enhanceSelect(m.body.querySelector("#pickSe"));
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Give follow-up</button>';
     m.foot.querySelector("[data-save]").onclick = function () {
       var se = m.body.querySelector("#pickSe").value, due = m.body.querySelector("#pickDue").value, err = m.body.querySelector("[data-perr]");
-      if (!se || !due) { err.textContent = !se ? "Choose a Sales Executive." : "Pick the follow-up date."; err.hidden = false; return; }
+      if (!se || !due) { err.textContent = !se ? "Choose the follow-up person." : "Pick the follow-up date."; err.hidden = false; return; }
+      var mk = m.body.querySelector("#pickOwner").checked;
       p.transferredIn = null; givePerson(p, se, due);
       App.close(m.el); App.toast(App.userName(se) + " will follow up " + p.name, "success"); App.dataChanged();
+      if (mk && p.ownerUserId !== se) Owner.change([p.id], se, { reason: "transferPick" });   // #109: owner change rules (#99)
     };
     App.openModal("pickModal");
   }
@@ -503,7 +515,75 @@
     p.ownerHistory = p.ownerHistory || []; p.ownerHistory.push({ from: null, to: me.id, at: new Date().toISOString(), by: me.id, how: "Taken" });
     p.ownerUserId = me.id; p.unassignedReason = null;
     App.addTimeline(p.id, "milestone", "Taken by " + App.firstName(me));
+    App.Event.log(p.id, { type: "OwnerChanged", from: null, to: me.id, reason: "Taken" });
     App.toast("You own " + p.name + " now", "success"); App.dataChanged();
+  }
+
+  // ---------- Cross-branch work (#105, #106) ----------
+  // Take over on the trigger (setting crossBranchOwnerChange): lead moves to my branch, I become the owner, the old owner's
+  // open follow-ups / tasks close "Closed by system · Taken over by <branch>". The inactivity clock restarts (ownerHistory).
+  function crossTakeOver(p, uid) {
+    var u = App.byId(D.users, uid), from = p.branchId, to = u.branchIds.indexOf(App.state.branchId) > -1 ? App.state.branchId : u.branchIds[0];
+    var old = p.ownerUserId, now = new Date().toISOString(), why = "Taken over by " + App.branchName(to);
+    if (old === uid && from === to) return;
+    D.followUps.forEach(function (f) {
+      if (f.personId !== p.id || f.status !== "Open" || !old || App.fuAssignee(f) !== old) return;
+      f.status = "Closed by system"; f.closedAt = now; f.closeReason = why;
+      App.Event.log(p.id, { type: "FollowUpClosed", from: old, reason: "System", remark: why });
+    });
+    D.workTasks.forEach(function (t) { if (t.personId === p.id && t.status === "Open" && old && t.assignedUserId === old) { t.status = "Closed by system"; t.closedAt = now; t.closeReason = why; } });
+    // my own open follow-up stays mine; it now also counts as the owner's
+    D.followUps.forEach(function (f) { if (f.personId === p.id && f.status === "Open" && App.fuAssignee(f) === uid) f.ownerUserId = uid; });
+    p.branchId = to; p.transferredIn = null;
+    p.ownerHistory = p.ownerHistory || []; p.ownerHistory.push({ from: old || null, to: uid, at: now, by: uid, how: "Cross-branch" });
+    p.ownerUserId = uid; p.unassignedReason = null; p.releaseWarnedAt = null;
+    App.Event.log(p.id, { type: "BranchMoved", from: from, to: to, reason: "CrossBranch", branchId: to });
+    App.Event.log(p.id, { type: "OwnerChanged", from: old || null, to: uid, reason: "CrossBranch", branchId: to,
+      text: "Taken over by " + App.firstName(u) + " (" + App.branchName(to) + ") from " + (old ? App.firstName(App.byId(D.users, old)) + " (" + App.branchName(from) + ")" : "Unassigned") + " · open follow-ups closed by system" });
+    App.Notify.send("crossBranch", from, p.name + " was taken over by " + App.userName(uid) + " (" + App.branchName(to) + ")", [old]);
+  }
+  function crossSetting() { return App.setting("crossBranchOwnerChange") || "On sale"; }
+  // Add a follow-up for myself on another branch's lead (walk-in / inquiry). o.sellHere: Sell here (remark required), then Convert.
+  function crossFollowUp(personId, o) {
+    o = o || {};
+    var p = person(personId), me = App.me();
+    if (!p || !(o.sellHere ? App.Cross.canSellHere(p) : App.Cross.canFollowUp(p))) return;
+    var m = App.makeModal("crossModal"), owner = p.ownerUserId ? App.userName(p.ownerUserId) : "Unassigned", set = crossSetting();
+    m.title.textContent = o.sellHere ? "Sell here" : "Add a follow-up for myself";
+    var effect = set === "Never" ? "Owner and branch stay (" + owner + ", " + App.branchName(p.branchId) + ")" + (o.sellHere ? "; you are the sales rep." : ".")
+      : set === "On first follow-up" ? "You become the owner now and the lead moves to " + App.branchName(App.Cross.myBranch()) + "."
+      : o.sellHere ? "When the sale is saved, you become the owner and the lead moves to " + App.branchName(App.Cross.myBranch()) + "."
+      : "Owner stays " + owner + " until a sale; if you sell, you become the owner.";
+    m.body.innerHTML = '<p class="muted">' + esc(p.name) + " · " + esc(App.branchName(p.branchId)) + " · Owner: " + esc(owner) + "</p>" +
+      (o.sellHere ? "" : '<div class="field"><label for="crossDue">Follow-up due <span class="req">*</span></label><input class="input" type="date" id="crossDue" value="' + App.todayIso() + '" min="' + App.todayIso() + '"></div>') +
+      '<div class="field"><label for="crossRemark">Remark' + (o.sellHere ? ' <span class="req">*</span>' : "") + '</label><textarea class="input" id="crossRemark" rows="2" placeholder="e.g. walked in at ' + esc(App.branchName(App.Cross.myBranch())) + ', wants to join today"></textarea></div>' +
+      '<p class="hint" data-cross-effect>' + esc(effect) + ' <span class="cell-sub">(Settings: "' + esc(set) + '")</span> ' + esc(App.firstName(App.byId(D.users, p.ownerUserId))) + " is told.</p>" +
+      '<span class="error" data-cerr hidden></span>';
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>' + (o.sellHere ? "Continue to sale" : "Add follow-up") + "</button>";
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var remark = m.body.querySelector("#crossRemark").value.trim(), due = m.body.querySelector("#crossDue"), err = m.body.querySelector("[data-cerr]");
+      if (o.sellHere && !remark) { err.textContent = "Add a remark: why are you selling this lead here?"; err.hidden = false; m.body.querySelector("#crossRemark").classList.add("invalid"); return; }
+      if (due && !due.value) { err.textContent = "Pick the follow-up date."; err.hidden = false; return; }
+      App.close(m.el);
+      applyCross(p.id, { sellHere: !!o.sellHere, remark: remark, due: due ? due.value : App.todayIso() });
+      if (o.sellHere) App.Convert.open(p.id, { sellHere: true });
+      else App.openProfile(p.id, { state: "normal" });
+    };
+    App.openModal("crossModal");
+  }
+  // No UI: my follow-up (makes the lead "Own" for me, #97) + events + notification; "On first follow-up" takes over now.
+  function applyCross(personId, o) {
+    var p = person(personId), me = App.me(), from = p.branchId, now = new Date().toISOString();
+    var f = { id: "f" + Date.now() + Math.floor(Math.random() * 100000), personId: p.id, type: o.sellHere ? "Visit planned" : "Call", dueDate: o.due || App.todayIso(), dueTime: null,
+      ownerUserId: p.ownerUserId, assignedToUserId: me.id, status: "Open", outcome: null, note: (o.sellHere ? "Sell here" : "Cross-branch") + (o.remark ? " · " + o.remark : ""), createdAt: now };
+    D.followUps.push(f);
+    App.Event.log(p.id, { type: "FollowUpAssigned", to: me.id, reason: "CrossBranch", remark: o.remark,
+      text: App.firstName(me) + " (" + App.branchName(App.Cross.myBranch()) + ") added a follow-up for " + (me.id === f.assignedToUserId ? "themselves" : App.userName(f.assignedToUserId)) + (o.remark ? " · " + o.remark : "") });
+    if (o.sellHere) App.Event.log(p.id, { type: "SellHereStarted", to: me.id, remark: o.remark, text: "Sell here started by " + App.firstName(me) + " (" + App.branchName(App.Cross.myBranch()) + ") · " + o.remark });
+    App.Notify.send("crossBranch", from, App.userName(me.id) + " (" + App.branchName(App.Cross.myBranch()) + ") " + (o.sellHere ? "started a sale on " : "added a follow-up on ") + p.name + " · " + App.branchName(from), [p.ownerUserId]);
+    if (crossSetting() === "On first follow-up") crossTakeOver(p, me.id);
+    App.dataChanged();
+    return f;
   }
 
   // Human sentence for a finished follow-up: "Priya called · Interested · next call Fri"
@@ -518,6 +598,7 @@
   App.Followup = { mountForm: mountForm, openAdd: openAdd, openOutcome: openOutcome, cancel: cancel, create: create,
     describeDone: describeDone, isOpenLead: isOpenLead, closeBySystem: closeBySystem, openFollowUps: openFollowUps };
   var Lead = { markLost: markLost, reopen: reopen, assign: assign, assignMany: assignMany, move: move, applyMove: applyMove, pickPerson: pickPerson, take: take,
-    canMove: canMove, canPick: canPick, canTake: canTake, canAssignFollowUp: canAssignFollowUp };
+    canMove: canMove, canPick: canPick, canTake: canTake, canAssignFollowUp: canAssignFollowUp,
+    crossFollowUp: crossFollowUp, applyCross: applyCross, crossTakeOver: crossTakeOver, crossSetting: crossSetting };
   App.Lead = Lead; App.Owner = Owner;
 })();

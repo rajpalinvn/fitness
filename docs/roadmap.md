@@ -15,6 +15,7 @@ feature README. Rules: `docs/decisions.md`. Questions: `docs/open-questions.md`.
 - Settings › Roles & permissions: grid (8 tenant roles × 24 actions), settings values, roles, trainer types, audit log (#95, #96, #102).
 - **Lead flow update** (#92–#101), done in c2–c4: Premium PT, Convert = Membership / Premium PT, Book trial (limits, approval, Trial ended, paid trial adjust); c4 ownership: follow-up assigned to other staff ("Follow-up from <owner>", "Own" scope incl. assignee), owner-change dialog (single, bulk, client, re-open), move to another branch ("Transferred in" + pick person), inactivity release ("Releases tomorrow", Unassigned · Released) and "Take this lead".
 - Client answers (#103, c5): start date (no future, back date this month with permission), discount % + ₹ cap, refund permission, Ex-client card / filter, trial adjust GST on net, Premium PT discount on the PT line only (reference ₹0 allowed, one sales rep), Q32, Q36.
+- Lead lifecycle (c8, #104–#109): events, `leads.own` / `sales.rep`, cross-branch follow-up + Sell here with the owner-change setting, notification rules, Make them owner on the transfer pick. Spec: docs/lead-lifecycle.md (its "Later" table: round-robin + shifts, old owner sees released leads, lost → pool, SMS / WhatsApp channels, CEO pending-work counts).
 - Test runner: `bash tools/run-tests.sh`.
 
 ## Next

@@ -79,7 +79,7 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 | Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Can't be negative or more than the line (Premium PT: "more than the PT part"). **Limit = the role's "% · max ₹" from the grid** (`sales.discountMax`, #77, #103): the LOWER of (% of the package line) and the ₹ cap applies; cap 0 = no cap; % 0 = no discount (field disabled, "no discount for your role"). Defaults: SE 10% · no cap, SM 20% · max ₹5,000, CM 30%, RM 50%, CEO 100% (set by the club). Hint "Your limit (role): 20% · max ₹5,000 · here up to ₹4,800". Applies to the **package line only**, never accessories or the fob deposit. Premium PT: % computed on the PT part (price − reference), the cap applies to the PT line. Over the limit: inline "Max 20% · ₹5,000 for your role (here up to ₹4,800)." while typing; Next blocked (#73). |
 | Discount reason | select: Festive offer, Referral, Corporate, Staff family, Other | When discount > 0 | No | — | Shown as soon as the amount is above 0. "A reason is needed for a discount." |
 | Other reason | text | When reason = Other | No | — | "Write the reason." |
-| Sales rep (`salesRepUserId`) | select | Yes | No | lead owner (or you if unassigned; a follow-up assignee = you, #97) | One rep per sale line (#36). Staff of the lead's branch: Sales Executive, Sales Manager, Club Manager. Premium PT: ONE select for the whole package (#103); stored on the PT line and, as a reference only, on the membership line (`incentiveByScheme: true`). |
+| Sales rep (`salesRepUserId`) | select | Yes | No | **you, the person creating the sale** (#107) | One rep per sale line (#36). Users with `sales.rep` in ANY branch ("Name · Branch", you first). Every change from the default = SalesRepChanged event. Premium PT: ONE select for the whole package (#103); stored on the PT line and, as a reference only, on the membership line (`incentiveByScheme: true`). |
 
 ### Step 3 · Sale & start
 | Field | Type | Required | Unique | Default | Notes |
@@ -222,6 +222,9 @@ action area of an active client. Permission `trials.book` (scope). Source of eve
 GST is worked out on the NET line amount after the trial adjust: ₹20,000 package − ₹800 paid trial = ₹19,200 incl. GST
 (GST 5% = ₹914.29). Dummy: Ananya (p6, running paid trial ₹800) + "Half-Yearly Membership" ₹20,000 (pk22).
 Premium PT with a free membership: "Monthly + 8 PT (membership free)" (pk21, reference ₹0) → ₹0 membership line, GST only on PT.
+
+### Cross-branch sale (c8, #106)
+- Opened from **Sell here** (read-only profile of another branch's lead) or by a cross-branch follow-up holder. Setting "On sale": saving the sale first moves the lead to the seller's branch and makes the seller the owner (old owner's follow-ups closed "Taken over by <branch>"). "Never": owner / branch stay; the seller is the sales rep. Back without saving after Sell here = SellHereCancelled event only.
 
 ## 5. Status
 Ready for review

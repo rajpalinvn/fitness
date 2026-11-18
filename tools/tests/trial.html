@@ -185,6 +185,7 @@ load(LEADS, function () {
           click(q('[data-adjust="adjustMem"]'));
           ok("ticked: −₹800 in the bill, start stays today", /− ₹800/.test(text(".cv-bill")) && /₹7,200/.test(text("#sellMode [data-total]")) && !q("#cvStart").disabled);
           key("Escape");
+          W().App.Perm.save([{ short: "SM", key: "leads.view", value: "All" }, { short: "SM", key: "sales.convert", value: "All" }]);   // c8: Ira is Sec 65; without scope the profile is read only (#105)
           W().App.setRole("Sales Executive"); W().App.setBranch("b2"); W().App.setRole("Sales Manager");
           iraConvert();
           ok("Sales Manager (no adjustAfterEnd): no checkbox, one info line why", !q('[data-adjust="adjustMem"]') && /only roles with/.test(text('[data-adj-info="Membership"]')));

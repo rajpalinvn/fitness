@@ -79,7 +79,7 @@ load(LEADS, function () {
       type('[data-x-why="0"]', "Manager approval");
       ok("no Final price box at the bottom", !q(".cv-total") && !q("[data-final]"));
       ok("price locked shown", /₹24,000/.test(mtext()) && /locked/.test(mtext()));
-      ok("sales rep defaults to lead owner (Priya)", q("#cvRep").value === "u6");
+      ok("sales rep defaults to the creator (#107), not the owner", q("#cvRep").value === W().App.me().id);
       ok("discount limit from the grid (CEO 100% · no cap)", /Your limit \(CEO\): 100% · no cap/.test(mtext()) && !/no limit/i.test(mtext()));
       ok("discount is for the package only (note)", /applies to the package only/.test(mtext()));
       type("#cvDisc", "15");
@@ -139,7 +139,7 @@ load(LEADS, function () {
       save();
       var p = person("p1");
       ok("person is now a Client CL-1003", p.kind === "Client" && p.stage === "Converted" && p.clientNo === "CL-1003");
-      ok("membership saved with discount, final, rep", p.membership.discount === 2400 && p.membership.finalPrice === 21600 && p.membership.salesRepUserId === "u6" && p.membership.discountReason === "Festive offer");
+      ok("membership saved with discount, final, rep", p.membership.discount === 2400 && p.membership.finalPrice === 21600 && p.membership.salesRepUserId === W().App.me().id && p.membership.discountReason === "Festive offer");
       ok("free accessory saved + stock down", p.membership.items[0].itemId === "it3" && p.membership.items[0].free && p.membership.items[0].reason === "Manager approval" && D().itemStock.filter(function (s) { return s.itemId === "it3" && s.branchId === "b1"; })[0].qty === 24);
       ok("fob assigned, stock down", p.keyFob === "KF-S31-0013" && D().keyFobs.filter(function (k) { return k.no === "KF-S31-0013"; })[0].status === "Assigned");
       var f1 = W().App.byId(D().followUps, "f1");
@@ -172,7 +172,7 @@ load(LEADS, function () {
       pick("pk17", "Premium PT");
       ok("Premium PT card: incl. membership", /incl\. membership ₹8,000/.test(q('[data-pkg="pk17"]').textContent) && /PT ₹22,000/.test(q('[data-pkg="pk17"]').textContent));
       ok("bill: 2 lines (Membership included ₹8,000 + PT ₹22,000) summing to ₹30,000", /Membership \(included\)/.test(text('[data-line="mem"]')) && /₹8,000/.test(text('[data-line="mem"]')) && /₹22,000/.test(text('[data-line="pt"]')) && /₹30,000/.test(text("[data-total]")));
-      ok("ONE sales rep field for the package, default = owner (Priya) (#103)", q("#cvRep").value === "u6" && !q("#cvRepPt"));
+      ok("ONE sales rep field for the package, default = the creator (#107)", q("#cvRep").value === W().App.me().id && !q("#cvRepPt"));
       type("#cvDisc", "10");
       ok("10% on the PT part only: ₹2,200 off PT, membership stays ₹8,000; total ₹27,800 (#103)", /PT line only/.test(text('[data-line="disc"]')) && /₹2,200/.test(text('[data-line="disc"]')) && /₹27,800/.test(text("[data-total]")), text(".cv-bill").slice(0, 300));
       ok("GST per line (2 decimals each): ₹380.95 + ₹942.86 = ₹1,323.81", /GST 5%\s*₹1,323\.81/.test(text("[data-gst]")), text("[data-gst]"));
@@ -188,7 +188,7 @@ load(LEADS, function () {
       type("#payA0", "10000"); ok("allocation: membership first, then PT (₹2,000 → 1 of 12)", /PT sessions unlocked 1 of 12/.test(text(".cv-bill")), text(".cv-bill").slice(-200));
       type("#payA0", "27800"); save();
       var p = person("p2");
-      ok("Sneha is a Client with membership (₹8,000, not discounted) AND PT (₹19,800, 12 sessions)", p.kind === "Client" && p.membership.finalPrice === 8000 && p.membership.discount === 0 && p.membership.incentiveByScheme === true && p.pt.salesRepUserId === "u6" && p.membership.premium === true && p.pt && p.pt.finalPrice === 19800 && p.pt.sessions === 12 && p.pt.premium === true);
+      ok("Sneha is a Client with membership (₹8,000, not discounted) AND PT (₹19,800, 12 sessions)", p.kind === "Client" && p.membership.finalPrice === 8000 && p.membership.discount === 0 && p.membership.incentiveByScheme === true && p.pt.salesRepUserId === W().App.me().id && p.membership.premium === true && p.pt && p.pt.finalPrice === 19800 && p.pt.sessions === 12 && p.pt.premium === true);
       ok("one receipt, both lines paid in full", p.membership.payment.paid === 8000 && p.pt.payment.paid === 19800 && W().App.payBalance(p.pt.payment) === 0 && p.pt.payment.receipts[0].no === p.membership.payment.receipts[0].no);
       click(q('#sellMode [data-cv="done"]'));
       ok("profile: Key fob pending only; PT section 12 of 12", /Key fob pending/.test(text(".next-step")) && !/FF ID pending/.test(text(".next-step")));

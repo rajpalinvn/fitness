@@ -8,6 +8,9 @@
 - Stay inside this folder. Never read, copy or reference any other codebase.
 - docs/ is the source of truth. If a request conflicts with docs/, ask first.
 
+## Read first
+- docs/lead-lifecycle.md: stages, ownership, events, cross-branch work, notification rules, "Later" table.
+
 ## Tech
 - Plain HTML + CSS + small vanilla JS only (drawers, modals, tabs, filters,
   switchers, rendering dummy data). No external libraries or CDNs.

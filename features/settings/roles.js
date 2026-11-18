@@ -4,7 +4,7 @@
    Changes are kept in session storage through App.Perm (shared/app.js). */
 (function () {
   var D = window.DUMMY, esc = App.esc, A = window.Admin, P = App.Perm;
-  var TABS = [["permissions", "Permissions"], ["values", "Settings values"], ["roles", "Roles"], ["trainers", "Trainer types"], ["audit", "Audit log"]];
+  var TABS = [["permissions", "Permissions"], ["values", "Settings values"], ["notify", "Notification rules"], ["roles", "Roles"], ["trainers", "Trainer types"], ["audit", "Audit log"]];
   var MODULES = ["Leads", "Trials", "Sales", "Clients", "Payments", "Settings"];
   var SCOPES = ["None", "Own", "Branch", "All"];
   var SCOPE_HINT = { None: "No access", Own: "Own leads + leads with my open follow-up", Branch: "The staff's branch (all their branches for multi-branch roles)", All: "Every branch" };
@@ -57,6 +57,7 @@
     }
     if (S.tab === "permissions") { head.innerHTML = '<button class="btn btn-ghost" data-rp="reset">' + App.icon("refresh") + "Reset all to defaults</button>"; panel.innerHTML = grid(); }
     else if (S.tab === "values") { head.innerHTML = '<button class="btn btn-ghost" data-rp="resetSet">' + App.icon("refresh") + "Reset to defaults</button>"; panel.innerHTML = values(); }
+    else if (S.tab === "notify") panel.innerHTML = notifyTab();
     else if (S.tab === "roles") panel.innerHTML = rolesTab();
     else if (S.tab === "trainers") { head.innerHTML = '<button class="btn btn-primary" data-rp="ttAdd">' + App.icon("plus") + "Trainer type</button>"; panel.innerHTML = trainers(); }
     else { panel.innerHTML = audit(); }
@@ -170,8 +171,8 @@
         var byTxt = "Changed by: " + (eds.length ? eds.join(", ") : "nobody yet") + (d.by === "CEO" ? "" : ' <span class="cell-sub">(grid row "' + esc(pdef(d.by).label) + '")</span>');
         var input = d.options
           ? '<div class="seg" role="radiogroup" aria-label="' + esc(d.label) + '">' + d.options.map(function (o) {
-              var later = o === "Round-robin", on = v === o;
-              return '<button type="button" class="seg-btn' + (on ? " active" : "") + '" role="radio" aria-checked="' + on + '" data-setopt="' + d.key + '" data-val="' + o + '"' + (later ? ' disabled title="Round-robin comes later (Q10)"' : "") + ">" + o + (later ? ' <span class="muted">Later</span>' : "") + "</button>";
+              var later = o.indexOf("Round-robin") === 0, on = v === o;
+              return '<button type="button" class="seg-btn' + (on ? " active" : "") + '" role="radio" aria-checked="' + on + '" data-setopt="' + d.key + '" data-val="' + o + '"' + (later ? ' disabled title="Comes later (needs shift data for on-shift)"' : "") + ">" + o + (later ? ' <span class="muted">Later</span>' : "") + "</button>";
             }).join("") + "</div>"
           : '<div class="row row-tight"><input class="input input-num input-xs' + (errs[d.key] ? " invalid" : "") + '" type="number" id="set-' + d.key + '" data-set="' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="1" value="' + esc(v) + '" aria-describedby="seth-' + d.key + '"><span>' + d.unit + "</span>" +
             (changed ? ' <span class="badge badge-info">Unsaved</span>' : cur[d.key] !== d.def ? ' <span class="badge badge-info">Changed</span>' : "") + "</div>";
@@ -179,6 +180,26 @@
           '<div class="cell-sub">Default ' + esc(d.def) + (d.unit ? " " + d.unit : "") + " · " + byTxt + "</div></div><div>" + input + (errs[d.key] ? '<div class="error">' + esc(errs[d.key]) + "</div>" : "") + "</div></div>";
       }).join("") + "</div>";
   }
+
+  // ----- Notification rules (#108) -----
+  function notifyTab() {
+    var rules = App.Notify.rules(), ed = App.state.role === "CEO";   // CEO edits (same as the CEO-only settings values)
+    return '<div class="callout">' + App.icon("info") + "<span>Who gets a notification in the bell, per event and role. Each role gets it only for <strong>its own branch(es)</strong>. " +
+      (ed ? "Changes save at once and are logged in the Audit log." : "Only CEO can change these.") + "</span></div>" +
+      '<div class="table-wrap"><table class="table table-admin" id="notifyTable"><thead><tr><th>Event</th>' + D.notifyRoles.map(function (s) { return "<th>" + esc(P.roleByShort(s).name) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      D.notifyEvents.map(function (e) {
+        return "<tr><td>" + esc(e[1]) + "</td>" + D.notifyRoles.map(function (s) {
+          return '<td><input type="checkbox" data-notify="' + e[0] + "|" + s + '"' + (rules[e[0]][s] ? " checked" : "") + (ed ? "" : " disabled") + ' aria-label="' + esc(e[1] + " · " + P.roleByShort(s).name) + '"></td>';
+        }).join("") + "</tr>";
+      }).join("") + "</tbody></table></div>" +
+      '<div class="callout mt-1" data-notify-locked>' + App.icon("lock") + "<span><strong>Always notified (locked):</strong> the people directly involved: the owner, the old owner and the approver. " +
+      "More events come later (PT quote requested, Client assigned to you).</span></div>";
+  }
+  document.addEventListener("change", function (e) {
+    var t = e.target.closest && e.target.closest("[data-notify]"); if (!t) return;
+    var k = t.dataset.notify.split("|"); App.Notify.save(k[0], k[1], t.checked);
+    App.toast("Saved · " + (t.checked ? "on" : "off"), "success"); render();
+  });
 
   // ----- Roles (read-only) -----
   function rolesTab() {
@@ -244,7 +265,7 @@
   function audit() {
     var log = P.auditLog().filter(function (x) { return S.auditTab === "All" || x.tab === S.auditTab; });
     return '<div class="filter-bar"><label class="cell-sub" for="auditFilter">Show</label><select class="input" id="auditFilter" aria-label="Filter by tab">' +
-      ["All", "Permissions", "Settings values", "Trainer types"].map(function (t) { return '<option' + (t === S.auditTab ? " selected" : "") + ">" + t + "</option>"; }).join("") + '</select><span class="muted">' + log.length + " change" + (log.length === 1 ? "" : "s") + "</span></div>" +
+      ["All", "Permissions", "Settings values", "Notification rules", "Trainer types"].map(function (t) { return '<option' + (t === S.auditTab ? " selected" : "") + ">" + t + "</option>"; }).join("") + '</select><span class="muted">' + log.length + " change" + (log.length === 1 ? "" : "s") + "</span></div>" +
       '<div class="table-wrap"><table class="table table-admin" id="auditTable"><thead><tr><th>When</th><th>Who</th><th>Tab</th><th>What</th><th>Old → New</th></tr></thead><tbody>' +
       (log.length ? log.map(function (x) {
         return "<tr><td>" + esc(App.fmtWhen(x.at)) + "</td><td>" + esc(x.by) + "</td><td>" + esc(x.tab) + "</td><td>" + esc(x.what) + '</td><td><span class="muted">' + esc(x.from) + "</span> → <strong>" + esc(x.to) + "</strong></td></tr>";

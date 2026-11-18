@@ -220,7 +220,7 @@
           '<div class="dd-menu dd-wide" data-dd-menu="bell" role="menu" hidden>' +
             '<div class="dd-label dd-label-row"><span>Notifications</span>' +
               (counts.unread ? '<button class="link-btn" data-mark-read tabindex="-1">Mark all read</button>' : "") + "</div>" +
-            DUMMY.notifications.map(function (n) {
+            App.Notify.mine().map(function (n) {
               return '<button class="dd-item notif' + (n.unread ? " unread" : "") + '" role="menuitem" tabindex="-1" data-notif="' + n.id + '">' +
                 '<span class="dd-check">' + App.icon("clock") + '</span><span><span class="notif-text">' + esc(n.text) +
                 '</span><span class="notif-time">' + esc(App.formatDate(n.at)) + (n.unread ? " · Unread" : "") + "</span></span></button>";

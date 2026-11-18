@@ -65,7 +65,7 @@ load(SET, function () {
       step("defaults = docs/permissions.md", function () {
         var bad = [];
         Object.keys(DOC).forEach(function (k) { SHORTS.forEach(function (s, i) { if (JSON.stringify(P().get(s, k)) !== JSON.stringify(DOC[k][i])) bad.push(s + "." + k + "=" + JSON.stringify(P().get(s, k))); }); });
-        ok("28 permission keys (incl. sales.backDate, payments.refund), 8 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 28 && D().roles.length === 8 && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
+        ok("32 permission keys (incl. leads.own, sales.rep, cross-branch rows), 8 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 32 && D().roles.length === 8 && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
         ok("tenant: one tenant, tenantId on branches, users, people, packages", D().tenants.length === 1 && D().branches.every(function (b) { return b.tenantId === "t1"; }) && D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.tenantId === "t1"; }) && D().people.every(function (p) { return p.tenantId === "t1"; }) && D().packages.every(function (p) { return p.tenantId === "t1"; }));
         ok("every default matches docs/permissions.md", !bad.length, bad.join(" "));
         ok("App.can for CEO: rolesPermissions true, leads.view All, discount 100", W().App.can("settings.rolesPermissions") === true && W().App.can("leads.view") === "All" && W().App.can("sales.discountMax").pct === 100);
@@ -75,9 +75,9 @@ load(SET, function () {
         ok("trainer types GT, PT, GT-PT", D().trainerTypes.map(function (t) { return t.short; }).join() === "GT,PT,GT-PT");
       });
       step("grid", function () {
-        ok("5 tabs, Permissions active", qa("#rpTabs .tab").length === 5 && /Permissions/.test(text("#rpTabs .tab.active")));
+        ok("6 tabs (incl. Notification rules), Permissions active", qa("#rpTabs .tab").length === 6 && /Permissions/.test(text("#rpTabs .tab.active")));
         ok("8 role columns in order, no SA", Array.prototype.map.call(qa("#permTable thead th.perm-col"), function (t) { return t.textContent; }).join() === SHORTS.join());
-        ok("6 module groups (incl. Payments), 28 rows", qa("#permTable .perm-group").length === 6 && qa("#permTable tr[data-perm]").length === 28);
+        ok("6 module groups (incl. Payments), 32 rows", qa("#permTable .perm-group").length === 6 && qa("#permTable tr[data-perm]").length === 32);
         ok("chip shows value, not an open dropdown", /Branch/.test(chip("SM", "leads.view").textContent) && !q(".perm-pop") && !qa("#permTable select").length);
         ok("CEO column locked with reason", SHORTS.length === 8 && Object.keys(DOC).every(function (k) { return chip("CEO", k).classList.contains("locked"); }) && /every permission/.test(chip("CEO", "leads.view").dataset.tip));
         ok("Roles & permissions row locked for every role", SHORTS.every(function (s) { return chip(s, "settings.rolesPermissions").classList.contains("locked"); }));
@@ -136,11 +136,11 @@ load(SET, function () {
           type("#rpSearch", "discount"); ok("search filters rows", qa("#permTable tr[data-perm]").length === 1 && qa("#permTable .perm-group").length === 1);
           type("#rpSearch", "zzz"); ok("no match state", /No actions match/.test(text("#permTable")));
           type("#rpSearch", "");
-          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 17); click(q('[data-module="Leads"]'));
+          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 19); click(q('[data-module="Leads"]'));
         });
         step("settings values", function () {
           click(q('[data-rtab="values"]'));
-          ok("7 fields with default + Changed by (incl. Ex-client after)", qa(".set-row").length === 7 && /Ex-client after/.test(text("#panel")) && /Default 2 trials · Changed by: CEO, Regional Manager, Club Manager/.test(text("#panel")) && /Changed by: CEO/.test(text("#panel")));
+          ok("8 fields with default + Changed by (incl. Ex-client after, cross-branch owner change)", qa(".set-row").length === 8 && /Ex-client after/.test(text("#panel")) && /Default 2 trials · Changed by: CEO, Regional Manager, Club Manager/.test(text("#panel")) && /Changed by: CEO/.test(text("#panel")));
           ok("Round-robin disabled 'Later'", !!q('[data-setopt="newLeadAssignment"][data-val="Round-robin"]:disabled') && /Later/.test(text('[data-setopt="newLeadAssignment"][data-val="Round-robin"]')));
           type("#set-freeTrialsPerBranch", "5"); ok("per branch > per person error", /more than per person/.test(text("#panel")) && q('#saveBar [data-rp="save"]').disabled);
           type("#set-freeTrialsPerBranch", "1");

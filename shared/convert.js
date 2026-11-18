@@ -12,7 +12,6 @@
    Load after profile.js. */
 (function () {
   var D = window.DUMMY, esc = App.esc, icon = App.icon;
-  var REP_ROLES = ["Sales Executive", "Sales Manager", "Club Manager"];
   var STEPS = [{ k: 1, t: "Details" }, { k: 2, t: "Package" }, { k: 3, t: "Sale & start" }, { k: 4, t: "Corporate entry" }, { k: 5, t: "Summary" }, { k: 6, t: "Payment" }];
   var CORP = "Corporate entry: FF ID & key fob";
   var GROUPS = [["Membership", "Membership"], ["Premium PT", "Premium PT (membership + PT)"], ["PT", "Personal training"]];
@@ -30,7 +29,8 @@
   function limitPct() { return App.discountLimit(); }   // the % part of the role's limit (#77, #103)
   function sec(title, body, attrs) { return '<section class="cv-card"' + (attrs || "") + '><h3 class="cv-card-title">' + title + "</h3>" + body + "</section>"; }
   function stock(p) { return D.keyFobs.filter(function (k) { return k.branchId === p.branchId && k.status === "In stock"; }); }
-  function reps(p) { return D.users.filter(function (u) { return u.branches.indexOf(p.branchId) > -1 && REP_ROLES.indexOf(u.role) > -1; }); }
+  // #107: users with sales.rep in ANY branch (cross-branch sellers); the creator first.
+  function reps(p) { var me = App.me(), l = App.usersWith("sales.rep"); return l.sort(function (a, b) { return (b.id === me.id) - (a.id === me.id); }); }
   function itemQty(itemId, branchId) { var s = D.itemStock.filter(function (x) { return x.itemId === itemId && x.branchId === branchId; })[0]; return s ? s.qty : 0; }
   function accessories() { return D.items.filter(function (i) { return i.kind === "Accessory" && i.active; }); }
   function reasonText() { return C.reason === "Other" ? C.reasonOther.trim() : C.reason; }
@@ -90,23 +90,27 @@
     if (!(a && a.locked) && C.start < isoDay(new Date())) C.start = isoDay(new Date());
   }
 
-  // Sales rep default (#97, #98, L10, L15): a follow-up assignee (incl. the new-branch SE) who converts is the rep; else the owner, else me.
-  function defaultRep(p) { var me = App.me(); return me && App.isAssigneeOnly(p, me.id) ? me.id : (p.ownerUserId || (me && me.id)); }
+  // Sales rep default (#107, replaces #103 "lead owner"): the person creating the sale, everywhere (incl. Premium PT).
+  // A creator without sales.rep -> the first user with it. Every change from the default = SalesRepChanged event.
+  function defaultRep(p) { var me = App.me(); if (me && App.usersWith("sales.rep").some(function (u) { return u.id === me.id; })) return me.id; var l = App.usersWith("sales.rep", p && p.branchId); return l[0] ? l[0].id : (me && me.id); }
   // exposed below as App.Convert.defaultRep
 
   // ---------- open ----------
-  function open(pid) {
+  function open(pid, o) {
+    o = o || {};
     var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
       pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: defaultRep(p), start: isoDay(new Date()), adjustMem: false, adjustPt: false,
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
-      pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "" };
+      pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "", sellHere: !!o.sellHere };
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
     var groups = GROUPS.filter(function (g) { return sellable(p).some(function (x) { return x.type === g[0]; }); });
     var def = groups.filter(function (g) { return g[0] === "Membership"; })[0] || groups[0];
     if (def) C.open[def[0]] = true;
     m = App.DrawerMode.open(pid, { key: "convert", title: "Convert to client", onExit: function () {
       if (C && !C.done) App.toast("Conversion not saved", "");
+      // Cancel of Sell here changes nothing except the event (#106).
+      if (C && !C.done && C.sellHere) App.Event.log(C.pid, { type: "SellHereCancelled", text: "Sell here cancelled by " + App.firstName(App.me()) + " · nothing changed" });
       var done = C && C.done && C.clientId; C = null;
       if (done) App.openProfile(done, { state: "normal", tab: "membership" });
     } });
@@ -390,8 +394,8 @@
             '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
             (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
         '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
-          return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") +
-          '</select><span class="hint">' + (k.type === "Premium PT" ? "One sales rep for the whole Premium PT package. Whether the membership part pays any incentive, and to whom, is set by the incentive scheme." : "Gets the credit for this sale line. Defaults to the lead owner.") + "</span></div>" +
+          return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
+          '</select><span class="hint">' + (k.type === "Premium PT" ? "One sales rep for the whole Premium PT package. Whether the membership part pays any incentive, and to whom, is set by the incentive scheme." : "Gets the credit for this sale line. Defaults to you (the person creating the sale); any staff who can be sales rep, any branch.") + "</span></div>" +
         "</div></section>";
     }
     return html;
@@ -632,6 +636,10 @@
     if (Object.keys(xe).length) { C.errors = xe; if (xe.ffId) { C.step = 4; } render(); var f0 = m.body.querySelector(".invalid, .error"); if (f0 && f0.focus) f0.focus(); return; }
     var T = payTotals();
     var p = person(), k = pkg(), mo = money(), now = new Date().toISOString(), me = App.me();
+    // Cross-branch sale (#106): setting "On sale" -> the seller takes over first (lead moves to their branch, owner = seller).
+    if (App.Cross.isCrossWorker(p, me.id) && App.Lead.crossSetting() === "On sale") App.Lead.crossTakeOver(p, me.id);
+    var defRep = defaultRep(p);
+    if (C.repId !== defRep) App.Event.log(p.id, { type: "SalesRepChanged", from: defRep, to: C.repId, text: "Sales rep changed from " + App.firstName(App.byId(D.users, defRep)) + " to " + App.firstName(App.byId(D.users, C.repId)) + " by " + App.firstName(me) });
     p.email = C.email.trim() || null; p.gender = C.gender; p.birthDate = C.birthDate || null; p.ffId = C.ffId.trim() || null;
     if (!p.ownerUserId) { p.ownerHistory.push({ from: null, to: me.id, at: now, by: me.id }); p.ownerUserId = me.id; App.Followup.openFollowUps(p.id).forEach(function (f) { f.ownerUserId = me.id; }); }
     var startIso = new Date(C.start + "T00:00").toISOString(), endIso = endDate().toISOString();
@@ -692,6 +700,7 @@
       (closed ? '<p class="hint">' + closed + " open follow-up" + (closed > 1 ? "s" : "") + " closed by system · client converted.</p>" : "") +
       (pend.length ? '<div class="stack">' + pend.map(function (x) { return '<span class="badge badge-warning">' + esc(x.t) + "</span>"; }).join("") + "</div>" : "") + "</div>";
     render();
+    App.Event.log(p.id, { type: "Converted", to: "Client", remark: k.name });
     App.toast(p.name + " is now a client (" + clientNo + ")", "success");
     C.clientId = p.id;
     App.dataChanged();

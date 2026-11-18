@@ -77,6 +77,8 @@
     { key: "leads.viewUnassigned",  module: "Leads",    label: "View unassigned leads (the \"pool\")",                  type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "leads.take",            module: "Leads",    label: "Take an unassigned lead (\"Take this lead\")",           type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "leads.viewLost",        module: "Leads",    label: "View lost leads",                                       type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "leads.own",             module: "Leads",    label: "Can own leads (owner lists, follow-up person, release / pick lists)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
+    { key: "leads.crossBranchFollowUp", module: "Leads", label: "Add a follow-up for myself on another branch's lead (walk-in / inquiry)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
     { key: "leads.create",          module: "Leads",    label: "Create lead",                                           type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
     { key: "leads.assign",          module: "Leads",    label: "Assign / reassign / change owner (leads and clients)", type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" }, atLeastOne: true },
     { key: "leads.assignFollowUp",  module: "Leads",    label: "Assign a follow-up to another staff (any branch)",      type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
@@ -92,6 +94,8 @@
     // Max discount per role = % AND a ₹ cap; the LOWER applies; cap 0 = no ₹ cap; % 0 = no discount (#77, #103 Q22).
     // Defaults keep the #77 % with no cap; demo: SM 20% · max ₹5,000. CEO set by the club in the grid (Q31 closed).
     { key: "sales.discountMax",     module: "Sales",    label: "Max discount % · max ₹ (#77, #103)",                    type: "pctcap", defaults: { SE: { pct: 10, cap: 0 }, SM: { pct: 20, cap: 5000 }, CM: { pct: 30, cap: 0 }, RM: { pct: 50, cap: 0 }, CEO: { pct: 100, cap: 0 } } },
+    { key: "sales.rep",             module: "Sales",    label: "Can be sales rep",                                      type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
+    { key: "sales.sellCrossBranch", module: "Sales",    label: "\"Sell here\" on another branch's lead (needs the cross-branch follow-up row)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true }, requires: "leads.crossBranchFollowUp" },
     { key: "sales.backDate",        module: "Sales",    label: "Back-date a sale start (current month only, #103)",     type: "tick",   defaults: {} },
     { key: "payments.refund",       module: "Payments", label: "Refund / cancel a payment (no screen yet, #103)",       type: "tick",   defaults: {} },
     { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
@@ -112,7 +116,8 @@
     { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
     { key: "exClientAfterDays",        label: "Ex-client after (days without an active package)", def: 30, min: 0, max: 365, unit: "days", by: "CEO", hint: "Expired for this many days after the last package ends (membership or PT), then Ex-client (#103)." },
-    { key: "newLeadAssignment",        label: "New-lead assignment",                    def: "Manual", options: ["Manual", "Round-robin"], by: "CEO", hint: "Round-robin comes later (Q10)." }
+    { key: "crossBranchOwnerChange",   label: "When another branch's staff works on a lead, owner changes", def: "On sale", options: ["On sale", "On first follow-up", "Never"], by: "CEO", hint: "On the trigger the lead moves to that staff's branch, they become the owner and the old owner's open follow-ups close (\"Taken over by <branch>\"). Never: owner and branch stay; the seller is only the sales rep (#106)." },
+    { key: "newLeadAssignment",        label: "New-lead assignment",                    def: "Manual", options: ["Manual", "Round-robin", "Round-robin among on-shift staff"], by: "CEO", hint: "Round-robin and on-shift round-robin come later (need shift data, docs/lead-lifecycle.md)." }
   ];
 
   var lists = {
@@ -356,6 +361,8 @@
 
   // ---- Client status by the last package end (#103 Q25; Settings "Ex-client after" default 30 days). p21 = Expired 5 days, p22 = Ex-client (60). ----
   people.push(
+    L("p41", "Farhan Qureshi", "90000 01274", "b2", "u7", "Contacted", { createdAt: day(-2), lastActivityAt: day(-2), source: "Walk-in",
+      note: "EDGE (#105): Sec 65 lead (owner Arjun). He walks in at Sec 31: Priya searches 9000001274 -> read-only row -> Add a follow-up for myself / Sell here" }),
     { id: "p39", kind: "Client", name: "Rekha Chawla", cc: "+91", mobile: "90000 01272", email: "rekha.c@example.com",
       gender: "Female", birthDate: null, ffId: "FF-20706", source: "Walk-in", temperature: "Warm", stage: "Converted",
       inquiryType: "Walk-in", campaign: null, ownerUserId: "u6", branchId: "b1", remarks: null, externalId: null,
@@ -620,11 +627,17 @@
     { id: "n2", text: "Aarav Patel's follow-up is overdue", at: day(-2, 17), unread: true },
     { id: "n3", text: "Task due today: Prepare Diwali offer flyer", at: day(0, 9), unread: true },
     { id: "n4", text: "Trial approval asked from you: Ishaan Singh · Free Trial (Priya)", at: day(-1, 11), unread: true, forUserId: "u5", trialId: "tr2" },
-    { id: "n5", text: "Trial approval asked from you: Ananya Desai · Trial Paid 7 Days (Arjun)", at: day(-2, 12), unread: true, forUserId: "u3", trialId: "tr3" }
+    { id: "n5", text: "Trial approval asked from you: Ananya Desai · Trial Paid 7 Days (Arjun)", at: day(-2, 12), unread: true, forUserId: "u3", trialId: "tr3" },
+    // Notification rules (#108): toUserIds = only these users see it in the bell.
+    { id: "n6", text: "Kiran Joshi transferred in to Sec 31 · pick the follow-up person", at: day(-1, 10), unread: true, toUserIds: ["u4"] }
   ];
 
   window.DUMMY = {
-    roleDemoUser: roleDemoUser, notifications: notifications,
+    roleDemoUser: roleDemoUser, notifications: notifications, events: [],
+    // Notification rules (#108): event -> roles (short) that get it, for their own branch(es). Directly involved people always get it.
+    notifyEvents: [["transferIn", "Lead transferred in"], ["released", "Lead released (inactive)"], ["crossBranch", "Cross-branch work on a lead (follow-up / sale)"]],
+    notifyRoles: ["RM", "CM", "SM"],
+    notifyDefaults: { transferIn: { CM: true }, released: { CM: true }, crossBranch: { CM: true } },
     tenants: tenants, branches: branches, roles: roles, platformRoles: platformRoles, users: users, lists: lists, people: people,
     trainerTypes: trainerTypes, permissionDefs: permissionDefs, settingDefs: settingDefs,
     followUps: followUps, workTasks: workTasks, timeline: timeline, packages: packages,

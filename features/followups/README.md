@@ -89,5 +89,7 @@
 
 - Q32 (#103): owner dialog choice 2 — if the earliest open due date has already passed, the new follow-up is due TODAY (bulk too).
 
+- Transferred-in pick (#109): "Make them owner" (ticked by default) runs the owner change rules (#99), event OwnerChanged · TransferPick. Person list = branch staff with `leads.own`.
+
 ## 5. Status
 Ready for review (shared components). Follow-ups list screen: Draft.

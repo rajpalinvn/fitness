@@ -239,10 +239,11 @@
     });
   };
   // Approvers (L1b): SM / CM / RM of the person's branch whose role has trials.approve; never the CEO.
+  // #104: staff of the person's branch whose role has trials.approve at BRANCH scope. All-scope (e.g. CEO) is never listed (can approve any).
   Trial.approvers = function (p) {
     return DUMMY.users.filter(function (u) {
       var r = App.Perm.roleByName(u.role);
-      return r && ["SALES_MANAGER", "CLUB_MANAGER", "REGIONAL_MANAGER"].indexOf(r.key) > -1 && u.branchIds.indexOf(p.branchId) > -1 && App.Perm.get(r.short, "trials.approve") !== "None";
+      return r && !u.platform && u.branchIds.indexOf(p.branchId) > -1 && App.Perm.get(r.short, "trials.approve") === "Branch";
     });
   };
   Trial.byId = function (id) { for (var i = 0; i < DUMMY.people.length; i++) { var t = App.byId(Trial.list(DUMMY.people[i]), id); if (t) return { p: DUMMY.people[i], t: t }; } return null; };
@@ -578,7 +579,7 @@
         return f.status === "Open" && ids.indexOf(f.personId) > -1 && App.followUpStatus(App.dueIso(f)).cls === "amber";
       }).length,
       openTasks: DUMMY.workTasks.filter(function (t) { return t.status === "Open" && me && t.assignedUserId === me.id; }).length,
-      unread: DUMMY.notifications.filter(function (n) { return n.unread; }).length
+      unread: (App.Notify ? App.Notify.mine() : DUMMY.notifications).filter(function (n) { return n.unread; }).length
     };
   };
 
@@ -628,6 +629,12 @@
         p.ownerUserId = null; p.unassignedReason = "Released"; p.releasedAt = now; p.releaseWarnedAt = null;
         DUMMY.timeline.push({ personId: p.id, at: now, kind: "milestone", text: "Released to Unassigned · no follow-up for " + i.n + " days (was " + App.userName(old) + ")", by: null });
         DUMMY.notifications.unshift({ id: "nrel" + p.id, text: p.name + " was released to Unassigned · no follow-up for " + i.n + " days", at: now, unread: true, forUserId: old });
+        if (App.Event) {
+          App.Event.log(p.id, { type: "OwnerChanged", from: old, to: null, reason: "Released", byUserId: null });
+          // Notification rules (#108): roles ticked for "Lead released" in the lead's branch (the old owner already got the line above).
+          var rcp = App.Notify.recipients("released", p.branchId, []).filter(function (id) { return id !== old; });
+          if (rcp.length) DUMMY.notifications.unshift({ id: "nrelr" + p.id, event: "released", text: p.name + " was released to Unassigned · " + App.branchName(p.branchId) + " (was " + App.userName(old) + ")", at: now, unread: true, toUserIds: rcp });
+        }
         out.released.push(p.id);
       } else if (i.warn) {
         if (p.releaseWarnedAt !== today) {
@@ -640,6 +647,93 @@
     return out;
   };
   App.Release = Release;
+
+  // ---------- Users by grid row (#104: logic never checks a role name) ----------
+  // Users whose role has `key` = Yes (tick) or any scope but None. Optional branchId: only staff of that branch.
+  App.usersWith = function (key, branchId) {
+    return DUMMY.users.filter(function (u) {
+      if (u.platform) return false;
+      var r = App.Perm.roleByName(u.role); if (!r) return false;
+      var v = App.Perm.get(r.short, key);
+      return (v === true || (typeof v === "string" && v !== "None")) && (!branchId || u.branchIds.indexOf(branchId) > -1);
+    });
+  };
+  App.isTrainer = function (u) { return !!(u && u.trainerTypeId); };   // trainer = has a trainer type (#104)
+
+  // ---------- Events (#104, docs/lead-lifecycle.md) ----------
+  // Every state change = { type, from, to, reason, remark, byUserId, at, branchId }; the timeline line is built from it.
+  // Old dummy timelines stay as text; only new actions write events.
+  var Event = {};
+  Event.log = function (personId, e) {
+    var p = App.byId(DUMMY.people, personId), me = App.demoUser();
+    var ev = { id: "ev" + Date.now() + Math.floor(Math.random() * 100000), personId: personId, type: e.type, from: e.from == null ? null : e.from, to: e.to == null ? null : e.to,
+      reason: e.reason || null, remark: e.remark || null, byUserId: e.byUserId !== undefined ? e.byUserId : (me ? me.id : null), at: new Date().toISOString(), branchId: e.branchId || (p ? p.branchId : null) };
+    DUMMY.events.push(ev);
+    if (e.text) App.addTimeline(personId, "milestone", e.text, { eventId: ev.id });
+    return ev;
+  };
+  Event.of = function (personId, type) { return DUMMY.events.filter(function (x) { return x.personId === personId && (!type || x.type === type); }); };
+  App.Event = Event;
+
+  // ---------- Notification rules (#108) ----------
+  var Notify = {};
+  Notify.rules = function () {
+    var o = jget("notifyRules", null), d = DUMMY.notifyDefaults, out = {};
+    DUMMY.notifyEvents.forEach(function (e) { out[e[0]] = Object.assign({}, d[e[0]] || {}, (o && o[e[0]]) || {}); });
+    return out;
+  };
+  Notify.save = function (eventKey, short, on) {
+    var cur = Notify.rules(), o = jget("notifyRules", {}) || {}, label = DUMMY.notifyEvents.filter(function (e) { return e[0] === eventKey; })[0][1];
+    if (!!cur[eventKey][short] === !!on) return;
+    o[eventKey] = Object.assign({}, o[eventKey] || {}); o[eventKey][short] = !!on; jset("notifyRules", o);
+    Perm.audit([{ tab: "Notification rules", what: label + " · " + Perm.roleByShort(short).name, from: cur[eventKey][short] ? "On" : "Off", to: on ? "On" : "Off" }]);
+  };
+  // Recipients: roles ticked for the event whose branches include the lead's branch + the directly involved people (always).
+  Notify.recipients = function (eventKey, branchId, involved) {
+    var r = Notify.rules()[eventKey] || {}, ids = {};
+    DUMMY.users.forEach(function (u) {
+      var role = Perm.roleByName(u.role);
+      if (role && r[role.short] && u.branchIds.indexOf(branchId) > -1) ids[u.id] = true;
+    });
+    (involved || []).forEach(function (id) { if (id) ids[id] = true; });
+    return Object.keys(ids);
+  };
+  Notify.send = function (eventKey, branchId, text, involved) {
+    var to = Notify.recipients(eventKey, branchId, involved);
+    if (!to.length) return null;
+    var n = { id: "nt" + Date.now() + Math.floor(Math.random() * 100000), event: eventKey, text: text, at: new Date().toISOString(), unread: true, toUserIds: to };
+    DUMMY.notifications.unshift(n);
+    return n;
+  };
+  // What the View-as user sees in the bell: everything without toUserIds (older demo items) + items addressed to them.
+  Notify.mine = function () {
+    var me = App.demoUser();
+    return DUMMY.notifications.filter(function (n) { return !n.toUserIds || (me && n.toUserIds.indexOf(me.id) > -1); });
+  };
+  App.Notify = Notify;
+
+  // ---------- Cross-branch work (#105, #106) ----------
+  // Find by the FULL mobile number across all branches (like the duplicate check). Normal lists never show other branches' leads.
+  App.findByFullMobile = function (q) {
+    var d = App.mobileDigits(q); if (d.length !== 10) return [];
+    return DUMMY.people.filter(function (p) { return App.mobileDigits(p.cc + p.mobile) === d; });
+  };
+  var Cross = {};
+  // Read-only = a lead the user can't see by the grid (another branch's lead found by full mobile). Shows everything, no actions.
+  Cross.readOnly = function (p) { return !!p && p.kind === "Lead" && !App.canSee(p); };
+  Cross.isOpenLead = function (p) { return !!p && p.kind === "Lead" && p.stage !== "Lost" && p.stage !== "Converted"; };
+  Cross.canFollowUp = function (p) { return Cross.readOnly(p) && Cross.isOpenLead(p) && App.can("leads.crossBranchFollowUp") === true; };
+  Cross.canSellHere = function (p) { return Cross.canFollowUp(p) && App.can("sales.sellCrossBranch") === true; };
+  // Working on a lead of a branch I'm not in (I got it through my own follow-up).
+  Cross.isCrossWorker = function (p, uid) {
+    var u = App.byId(DUMMY.users, uid || (App.demoUser() || {}).id);
+    return !!u && !!p && u.branchIds.indexOf(p.branchId) < 0 && p.ownerUserId !== u.id;
+  };
+  Cross.myBranch = function () {
+    var u = App.demoUser(); if (!u) return null;
+    return u.branchIds.indexOf(App.state.branchId) > -1 ? App.state.branchId : u.branchIds[0];
+  };
+  App.Cross = Cross;
   // Ownership badges, ONE place for the Leads list, Today and the profile (#97, #98, #100, L23):
   // "Follow-up from <owner>", "Releases tomorrow", "Transferred in", "Unassigned · New / Released".
   App.ownershipBadges = function (p, o) {

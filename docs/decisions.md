@@ -132,6 +132,7 @@
     LINE, exactly one rep per line. Default, can change: the sales rep
     defaults to the lead owner and can be changed at sale.
     Changed by #97, #98: when a follow-up assignee (or the new-branch SE) converts, they are the sales rep by default; the owner never changes by this.
+    Changed by #107: the sales rep default = the person creating the sale (everywhere, incl. Premium PT); the dropdown lists users with `sales.rep` in any branch; every change = SalesRepChanged event.
 37. Follow-up statuses: Open, Done (staff did it), Cancelled (by staff, with a
     reason), Closed by system (reason: Client converted / Lead lost / Client
     transferred). The system never marks a follow-up Done. Owners of
@@ -633,3 +634,35 @@
     Premium PT change: see #92, #93.
     Parked (later phase): Q2 (PT upgrade trainer change: MXM and above, not SE), Q4, Q6, Q10, Q13, Q18, call + WhatsApp integration setup.
     Added 17 Nov (c6): client status by the later end, renewal per package (#27, #31) and PT on hold without an active membership (#42, #83).
+104. Lead lifecycle foundation (18 Nov 2026, c8; spec: docs/lead-lifecycle.md). Two dimensions: STAGE (New, Contacted,
+    Trial, Negotiation, Lost; Converted = becomes a Client) and OWNERSHIP (owner, or Unassigned + reason New / Released;
+    more reasons later; clients use the same model for renewals later). Every state change is an EVENT
+    { type, from, to, reason, remark, byUserId, at, branchId }; the timeline is built from events. Old dummy timelines stay
+    text; only new actions write events. Logic never checks a role name (#96): new grid rows `leads.own` "Can own leads"
+    and `sales.rep` "Can be sales rep" (SE, SM, CM, RM, CEO yes, CEO locked; MXM, TR, FIN no) replace the hard-coded role
+    lists (owner lists, follow-up person, release / pick lists, sales rep list). Trial approver dropdown = staff of the lead's
+    branch with `trials.approve` at BRANCH scope only (All-scope, e.g. CEO, never listed; CEO can approve any). Trainer =
+    user with a trainer type. New roles (e.g. Finance Manager, HR) are added by us; tenants don't create roles. Demo-only
+    role-name checks are listed as debt in the lifecycle doc.
+105. Cross-branch follow-up. Another branch's lead is found only by the FULL mobile number (across branches, like the
+    duplicate check) and opens READ-ONLY: name, full mobile, owner "Owner: Arjun Nair (Sec 65)", branch, stage, timeline;
+    no actions. Grid row `leads.crossBranchFollowUp` (SE, SM, CM, RM yes; CEO locked): "Add a follow-up for myself"; via
+    #97 my open follow-up makes the lead "Own" for me (full profile + my role's actions: Book trial, Convert). Other
+    branches' leads never show in the normal list.
+106. Sell here + owner-change setting. Grid row `sales.sellCrossBranch` (same defaults; needs `leads.crossBranchFollowUp`):
+    "Sell here" = add my follow-up + open Convert, remark required. Setting "When another branch's staff works on a lead,
+    owner changes" = On sale (default) / On first follow-up / Never (CEO). On the trigger: the lead moves to that staff's
+    branch, owner = that staff, the old owner's open follow-ups / tasks "Closed by system · Taken over by <branch>", an
+    event for each; the inactivity clock restarts (#99 / #100). "On first follow-up" fires on the cross-branch follow-up
+    AND on Sell here. "Never": owner and branch stay; the seller is only the sales rep. Cancel of Sell here changes
+    nothing except a SellHereCancelled event.
+107. Sales rep default = the person creating the sale, everywhere incl. Premium PT (replaces the #103 "lead owner"
+    default); the PT quote trainer is separate. Dropdown = users with `sales.rep` in ANY branch. Every change =
+    SalesRepChanged event. No separate permission (#36 changed).
+108. Notification rules (Settings › Roles & permissions › Notification rules): event x role (RM, CM, SM), a checkbox per
+    cell, CEO edits (audited). Events: Lead transferred in, Lead released (inactive), Cross-branch work on a lead
+    (follow-up / sale). Default CM only. Each role gets only its own branch(es). Directly involved people (owner, old
+    owner, approver) are ALWAYS notified (locked). Shown in the bell. More events later (PT quote requested, Client
+    assigned to you).
+109. Transferred-in pick (#98): the "Pick follow-up person" modal has "Make them owner" (ticked by default) -> the owner
+    change rules (#99), event OwnerChanged reason TransferPick. The person list = staff of the branch with `leads.own`.

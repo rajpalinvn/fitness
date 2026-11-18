@@ -1,0 +1,221 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c8: lead lifecycle (#104-#109): events, leads.own / sales.rep, cross-branch follow-up + Sell here, owner-change setting,
+// notification rules, Make them owner on transfer pick, rep default = creator, approvers at Branch scope only.
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", MOB = "9000001274";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; } function D() { return W().DUMMY; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function type(sel, v, ev) { var e = q(sel); if (!e) throw new Error("missing " + sel); e.value = v; e.dispatchEvent(new (W().Event)(ev || "input", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function person(id) { return A().byId(D().people, id); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function types(pid) { return A().Event.of(pid).map(function (e) { return e.type + (e.reason ? ":" + e.reason : ""); }); }
+function next() { click(q('#sellMode [data-cv="next"]')); }
+function sellThrough(ff) {
+  var picked = false;
+  for (var i = 0; i < 10; i++) {
+    var fin = q('#sellMode [data-cv="finish"]'); if (fin) { click(fin); return true; }
+    if (!picked && q("#sellMode [data-pkglist]")) {
+      var b = q('#sellMode [data-pkg]:not([disabled])'); if (!b) { click(q('#sellMode [data-acc="Membership"]')); b = q('#sellMode [data-pkg]:not([disabled])'); }
+      click(b); picked = true;
+    }
+    var g = q("#cvGender"); if (g && !g.value) { g.value = "Male"; g.dispatchEvent(new (W().Event)("change", { bubbles: true })); } 
+    if (q("#cvFf") && !q("#cvFf").value) { type("#cvFf", ff); var nf = q('#sellMode [data-fob=""]'); if (nf) click(nf); }
+    next();
+  }
+  return false;
+}
+function leaveMode() { var b = q("#sellMode [data-dm-back]"); if (b) click(b); }
+function start(roleName, settings, cb) {
+  load(LEADS, function () {
+    ["mock.perms", "mock.settings", "mock.audit", "mock.notifyRules"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+    if (settings) W().sessionStorage.setItem("mock.settings", JSON.stringify(settings));
+    W().sessionStorage.setItem("mock.role", roleName); W().sessionStorage.setItem("mock.branch", "all");
+    load(LEADS, cb);
+  });
+}
+// p41 Farhan (Sec 65, owner Arjun u7). Give Arjun an open follow-up so "Taken over" has something to close.
+function arjunFu() { D().followUps.push({ id: "fT1", personId: "p41", type: "Call", dueDate: A().todayIso(), dueTime: null, ownerUserId: "u7", assignedToUserId: "u7", status: "Open", outcome: null, note: "x", createdAt: new Date().toISOString() }); }
+function sellHere(remark) {
+  A().openProfile("p41", { state: "normal" }); click(q('#profileDrawer [data-pd="sellHere"]'));
+  if (remark != null) type("#crossRemark", remark);
+  click(q('#crossModal [data-save]'));
+}
+var queue = [];
+function run() { var t = queue.shift(); if (!t) { document.getElementById("out").textContent = out.join("\n"); return; } t(run); }
+
+// 1. grid rows + role lists + approvers
+queue.push(function (nx) { start("CEO", null, function () {
+  step("grid rows (#104)", function () {
+    var P = A().Perm;
+    ["leads.own", "sales.rep", "leads.crossBranchFollowUp", "sales.sellCrossBranch"].forEach(function (k) {
+      ok(k + ": SE/SM/CM/RM/CEO yes, TR/MXM/FIN no", ["SE", "SM", "CM", "RM", "CEO"].every(function (s) { return P.get(s, k) === true; }) && ["TR", "MXM", "FIN"].every(function (s) { return !P.get(s, k); }));
+    });
+    ok("CEO cells locked", /CEO has every permission/.test(P.lockReason("CEO", "sales.sellCrossBranch")));
+    var own = A().usersWith("leads.own").map(function (u) { return u.id; });
+    ok("owner list from leads.own: no Trainer / MXM / Finance / SuperAdmin", own.indexOf("u8") < 0 && own.indexOf("u9") < 0 && own.indexOf("u12") < 0 && own.indexOf("u1") < 0 && own.indexOf("u6") > -1 && own.indexOf("u3") > -1);
+    P.save([{ short: "MXM", key: "leads.own", value: true }]);
+    ok("tick MXM leads.own -> Meera (MXM) appears in the owner list", A().usersWith("leads.own").some(function (u) { return u.id === "u9"; }));
+    ok("sales.rep list = all branches", A().usersWith("sales.rep").some(function (u) { return u.id === "u7"; }) && A().usersWith("sales.rep").some(function (u) { return u.id === "u10"; }));
+    ok("trainer = has a trainer type", A().isTrainer(A().byId(D().users, "u8")) && !A().isTrainer(A().byId(D().users, "u6")));
+  });
+  step("approver dropdown: Branch scope only (#104)", function () {
+    var ap = A().Trial.approvers(person("p1")).map(function (u) { return u.id; });
+    ok("Sec 31 approvers: SM, CM, RM; never CEO (All)", ap.indexOf("u2") < 0 && ap.indexOf("u4") > -1 && ap.indexOf("u5") > -1 && ap.indexOf("u3") > -1, ap.join());
+    A().Perm.save([{ short: "CM", key: "trials.approve", value: "All" }]);
+    ok("CM at All scope -> not listed", A().Trial.approvers(person("p1")).every(function (u) { return u.id !== "u4"; }));
+  });
+  step("setting + notification rules tab", function () {
+    ok("setting default 'On sale', options On sale / On first follow-up / Never", A().setting("crossBranchOwnerChange") === "On sale" && D().settingDefs.filter(function (d) { return d.key === "crossBranchOwnerChange"; })[0].options.join() === "On sale,On first follow-up,Never");
+    var R = A().Notify.rules();
+    ok("notification defaults: CM only", ["transferIn", "released", "crossBranch"].every(function (k) { return R[k].CM && !R[k].RM && !R[k].SM; }));
+    ok("b2 cross-branch: only the owner (no CM in Sec 65)", A().Notify.recipients("crossBranch", "b2", ["u7"]).join() === "u7");
+    ok("b1 transfer in: CM Sunita + owner", A().Notify.recipients("transferIn", "b1", ["u7"]).sort().join() === "u4,u7");
+    A().Notify.save("crossBranch", "RM", true);
+    ok("tick RM -> Vikram (RM of Sec 31 + Sec 65) gets b2 cross-branch", A().Notify.recipients("crossBranch", "b2", ["u7"]).indexOf("u3") > -1);
+    ok("RM not for b3 (not his branch)", A().Notify.recipients("crossBranch", "b3", []).indexOf("u3") < 0);
+    ok("rule change audited", A().Perm.auditLog()[0].tab === "Notification rules");
+  });
+  nx();
+}); });
+
+// 2. read-only without the row; full-mobile search
+queue.push(function (nx) { start("Sales Executive", null, function () {
+  step("search + read-only (#105)", function () {
+    ok("normal list never shows another branch's lead", !q('#rows tr[data-id="p41"]'));
+    type("#fSearch", MOB);
+    setTimeout(function () {}, 0);
+  });
+  setTimeout(function () {
+    step("read-only row + profile", function () {
+      ok("full mobile -> read-only row 'Found in another branch'", /Found in another branch · read only/.test(text("[data-cross-hits]")) && !!q('[data-ro-row="p41"]'), text("#tableBox") );
+      click(q('[data-ro-open="p41"]')); A().openProfile("p41", { state: "normal" });
+      ok("profile read only: name, full mobile, owner, branch, stage, timeline", /Owner: Arjun Nair \(Sec 65\)/.test(text("[data-ro-box]")) && /90000 01274/.test(text(".pd-mobile")) && /Contacted/.test(text(".pd-kv")) && !!q('[data-tab-k="timeline"]'));
+      ok("no actions: no composer, no Convert, no Call / quick actions, only Timeline tab", !q("[data-composer]") && !q('[data-pd="convert"]') && !q('[data-pd="call"]') && qa(".pd-tabs .tab").length === 1);
+      ok("with the row: Add a follow-up for myself + Sell here", !!q('[data-pd="crossFu"]') && !!q('[data-pd="sellHere"]'));
+      ok("no bad text", !badText(), badText());
+      A().closeProfile();
+      A().Perm.save([{ short: "SE", key: "leads.crossBranchFollowUp", value: false }]);
+      A().openProfile("p41", { state: "normal" });
+      ok("without leads.crossBranchFollowUp: read only, no buttons (Sell here needs the row too)", !!q("[data-ro-box]") && !q('[data-pd="crossFu"]') && !q('[data-pd="sellHere"]'));
+      A().closeProfile();
+    });
+    nx();
+  }, 600);
+}); });
+
+// 3. cross-branch follow-up gives Own (setting On sale: owner stays)
+queue.push(function (nx) { start("Sales Executive", null, function () {
+  step("cross-branch follow-up (#105, #97)", function () {
+    arjunFu();
+    A().openProfile("p41", { state: "normal" }); click(q('#profileDrawer [data-pd="crossFu"]'));
+    type("#crossRemark", "walked in at Sec 31");
+    click(q('#crossModal [data-save]'));
+    var p = person("p41");
+    ok("my follow-up -> lead is Own for me (full profile, Convert, Book trial)", A().canSee(p) && A().scopeAllows("sales.convert", p) && A().scopeAllows("trials.book", p) && !!q('#profileDrawer [data-pd="convert"]') && !q("[data-ro-box]"));
+    ok("On sale: owner + branch unchanged after a follow-up", p.ownerUserId === "u7" && p.branchId === "b2");
+    ok("event FollowUpAssigned:CrossBranch", types("p41").indexOf("FollowUpAssigned:CrossBranch") > -1, types("p41").join());
+    ok("timeline in human words", /Priya \(Sec 31\) added a follow-up for themselves · walked in at Sec 31/.test(text("#profileDrawer")));
+    ok("owner Arjun notified (directly involved)", D().notifications.some(function (n) { return n.event === "crossBranch" && n.toUserIds.indexOf("u7") > -1; }));
+    A().closeProfile();
+  });
+  nx();
+}); });
+
+// 4. Sell here, On sale
+queue.push(function (nx) { start("Sales Executive", null, function () {
+  step("Sell here · On sale (#106)", function () {
+    arjunFu();
+    A().openProfile("p41", { state: "normal" }); click(q('#profileDrawer [data-pd="sellHere"]'));
+    click(q('#crossModal [data-save]'));
+    ok("remark required", /Add a remark/.test(text("#crossModal")) && !q("#sellMode"));
+    type("#crossRemark", "joins today at Sec 31"); click(q('#crossModal [data-save]'));
+    ok("Convert opens in the drawer work mode", !!q("#sellMode"));
+    ok("rep default = the creator (Priya), list has other branches", q("#cvRep") ? q("#cvRep").value === "u6" : A().Convert.defaultRep(person("p41")) === "u6");
+    ok("sold to the end", sellThrough("FF-80001"));
+    var p = person("p41"), t = types("p41");
+    ok("Client; lead moved to Sec 31; owner = Priya; rep = Priya", p.kind === "Client" && p.branchId === "b1" && p.ownerUserId === "u6" && p.membership.salesRepUserId === "u6", [p.kind, p.branchId, p.ownerUserId].join());
+    ok("Arjun's open follow-up closed 'Taken over by Sec 31'", A().byId(D().followUps, "fT1").status === "Closed by system" && /Taken over by Sec 31/.test(A().byId(D().followUps, "fT1").closeReason));
+    ok("events: SellHereStarted, FollowUpClosed, BranchMoved, OwnerChanged:CrossBranch, Converted", ["SellHereStarted", "FollowUpClosed:System", "BranchMoved:CrossBranch", "OwnerChanged:CrossBranch", "Converted"].every(function (x) { return t.indexOf(x) > -1; }), t.join());
+    ok("ownership clock restarts (owned since now)", A().daysFromToday(A().ownedSince(p)) === 0);
+  });
+  leaveMode(); A().closeProfile(); nx();
+}); });
+
+// 5. Sell here, On first follow-up
+queue.push(function (nx) { start("Sales Executive", { crossBranchOwnerChange: "On first follow-up" }, function () {
+  step("Sell here · On first follow-up", function () {
+    arjunFu(); sellHere("walk-in");
+    var p = person("p41");
+    ok("takeover at the follow-up (before the sale)", p.kind === "Lead" && p.branchId === "b1" && p.ownerUserId === "u6" && A().byId(D().followUps, "fT1").status === "Closed by system");
+    ok("sold to the end", sellThrough("FF-80002"));
+    ok("Client in Sec 31, owner + rep Priya", p.kind === "Client" && p.branchId === "b1" && p.membership.salesRepUserId === "u6");
+  });
+  leaveMode(); A().closeProfile(); nx();
+}); });
+
+// 6. Sell here, Never
+queue.push(function (nx) { start("Sales Executive", { crossBranchOwnerChange: "Never" }, function () {
+  step("Sell here · Never", function () {
+    arjunFu(); sellHere("walk-in");
+    ok("sold to the end", sellThrough("FF-80003"));
+    var p = person("p41");
+    ok("owner + branch stay (Arjun, Sec 65); seller only the sales rep", p.kind === "Client" && p.branchId === "b2" && p.ownerUserId === "u7" && p.membership.salesRepUserId === "u6");
+    ok("Arjun's follow-up not taken over", A().byId(D().followUps, "fT1").closeReason !== "Taken over by Sec 31");
+  });
+  leaveMode(); A().closeProfile(); nx();
+}); });
+
+// 7. cancel changes nothing
+queue.push(function (nx) { start("Sales Executive", null, function () {
+  step("Sell here cancel", function () {
+    sellHere("walk-in");
+    leaveMode();
+    var p = person("p41");
+    ok("cancel: still a Sec 65 lead owned by Arjun", p.kind === "Lead" && p.branchId === "b2" && p.ownerUserId === "u7");
+    ok("only a SellHereCancelled event", types("p41").indexOf("SellHereCancelled") > -1 && types("p41").indexOf("OwnerChanged:CrossBranch") < 0);
+  });
+  A().closeProfile(); nx();
+}); });
+
+// 8. Make them owner on the transfer pick (#109) + notification to CM
+queue.push(function (nx) { start("Club Manager", null, function () {
+  step("transfer pick: Make them owner", function () {
+    ok("transferred-in dummy: CM sees the notification", A().Notify.mine().some(function (n) { return /Kiran Joshi transferred in/.test(n.text); }));
+    A().Lead.pickPerson("p34");
+    ok("'Make them owner' ticked by default", q("#pickOwner") && q("#pickOwner").checked);
+    var s = q("#pickSe"); s.value = "u6"; s.dispatchEvent(new (W().Event)("change", { bubbles: true }));
+    click(q('#pickModal [data-save]'));
+    var om = q('#ownerModal [data-save]'); if (om && !q("#ownerModal").hidden && q("#ownerModal").classList.contains("open")) click(om);
+    var p = person("p34");
+    ok("Priya is owner + follow-up person", p.ownerUserId === "u6" && !p.transferredIn, p.ownerUserId);
+    ok("event OwnerChanged reason TransferPick", types("p34").indexOf("OwnerChanged:TransferPick") > -1, types("p34").join());
+    ok("SE does not see the CM notification", (function () { A().setRole("Sales Executive"); return !A().Notify.mine().some(function (n) { return /Kiran Joshi transferred in/.test(n.text); }); })());
+  });
+  nx();
+}); });
+
+// 9. rep default = creator (not the owner) + SalesRepChanged
+queue.push(function (nx) { start("Sales Manager", null, function () {
+  step("sales rep (#107)", function () {
+    var p = person("p1");
+    ok("default = the creator (Karan, SM) though owner is " + A().userName(p.ownerUserId), A().Convert.defaultRep(p) === "u5");
+    A().openProfile("p1", { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]'));
+    var guard = 0; while (!q("#cvRep") && guard++ < 7) { var g = q("#cvGender"); if (g && !g.value) { g.value = "Male"; g.dispatchEvent(new (W().Event)("change", { bubbles: true })); }  if (q("#sellMode [data-pkglist]")) { var b = q('#sellMode [data-pkg]:not([disabled])'); if (!b) { click(q('#sellMode [data-acc="Membership"]')); b = q('#sellMode [data-pkg]:not([disabled])'); } click(b); } if (!q("#cvRep")) next(); }
+    ok("rep dropdown: users with sales.rep in any branch, me first", !!q("#cvRep") && q("#cvRep").value === "u5" && !!q('#cvRep option[value="u10"]') && !q('#cvRep option[value="u8"]'));
+    var r = q("#cvRep"); r.value = "u6"; r.dispatchEvent(new (W().Event)("change", { bubbles: true }));
+    ok("sold to the end", sellThrough("FF-80004"));
+    ok("SalesRepChanged event (Karan -> Priya)", A().Event.of("p1", "SalesRepChanged").some(function (e) { return e.from === "u5" && e.to === "u6"; }) && person("p1").membership.salesRepUserId === "u6");
+  });
+  leaveMode(); A().closeProfile(); nx();
+}); });
+
+run();
+</script></body></html>

@@ -136,5 +136,11 @@ Inactivity release is computed on page load in the mockup (real app: daily job) 
 
 Dummy (c4): p28 Varun (Rahul's, follow-up assigned to Priya), p29 Tanvi (Priya's follow-up Done → hidden from her), p30 Gaurav (Releases tomorrow), p31 Meghna (released on load), p32 Rohan (overdue 9 + trial running → never released), p33 Asha (assigned today, follow-up overdue 10 → not released), p34 Kiran (Transferred in, waiting for Sunita), p35 Lakshmi (taken by Sunita), p36 Yash (Unassigned · Released), p37 Sana (Karan's lost lead with an open task), p38 Dev (Priya's, + Arjun's own follow-up that must not move), p8 Fatima (Unassigned · New, Meta), p14 Neha (Unassigned · New).
 
+### Lifecycle and cross-branch work (c8, #104–#106; spec docs/lead-lifecycle.md)
+- Owner lists (Assign, Quick lead, bulk change, move / pick person) = users with `leads.own` (no role names).
+- **Search by the FULL mobile number** finds another branch's lead as a read-only row "Found in another branch · read only" (name, mobile, branch, stage, owner) + **Open (read only)**. Other branches' leads never show in the normal list.
+- Read-only profile: everything visible, no actions; with `leads.crossBranchFollowUp`: **Add a follow-up for myself**; with `sales.sellCrossBranch` too: **Sell here** (remark required, then Convert). Owner change on the trigger follows the setting On sale / On first follow-up / Never.
+- Dummy: p41 Farhan Qureshi (Sec 65, owner Arjun), search 9000001274 as Sales Executive (Priya, Sec 31).
+
 ## 5. Status
 Ready for review
