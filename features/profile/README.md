@@ -118,5 +118,14 @@ Saving adds "<name> updated <fields>" to the timeline.
 | Sell here | modal: remark (required) → Convert work mode | Needs `sales.sellCrossBranch`. Event SellHereStarted; Back without saving = SellHereCancelled, nothing else changes. |
 | Takeover (setting) | system | Lead moves to my branch, I become owner, old owner's open follow-ups "Closed by system · Taken over by <branch>"; timeline "Taken over by Priya (Sec 31) from Arjun (Sec 65)". |
 
+### PT quote box (c9, #111) — leads only
+| Field / part | Type | Required | Notes |
+|---|---|---|---|
+| PT quote box | callout | — | Open request ("Requested from Meera by Rahul · note"), Open / Expired quotes with status badges and Cancel (creator or `pt.quote` Branch user). |
+| Request PT quote (SE) | modal: Ask (select, preselected if only one), Note (text) | Ask, Note | Ask = the person's branch staff with `pt.quote` at Branch scope. One open request per person. Event QuoteRequested + bell. |
+| Create PT quote (CM / MXM) | modal: Package (Premium PT), Trainer, Discount [% / ₹] + reason, Valid till (read-only, Settings), Note, "Book a PT trial with this trainer" | Package, Trainer; reason if discount | Discount limit = the creator's own % + ₹ cap on the PT part. Closes the open request. |
+| View only · PT quote | profile mode | — | Asked person / quote creator without `leads.view`: view + quote actions only. |
+| Book trial (PT) | step "Trainer" | Trainer, Comment | Only `pt.quote` users; no approval; info "Nth PT trial · last on <date>". |
+
 ## 5. Status
 Ready for review

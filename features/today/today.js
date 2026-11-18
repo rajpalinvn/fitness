@@ -55,6 +55,9 @@
       .sort(function (a, b) { return new Date(a.transferredIn.at) - new Date(b.transferredIn.at); });
   }
   function pendingRole() { return App.can("clients.view") !== "None"; }
+  // PT quote requests (#111): for pt.quote users, the open requests asked from ME.
+  function quoteRole() { return App.can("pt.quote") !== "None"; }
+  function quoteReqs() { var u = me(); return quoteRole() && u ? D.quoteRequests.filter(function (r) { return r.status === "Open" && r.askedUserId === u.id; }) : []; }
   function approvalsRole() { return App.can("trials.approve") !== "None"; }
   function approvals() { return approvalsRole() ? App.Trial.pendingApprovals().filter(function (x) { return inTopBranch(x.p); }) : []; }
   function pending() {
@@ -121,6 +124,14 @@
           sub: "From " + esc(App.branchName(t.from)) + " → " + esc(App.branchName(p.branchId)) + " · by " + esc(App.firstName(App.byId(D.users, t.by))) + " · owner " + esc(App.firstName(App.byId(D.users, p.ownerUserId))),
           status: '<span class="badge badge-warning">Transferred in</span>', action: btn("pick", "Pick person", { p: p.id }) });
       } },
+    { k: "quotes", area: "q", t: "PT quote requests", ic: "note", tone: "amber", get: quoteReqs, words: "asked from you", show: quoteRole,
+      empty: "No PT quote requests", allToast: "All requests asked from you are listed here",
+      row: function (r) {
+        var p = App.byId(D.people, r.personId);
+        return row({ open: p.id, title: esc(p.name) + ' <span class="muted">· ' + esc(p.stage) + "</span>",
+          sub: "From " + esc(App.firstName(App.byId(D.users, r.byUserId))) + " · " + esc(App.fmtShortWhen(r.at)) + " · " + esc(App.branchName(p.branchId)) + '<div class="cell-sub">“' + esc(r.note) + "”</div>",
+          status: '<span class="badge badge-warning">Quote requested</span>', action: App.Quote.canCreate(p) ? btn("quote", "Create quote", { p: p.id }) : "" });
+      } },
     { k: "approvals", area: "v", t: "Trial approvals pending", ic: "clock", tone: "amber", get: approvals, words: "trials asked from you", show: approvalsRole,
       empty: "No trial approvals waiting", allToast: "All pending approvals are listed here",
       row: function (x) {
@@ -149,7 +160,7 @@
     var corp = items.filter(function (i) { return i.k === "addFf" || i.k === "goFob"; }), rest = items.filter(function (i) { return i.k !== "addFf" && i.k !== "goFob"; });
     return (corp.length ? '<span class="corp-label">' + esc(App.CORP_LABEL) + "</span>" + corp.map(b).join("") : "") + rest.map(b).join("");
   }
-  function visible() { return SECTIONS.filter(function (s) { return (s.show ? s.show() : true) && (leadsRole() || s.k === "tasks"); }); }
+  function visible() { return SECTIONS.filter(function (s) { return (s.show ? s.show() : true) && (leadsRole() || s.k === "tasks" || s.k === "quotes"); }); }
 
   // ---------- render ----------
   function greeting() {
@@ -210,6 +221,7 @@
       if (d.act === "assign") App.Lead.assign(d.p);
       if (d.act === "take") App.Lead.take(d.p);
       if (d.act === "pick") App.Lead.pickPerson(d.p);
+      if (d.act === "quote") App.QuoteUI.create(d.p);
       if (d.act === "ff") App.addFfId(d.p);
       if (d.act === "fob") App.assignFob(d.p);
       if (d.act === "issue") App.issueItem(d.p, d.item);

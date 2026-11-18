@@ -69,6 +69,7 @@ load(LEADS, function () {
       leave();
     });
     step("discount % + ₹ cap (Q22)", function () {
+      grid("SM", "sales.sellPTDirect", true);   // c9: Premium PT directly only with this row (#110); here to test the cap
       role("Sales Manager");
       ok("SM rule 20% · ₹5,000", A().discountRule().pct === 20 && A().discountRule().cap === 5000 && A().discountRuleText() === "Max 20% · ₹5,000 for your role");
       ok("lower applies: ₹1,00,000 line -> ₹5,000 (cap); ₹20,000 line -> ₹4,000 (%)", A().discountMaxAmount(100000) === 5000 && A().discountMaxAmount(20000) === 4000);

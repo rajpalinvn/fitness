@@ -216,6 +216,12 @@
   Trial.cardState = function (p, pk) {
     var type = Trial.typeOf(pk), price = pk.price, perPerson = App.setting("freeTrialsPerPerson"), perBranch = App.setting("freeTrialsPerBranch");
     if (Trial.running(p, type).length) return { disabled: true, why: "A " + App.Trial.label(type) + " trial is already running" };
+    // PT trials (#94 changed by #112): CM / MXM assessments. No limit by default (Settings "PT trials per person", 0 = no limit), no approval.
+    if (type === "PT") {
+      var lim = Number(App.setting("ptTrialsPerPerson")) || 0, cnt = Trial.countOfType(p, "PT");
+      if (lim && cnt >= lim) return { disabled: true, why: cnt + " of " + lim + " PT trials used" };
+      return { disabled: false, count: cnt, pt: true, limit: lim };
+    }
     if (price > 0) return { disabled: false, count: Trial.countOfType(p, type) };
     var used = Trial.freeUsed(p, type), atBranch = Trial.freeUsed(p, type, p.branchId);
     if (used >= perPerson) return { disabled: true, why: used + " of " + perPerson + " free " + App.Trial.label(type) + " trials used" };
@@ -223,8 +229,10 @@
     return { disabled: false, used: used, perPerson: perPerson, count: Trial.countOfType(p, type) };
   };
   // Who may book: trials.book scope + the person's state (#94). Returns { show, disabled, why }.
+  // PT trials only by pt.quote users (#112); membership trials by trials.book.
+  Trial.canBookPT = function (p) { return !!p && App.scopeAllows("pt.quote", p, { strictOwn: true }); };
   Trial.canBook = function (p) {
-    if (!p || !App.scopeAllows("trials.book", p)) return { show: false };
+    if (!p || !(App.scopeAllows("trials.book", p) || Trial.canBookPT(p))) return { show: false };
     if (p.kind === "Client") { var ms = App.membershipStatus(p.membership); return ms && ms.cls !== "red" ? { show: true, disabled: false } : { show: false }; }
     if (p.stage === "Lost") return { show: true, disabled: true, why: "Re-open the lead first" };
     if (p.stage === "Converted") return { show: false };
@@ -249,7 +257,7 @@
   Trial.byId = function (id) { for (var i = 0; i < DUMMY.people.length; i++) { var t = App.byId(Trial.list(DUMMY.people[i]), id); if (t) return { p: DUMMY.people[i], t: t }; } return null; };
   // Pending approvals for the View-as user: asked from me, or every pending one for the CEO (incl. "No approver available").
   Trial.pendingApprovals = function () {
-    var me = App.demoUser(), ceo = App.state.role === "CEO", out = [];
+    var me = App.demoUser(), ceo = App.can("trials.approve") === "All", out = [];   // c9: All scope sees every pending one (no role name)
     if (!me || App.can("trials.approve") === "None") return out;
     DUMMY.people.forEach(function (p) { Trial.list(p).forEach(function (t) {
       if (t.approval !== "Pending" && t.approval !== "No approver available") return;
@@ -270,6 +278,7 @@
   };
   Trial.approvalBadge = function (t) {
     var a = t.approval;
+    if (a === "Not needed") return "";   // PT trial: the CM / MXM booker decides (#112)
     return a === "Approved" ? '<span class="badge badge-success">Approved</span>' : a === "Rejected" ? '<span class="badge badge-danger">Rejected</span>'
       : a === "No approver available" ? '<span class="badge badge-warning">No approver available</span>' : '<span class="badge badge-warning">Approval pending</span>';
   };
@@ -553,7 +562,13 @@
     return open[0] || null;
   };
   // Lead visibility from the grid: leads.view; a lost lead needs leads.viewLost; an unassigned lead needs leads.viewUnassigned.
+  // Quote access (#110): an open request (asked person) or an Open quote (creator) opens the person even with leads.view = None,
+  // but ONLY view + quote actions (App.Quote.viewOnly). canSeeGrid = the grid alone.
   App.canSee = function (p) {
+    if (App.canSeeGrid(p)) return true;
+    var me = App.demoUser(); return !!(App.Quote && me && p && p.kind === "Lead" && App.Quote.access(p, me.id));
+  };
+  App.canSeeGrid = function (p) {
     if (p.stage === "Lost") return App.scopeAllows("leads.viewLost", p);
     if (App.isAssigneeOnly(p)) return App.can("leads.view") !== "None";
     if (!p.ownerUserId) return App.scopeAllows("leads.viewUnassigned", p);
@@ -734,6 +749,60 @@
     return u.branchIds.indexOf(App.state.branchId) > -1 ? App.state.branchId : u.branchIds[0];
   };
   App.Cross = Cross;
+
+  // ---------- PT quotes (#110–#113) ----------
+  // Request (SE) -> quote (CM / MXM: package, trainer, price, discount within the CREATOR's limit, valid till) -> the SE bills it LOCKED.
+  var Quote = {};
+  Quote.list = function (pid) { return DUMMY.ptQuotes.filter(function (q) { return q.personId === pid; }); };
+  Quote.byId = function (id) { return App.byId(DUMMY.ptQuotes, id); };
+  Quote.openRequest = function (pid) { return DUMMY.quoteRequests.filter(function (r) { return r.personId === pid && r.status === "Open"; })[0] || null; };
+  Quote.isOpenLead = function (p) { return !!p && p.kind === "Lead" && p.stage !== "Lost" && p.stage !== "Converted"; };
+  // Ask list: staff of the person's branch with pt.quote at BRANCH scope (CM / MXM / RM); All-scope (CEO) never listed.
+  Quote.askable = function (p) {
+    return DUMMY.users.filter(function (u) { var r = Perm.roleByName(u.role); return r && !u.platform && u.branchIds.indexOf(p.branchId) > -1 && Perm.get(r.short, "pt.quote") === "Branch"; });
+  };
+  // Trainers: users with an ACTIVE trainer type that can take PT, of the person's branch (PT at the home branch, A8).
+  Quote.trainers = function (p) {
+    var tts = Perm.trainerTypes();
+    return DUMMY.users.filter(function (u) {
+      var tt = u.trainerTypeId && tts.filter(function (t) { return t.id === u.trainerTypeId; })[0];
+      return tt && tt.active && tt.canTakePT && u.branchIds.indexOf(p.branchId) > -1;
+    });
+  };
+  Quote.access = function (p, uid) {
+    if (!p || !uid) return false;
+    var r = Quote.openRequest(p.id);
+    return !!(r && r.askedUserId === uid) || Quote.list(p.id).some(function (q) { return q.status === "Open" && q.createdByUserId === uid; });
+  };
+  Quote.viewOnly = function (p) { var me = App.demoUser(); return !!p && p.kind === "Lead" && !App.canSeeGrid(p) && !!me && Quote.access(p, me.id); };
+  Quote.canCreate = function (p) { return Quote.isOpenLead(p) && App.scopeAllows("pt.quote", p, { strictOwn: true }); };
+  Quote.canRequest = function (p) {
+    return Quote.isOpenLead(p) && App.can("sales.sellFromQuote") === true && !Quote.canCreate(p) && !Quote.openRequest(p.id) && App.canSeeGrid(p);
+  };
+  Quote.canCancel = function (q) {
+    var me = App.demoUser(), p = App.byId(DUMMY.people, q.personId), s = App.can("pt.quote");
+    return q.status === "Open" && !!me && (q.createdByUserId === me.id || ((s === "Branch" || s === "All") && App.scopeAllows("pt.quote", p, { strictOwn: true })));
+  };
+  // Money of a quote: price + reference (Premium PT) + discount on the PT part only (#103).
+  Quote.money = function (q) {
+    var base = q.price - (q.refPrice || 0), disc = q.discount || 0;
+    return { price: q.price, ref: q.refPrice || 0, base: base, disc: disc, final: q.price - disc };
+  };
+  Quote.validTillDefault = function () { var d = new Date(); d.setDate(d.getDate() + Number(App.setting("ptQuoteValidDays") || 7)); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); };
+  Quote.statusBadge = function (q) {
+    var c = { Open: "badge-success", Used: "badge-info", Expired: "badge-danger", Cancelled: "" }[q.status];
+    return '<span class="badge ' + c + '" data-quote-status="' + q.status + '">' + q.status + (q.status === "Open" ? " · valid till " + App.esc(App.fmtIsoDate(q.validTill)) : q.status === "Expired" ? " · " + App.esc(App.fmtIsoDate(q.validTill)) : "") + "</span>";
+  };
+  // MOCKUP: page-load job (the real app: daily). Open quotes past their valid-till date -> Expired + event (system).
+  Quote.expireRun = function () {
+    var t = App.todayIso(), n = 0;
+    DUMMY.ptQuotes.forEach(function (q) {
+      if (q.status === "Open" && q.validTill < t) { q.status = "Expired"; q.expiredAt = new Date().toISOString(); n++; App.Event.log(q.personId, { type: "QuoteExpired", from: "Open", to: "Expired", byUserId: null, text: "PT quote expired · " + q.package }); }
+    });
+    return n;
+  };
+  App.Quote = Quote;
+  Quote.expireRun();
   // Ownership badges, ONE place for the Leads list, Today and the profile (#97, #98, #100, L23):
   // "Follow-up from <owner>", "Releases tomorrow", "Transferred in", "Unassigned · New / Released".
   App.ownershipBadges = function (p, o) {

@@ -641,12 +641,13 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .today-card.tone-neutral { border-left-color: var(--color-info); }
 .today-card.tone-clear { border-left-color: var(--color-success); } .today-card.tone-clear .cell-sub { color: var(--color-success); display: inline-flex; gap: var(--space-1); align-items: center; }
 .today-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: start;
-  grid-template-areas: "a u" "t p" "x x" "v v" "k k"; }
-.today-grid.no-unassigned { grid-template-areas: "a p" "t p" "x x" "v v" "k k"; }
-.today-grid.no-transfer { grid-template-areas: "a u" "t p" "v v" "k k"; }
-.today-grid.no-unassigned.no-transfer { grid-template-areas: "a p" "t p" "v v" "k k"; }
+  grid-template-areas: "a u" "t p" "x x" "q q" "v v" "k k"; }
+.today-grid.no-unassigned { grid-template-areas: "a p" "t p" "x x" "q q" "v v" "k k"; }
+.today-grid.no-transfer { grid-template-areas: "a u" "t p" "q q" "v v" "k k"; }
+.today-grid.no-unassigned.no-transfer { grid-template-areas: "a p" "t p" "q q" "v v" "k k"; }
 .today-sec[data-area="x"] { grid-area: x; }
 .today-sec[data-area="v"] { grid-area: v; }
+.today-sec[data-area="q"] { grid-area: q; }
 .today-sec[data-area="a"] { grid-area: a; } .today-sec[data-area="t"] { grid-area: t; } .today-sec[data-area="k"] { grid-area: k; }
 .today-sec[data-area="u"] { grid-area: u; } .today-sec[data-area="p"] { grid-area: p; }
 .today-sec { padding: 0; overflow: hidden; scroll-margin-top: var(--space-5); }
@@ -667,7 +668,7 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .today-clear .ico { width: 40px; height: 40px; color: var(--color-success); }
 .today-clear h2 { margin: var(--space-2) 0; }
 @media (max-width: 1024px) {
-  .today-grid, .today-grid.no-unassigned, .today-grid.no-transfer, .today-grid.no-unassigned.no-transfer { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "t" "x" "v" "k" "u" "p"; }
+  .today-grid, .today-grid.no-unassigned, .today-grid.no-transfer, .today-grid.no-unassigned.no-transfer { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "t" "x" "q" "v" "k" "u" "p"; }
   .today-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .today-row { grid-template-columns: minmax(0, 1fr) auto; }
   .today-row .tr-status { grid-column: 1; grid-row: 2; justify-self: start; }

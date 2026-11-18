@@ -47,7 +47,7 @@ load(LEADS, function () {
       openP("p26"); click(q('[data-pd="trial"]'));
       ok("Ritika: 2 of 2 membership free trials used -> free membership trial disabled with the reason", card("pk1").disabled && /2 of 2 free membership trials used/.test(card("pk1").textContent));
       ok("paid membership trials still allowed (unlimited, count shown)", !card("pk2").disabled && /3rd membership trial/.test(card("pk2").textContent));
-      ok("free PT trial still allowed (limits per type)", !card("pk19").disabled && /0 of 2 free PT trials used/.test(card("pk19").textContent));
+      ok("PT trial: no limit by default, no approval (#112)", !card("pk19").disabled && /PT assessment · no approval · no limit/.test(card("pk19").textContent));
       key("Escape");
       openP("p5"); click(q('[data-pd="trial"]'));
       ok("Ishaan: membership trial running -> membership trials disabled 'already running'", card("pk1").disabled && /already running/.test(card("pk1").textContent) && card("pk2").disabled);
@@ -63,23 +63,23 @@ load(LEADS, function () {
       W().App.Perm.resetSettings(); key("Escape");
       ok("counted by mobile: Trial.freeUsed uses every record with the same mobile", T().freeUsed(person("p26"), "Membership") === 2 && T().freeUsed(person("p26"), "PT") === 0);
     });
-    step("book a free PT trial for Ritika: approval required fields", function () {
+    step("book a free PT trial for Ritika: trainer, no approval (#112)", function () {
       openP("p26"); click(q('[data-pd="trial"]'));
       next(); ok("package required", /Choose a trial package/.test(mtext()));
       click(card("pk19"));
       ok("2nd-trial warning counts the same type only (PT: no warning)", !/This is their/.test(mtext()));
       next(); ok("dates step: end = start", /Ends/.test(mtext()) && /start day included/.test(mtext()) && !q("#trialMode .cv-bill [data-total]"));
-      next(); ok("approval step: comment + 'Approval asked from' (Sec 31: Karan SM, Sunita CM, Vikram RM; never CEO)", !!q("#trComment") && /Karan Malhotra/.test(q("#trApprover").textContent) && /Sunita Iyer/.test(q("#trApprover").textContent) && /Vikram Rao/.test(q("#trApprover").textContent) && !/Anita Kapoor/.test(q("#trApprover").textContent));
-      finish(); ok("comment and approver required", /A comment is required/.test(mtext()) && /Choose who approval is asked from/.test(mtext()));
-      type("#trComment", "Wants a PT taste"); pickSel("trApprover", "u5");
+      next(); ok("PT: step 'Trainer' (no approval): trainer of Sec 31 (Deepak) + comment", !!q("#trComment") && !!q("#trTrainer") && !q("#trApprover") && /Deepak Verma/.test(q("#trTrainer").textContent) && /Trainer/.test(text("#trialMode .stepper")));
+      finish(); ok("comment and trainer required", /A comment is required/.test(mtext()) && /Choose the trainer/.test(mtext()));
+      type("#trComment", "Wants a PT taste"); pickSel("trTrainer", "u8");
       ok("free trial: button = Book trial (no payment step)", /Book trial/.test(text('#trialMode [data-tr="finish"]')) && !qa("#trialMode .step")[3] || !/Payment/.test(text("#trialMode .stepper")));
       finish();
       var p = person("p26"), t = p.trials[p.trials.length - 1];
-      ok("trial record: PT, free, Pending, asked from Karan; stage -> Trial", t.type === "PT" && t.kind === "free" && t.approval === "Pending" && t.approverUserId === "u5" && p.stage === "Trial");
-      ok("timeline + notification to the approver", D().timeline.some(function (x) { return x.personId === "p26" && /Free PT trial booked · PT Trial Session/.test(x.text) && /approval asked from Karan/.test(x.text); }) && D().notifications.some(function (n) { return n.trialId === t.id && n.forUserId === "u5"; }));
-      ok("done screen shows Approval pending", /Approval pending/.test(mtext()));
+      ok("trial record: PT, free, approval 'Not needed', trainer Deepak; stage -> Trial", t.type === "PT" && t.kind === "free" && t.approval === "Not needed" && t.approverUserId === null && t.trainerUserId === "u8" && p.stage === "Trial");
+      ok("timeline 'trainer Deepak · no approval'; no approval notification", D().timeline.some(function (x) { return x.personId === "p26" && /Free PT trial booked · PT Trial Session/.test(x.text) && /trainer Deepak/.test(x.text) && /no approval/.test(x.text); }) && !D().notifications.some(function (n) { return n.trialId === t.id; }));
+      ok("done screen: no Approval pending", !/Approval pending/.test(mtext()));
       click(q('#trialMode [data-tr="done"]'));
-      ok("profile: PT trial badge + Approval pending; NEXT STEP trial line", /PT trial/.test(text(".pd-badges")) && /Approval pending/.test(text(".pd-badges")) && /Free PT trial · ends/.test(text(".next-step")));
+      ok("profile: PT trial badge, no approval badge; NEXT STEP trial line", /PT trial/.test(text(".pd-badges")) && !/Approval pending/.test(text(".pd-badges")) && /Free PT trial · ends/.test(text(".next-step")));
       ok("no bad text", !badText(), badText());
     });
     step("paid trial: full amount, no discount, no items; 2nd-trial warning", function () {
@@ -105,7 +105,7 @@ load(LEADS, function () {
     step("no approver available (Golf Course)", function () {
       openP("p27"); ok("Mohit: badge No approver available", /No approver available/.test(text(".pd-badges")));
       var p = person("p12"); // Rohit is a client at Sec 31; use a Golf Course lead instead
-      openP("p11"); click(q('[data-pd="trial"]')); click(card("pk19")); next(); next();
+      openP("p11"); click(q('[data-pd="trial"]')); click(card("pk1")); next(); next();
       ok("approval step: no dropdown, booking not blocked", !q("#trApprover") && /No approver available at Golf Course/.test(mtext()));
       type("#trComment", "No manager here"); finish();
       var t = person("p11").trials.slice(-1)[0];

@@ -374,6 +374,7 @@
     own Sell mode, only to a client who already has an active paid
     membership (PT longer than the membership: #42). May be revisited later.
     Changed by #92: Premium PT is the one package that sells membership + PT together (split into 2 lines at sale).
+    Changed by #110: PT / Premium PT are decided by CM / MXM in a PT quote; the SE bills the quote (locked). A lead quote can only be Premium PT. PT directly only with `sales.sellPTDirect` (CEO).
 90. Follow-up due dates keep the short human form ("today", "Tomorrow",
     "Tue, 10 Nov, 5:00 pm") everywhere they appear: list badges, NEXT STEP,
     Today, timeline and modals. Every other full date stays "12 Nov 2026"
@@ -413,6 +414,7 @@
     entry with "effective from" carries a new reference price; past sales
     keep theirs. Built in c2 (packages, Convert, Clients list).
     Changed by #103: Premium PT is a PT product; the membership inside it is an add-on (free or charged). Reference membership price 0 <= reference < price (₹0 = membership free; the ₹0 line still shows on the bill, no GST, because it drives client status, expiry and renewal). Discount applies ONLY to the PT line; the membership line always stays at the reference price (replaces the proportional split). ONE sales rep for the whole package (default = lead owner); the membership line stores it only as a reference, "incentive by scheme".
+    Changed by #113: a Premium PT sold from a quote carries the quote's trainer on the PT line (`trainerUserId`).
 93. Convert to Client (notes §1): offers Membership and Premium PT packages
     only (PT disabled #89; never trial packages). FF ID is mandatory; the
     key fob can be Pending; free items follow #67 (#46). Trials give
@@ -424,6 +426,7 @@
     → key fob deposit → membership line → PT line (PT sessions unlock from
     what reaches the PT line, #83). Built in c2.
     Changed by #103: Premium PT discount limit = min(% of the PT part (price − reference), cap), never more than the PT line; one sales rep select; paid PT trial adjust still goes to the PT line; allocation accessories → fob → membership → PT (a ₹0 membership line takes nothing).
+    Changed by #110 / #113: Convert shows Premium PT / PT packages only to users with `sales.sellPTDirect`; others see "PT quotes" for this person (Open = can be picked, Expired = disabled with the date). Membership packages need `sales.sellMembership`.
 94. Trials (notes §1, L1–L7, L1b, L1c). Book trial shows trial packages
     only, in two groups "Membership trials" and "PT trials". Who gets
     which (changed 16 Nov): open lead = membership trials + PT trials
@@ -481,6 +484,7 @@
     sale, only for a client with a paid membership (client Sell mode,
     built with Renewals). A lead without membership can adjust a PT trial
     only by buying Premium PT. Same running / buffer / permission rules.
+    Changed by #112: PT trials are CM / MXM assessments, booked ONLY by `pt.quote` users (SE books membership trials only), with a TRAINER (required, the person's branch, a trainer type that can take PT). NO approval (L1b is for membership trials only; status "Not needed"), NO limit by default (Settings "PT trials per person", 0 = no limit, CEO). A repeat PT trial shows INFO only ("3rd PT trial · last on <date>" + history), never blocks. Paid PT trial adjust unchanged. Membership trial limits and approval unchanged.
 95. Roles (notes §2a): fixed, seeded, locked `roles` table with keys
     SUPER_ADMIN (SA, all branches), CEO (multi, reports to SuperAdmin),
     REGIONAL_MANAGER (RM, multi → CEO), CLUB_MANAGER (CM, single → RM),
@@ -666,3 +670,30 @@
     assigned to you).
 109. Transferred-in pick (#98): the "Pick follow-up person" modal has "Make them owner" (ticked by default) -> the owner
     change rules (#99), event OwnerChanged reason TransferPick. The person list = staff of the branch with `leads.own`.
+110. PT quote flow, grid rows (18 Nov 2026, c9). RULE: Sales Executives sell MEMBERSHIP only; PT and Premium PT are decided
+    by CM or MXM (trainer, price / quote, PT trial with whom); the SE then bills exactly that quote, prefilled, no changes.
+    Rows: `sales.sellMembership` (SE, SM, CM, RM, CEO yes; No hides membership packages in Convert), `pt.quote` "Create
+    PT quote / book PT trial" (CM, MXM, RM = Branch; CEO locked All), `sales.sellPTDirect` "Sell PT / Premium PT without
+    a quote" (CEO only, locked), `sales.sellFromQuote` "Bill a PT quote" (SE, SM, CM yes; MXM No, CEO can grant; CEO
+    locked). Every real branch has an MXM and a trainer (dummy: Rakesh, Imran at Sec 65). Also: "CEO sees all pending
+    trial approvals" now comes from `trials.approve` = All scope, not the role name.
+111. Request + create a PT quote (leads only for now; client PT quotes come with client Sell mode / Renewals; the data
+    model is person-agnostic). REQUEST (SE, `sales.sellFromQuote` without `pt.quote`): "Ask" = staff of the person's
+    branch with `pt.quote` at BRANCH scope (preselected if only one), note required, ONE open request per person, event
+    QuoteRequested, notification rule "PT quote requested" (asked person ALWAYS; RM / CM / SM per the rules table,
+    default none). While the request is open the person is visible to the asked person, and while a quote is Open to
+    its creator, even with `leads.view` = None, but ONLY view + quote actions (same idea as #97). Bell + Today section
+    "PT quote requests" (open requests asked from me). CREATE (`pt.quote`): package (lead: Premium PT only, #89),
+    TRAINER (the person's branch, active trainer type that can take PT), price + discount within the CREATOR's own limit
+    (% and ₹ cap, #103; Premium PT discount on the PT part only, reason when > 0), valid till = today + Settings "PT
+    quote valid for N days" (7, CEO), note; optional "Book a PT trial with this trainer". Status Open / Used / Expired
+    / Cancelled; events QuoteCreated / QuoteUsed / QuoteExpired (system job) / QuoteCancelled. The open request closes
+    when a quote is created. Several Open quotes per person allowed (options). Cancel: the creator or any `pt.quote`
+    user with Branch scope there.
+112. PT trials (see #94 change): CM / MXM assessments with a trainer, no approval, no limit by default, repeats are info.
+113. Billing a quote (Convert). Picking an Open quote fills the bill LOCKED: package, trainer, price, discount; only payment
+    (and FF ID / key fob as usual) is entered. Paid PT trial adjust still applies automatically (#94). Sales rep = the
+    person creating the sale (#107), separate from the trainer. TRAINER on the PT line = the quote's trainer: gets the
+    PT INCENTIVE and is the SESSION trainer until a trainer change. Incentive and session payout stay two separate
+    things: the session payout goes by the trainer who takes each session and that trainer's type (#95). On save the
+    quote becomes Used.

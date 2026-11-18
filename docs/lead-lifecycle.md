@@ -38,6 +38,8 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 | MarkedLost | stage → Lost | lost reason | "Marked lost · Price high" |
 | Reopened | Lost → stage | — | "Re-opened by Priya" |
 | SalesRepChanged | default rep → rep | — | "Sales rep changed from Karan to Priya by Karan" |
+| QuoteRequested | — → asked user | note | "PT quote requested from Meera by Rahul · wants weight-loss PT" |
+| QuoteCreated / QuoteUsed / QuoteExpired / QuoteCancelled | Open → Used / Expired / Cancelled | — | "PT quote by Sunita · Quarterly + 12 PT · trainer Deepak · ₹27,800 · valid till 25 Nov" |
 | SellHereStarted / SellHereCancelled | — | remark | "Sell here started by Priya (Sec 31) · joins today" / "Sell here cancelled · nothing changed" |
 
 **Mockup:** `App.Event.log(personId, {...})` writes the event into `DUMMY.events` and the human line into the timeline.
@@ -95,9 +97,13 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 
 **Debt (demo-only role-name checks, left as they are):**
 - The View-as demo user map (`roleDemoUser`).
-- "CEO sees every pending approval" in Today (`Trial.pendingApprovals`).
 - "CEO only" settings values and the Notification rules editor check `App.state.role === "CEO"`.
 The build team maps these to grid rows or to the top tenant role.
+
+## 7b. PT quotes (#110–#113)
+- SE sells membership only. PT / Premium PT: SE "Request PT quote" → CM / MXM "Create PT quote" (trainer, price, discount within the creator's limit, valid N days) → SE bills it locked.
+- **Request = Own rule (like #97):** an open request makes the person visible to the asked person, an Open quote to its creator, even with `leads.view` = None, but only view + quote actions. Access ends when the request closes (quote created) and when the quote is Used / Expired / Cancelled.
+- Leads only for now (Premium PT, #89); the data model is person-agnostic for client PT quotes later (Renewals).
 
 ## 8. Later
 Each later item fits on an existing mechanism, so nothing needs a rewrite.
@@ -111,3 +117,4 @@ Each later item fits on an existing mechanism, so nothing needs a rewrite.
 | CEO pending-work counts (per staff / branch) | events (counts by type / user) + grid row |
 | Unassigned reason "Released by owner" | Unassigned reason list + event OwnerChanged (reason ReleasedByOwner) |
 | Clients' ownership for renewals | the same ownership model + events on the client |
+| Client PT quotes (PT only, client Sell mode) | the same quote model (personId) + events + notification rule "PT quote requested" |

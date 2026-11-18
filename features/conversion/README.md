@@ -226,5 +226,14 @@ Premium PT with a free membership: "Monthly + 8 PT (membership free)" (pk21, ref
 ### Cross-branch sale (c8, #106)
 - Opened from **Sell here** (read-only profile of another branch's lead) or by a cross-branch follow-up holder. Setting "On sale": saving the sale first moves the lead to the seller's branch and makes the seller the owner (old owner's follow-ups closed "Taken over by <branch>"). "Never": owner / branch stay; the seller is the sales rep. Back without saving after Sell here = SellHereCancelled event only.
 
+### PT quotes in Convert (c9, #110, #113)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Packages shown | accordion | — | — | — | Membership: `sales.sellMembership`. PT / Premium PT: only `sales.sellPTDirect` (CEO). Others: hint "ask the CM / MXM for a PT quote". |
+| PT quotes | cards | — | — | — | This person's Open quotes (pick) and Expired ones (disabled, "Expired on <date>"). Needs `sales.sellFromQuote`. |
+| Locked bill | read-only | — | — | from the quote | Package, Trainer (PT line), price (membership + PT), discount + reason, final, quote by / valid till. "Choose another" un-picks. Only payment, FF ID and key fob are entered. |
+| Sales rep | select | Yes | No | you (creator) | Separate from the trainer. |
+- Save: PT line `trainerUserId` = the quote's trainer (PT incentive; session trainer until a trainer change); quote → Used (event QuoteUsed). Paid PT trial adjust applies as before.
+
 ## 5. Status
 Ready for review

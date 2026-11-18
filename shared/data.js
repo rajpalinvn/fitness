@@ -63,7 +63,10 @@
     { id: "u10", name: "Rahul Gupta",   role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"] },
     { id: "u11", name: "Pooja Khanna",  role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"] },
     { id: "u12", name: "Nisha Bhatia",  role: "Finance",          roleKey: "FINANCE",          branches: ["b2"],             branchIds: ["b2"] },
-    { id: "u13", name: "Sanjay Pillai", role: "Trainer",          roleKey: "TRAINER",          branches: ["b3"],             branchIds: ["b3"], trainerTypeId: "tt3" }
+    { id: "u13", name: "Sanjay Pillai", role: "Trainer",          roleKey: "TRAINER",          branches: ["b3"],             branchIds: ["b3"], trainerTypeId: "tt3" },
+    // c9: every real branch has an MXM and a trainer (PT quotes, #110).
+    { id: "u14", name: "Rakesh Yadav",  role: "MXM",              roleKey: "MXM",              branches: ["b2"],             branchIds: ["b2"] },
+    { id: "u15", name: "Imran Khan",    role: "Trainer",          roleKey: "TRAINER",          branches: ["b2"],             branchIds: ["b2"], trainerTypeId: "tt2" }
   ];
 
   users.forEach(function (u) { if (u.tenantId === undefined) u.tenantId = "t1"; });
@@ -94,6 +97,11 @@
     // Max discount per role = % AND a ₹ cap; the LOWER applies; cap 0 = no ₹ cap; % 0 = no discount (#77, #103 Q22).
     // Defaults keep the #77 % with no cap; demo: SM 20% · max ₹5,000. CEO set by the club in the grid (Q31 closed).
     { key: "sales.discountMax",     module: "Sales",    label: "Max discount % · max ₹ (#77, #103)",                    type: "pctcap", defaults: { SE: { pct: 10, cap: 0 }, SM: { pct: 20, cap: 5000 }, CM: { pct: 30, cap: 0 }, RM: { pct: 50, cap: 0 }, CEO: { pct: 100, cap: 0 } } },
+    // PT quote flow (#110): SE sells MEMBERSHIP only; PT / Premium PT are decided by CM / MXM in a quote; the SE bills the quote.
+    { key: "sales.sellMembership",  module: "Sales",    label: "Sell membership packages",                              type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
+    { key: "pt.quote",              module: "Sales",    label: "Create PT quote / book PT trial (CM / MXM decide trainer + price)", type: "scope", defaults: { CM: "Branch", MXM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "sales.sellPTDirect",    module: "Sales",    label: "Sell PT / Premium PT without a quote",                  type: "tick",   defaults: {} },
+    { key: "sales.sellFromQuote",   module: "Sales",    label: "Bill a PT quote",                                       type: "tick",   defaults: { SE: true, SM: true, CM: true, CEO: true } },
     { key: "sales.rep",             module: "Sales",    label: "Can be sales rep",                                      type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
     { key: "sales.sellCrossBranch", module: "Sales",    label: "\"Sell here\" on another branch's lead (needs the cross-branch follow-up row)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true }, requires: "leads.crossBranchFollowUp" },
     { key: "sales.backDate",        module: "Sales",    label: "Back-date a sale start (current month only, #103)",     type: "tick",   defaults: {} },
@@ -116,6 +124,8 @@
     { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
     { key: "exClientAfterDays",        label: "Ex-client after (days without an active package)", def: 30, min: 0, max: 365, unit: "days", by: "CEO", hint: "Expired for this many days after the last package ends (membership or PT), then Ex-client (#103)." },
+    { key: "ptQuoteValidDays",         label: "PT quote valid for",                     def: 7, min: 1, max: 90, unit: "days", by: "CEO", hint: "A PT quote can be billed until this many days after it is made; then it shows Expired (#111)." },
+    { key: "ptTrialsPerPerson",        label: "PT trials per person",                   def: 0, min: 0, max: 20, unit: "trials (0 = no limit)", by: "CEO", hint: "PT trials are CM / MXM assessments: no approval, no limit by default; repeats show as info only (#94 changed by #112)." },
     { key: "crossBranchOwnerChange",   label: "When another branch's staff works on a lead, owner changes", def: "On sale", options: ["On sale", "On first follow-up", "Never"], by: "CEO", hint: "On the trigger the lead moves to that staff's branch, they become the owner and the old owner's open follow-ups close (\"Taken over by <branch>\"). Never: owner and branch stay; the seller is only the sales rep (#106)." },
     { key: "newLeadAssignment",        label: "New-lead assignment",                    def: "Manual", options: ["Manual", "Round-robin", "Round-robin among on-shift staff"], by: "CEO", hint: "Round-robin and on-shift round-robin come later (need shift data, docs/lead-lifecycle.md)." }
   ];
@@ -361,6 +371,12 @@
 
   // ---- Client status by the last package end (#103 Q25; Settings "Ex-client after" default 30 days). p21 = Expired 5 days, p22 = Ex-client (60). ----
   people.push(
+    L("p42", "Tanvi Shah", "90000 01275", "b3", "u10", "Trial", { createdAt: day(-4), lastActivityAt: day(-1), source: "Instagram",
+      trials: [{ id: "tr13", type: "PT", kind: "free", packageId: "pk19", package: "PT Trial Session", from: day(0), to: day(0), price: 0, paid: 0, branchId: "b3", bookedByUserId: "u9", bookedAt: day(-1),
+        comment: "PT assessment · weight loss", trainerUserId: "u13", approverUserId: null, approval: "Not needed", endedFollowUpId: null }],
+      note: "EDGE (#111, #112): OPEN PT quote request from Rahul (SE) to Meera (MXM); Meera booked a PT trial with trainer Sanjay (no approval)" }),
+    L("p43", "Manish Gupta", "90000 01276", "b1", "u6", "Negotiation", { createdAt: day(-3), lastActivityAt: day(-1), source: "Referral",
+      note: "EDGE (#111, #113): OPEN Premium PT quote by Sunita (CM, trainer Deepak) + an EXPIRED quote -> Priya (SE) bills the open one, locked" }),
     L("p41", "Farhan Qureshi", "90000 01274", "b2", "u7", "Contacted", { createdAt: day(-2), lastActivityAt: day(-2), source: "Walk-in",
       note: "EDGE (#105): Sec 65 lead (owner Arjun). He walks in at Sec 31: Priya searches 9000001274 -> read-only row -> Add a follow-up for myself / Sell here" }),
     { id: "p39", kind: "Client", name: "Rekha Chawla", cc: "+91", mobile: "90000 01272", email: "rekha.c@example.com",
@@ -634,8 +650,18 @@
 
   window.DUMMY = {
     roleDemoUser: roleDemoUser, notifications: notifications, events: [],
+    // PT quotes (#110–#113). Person-agnostic (personId); leads only for now (Premium PT, #89).
+    quoteRequests: [
+      { id: "qr1", personId: "p42", askedUserId: "u9", byUserId: "u10", note: "Wants weight-loss PT, mornings", at: day(-1), status: "Open", closedAt: null, quoteId: null }
+    ],
+    ptQuotes: [
+      { id: "q1", personId: "p43", packageId: "pk17", package: "Quarterly + 12 PT", trainerUserId: "u8", price: 30000, refPrice: 8000, discount: 2200, discountReason: "Referral", discountReasonOther: null,
+        validTill: dd(5), note: "Mornings, 3x a week", status: "Open", createdByUserId: "u4", createdAt: day(-2), requestId: null },
+      { id: "q2", personId: "p43", packageId: "pk18", package: "Annual + 36 PT", trainerUserId: "u8", price: 95000, refPrice: 24000, discount: 0, discountReason: null, discountReasonOther: null,
+        validTill: dd(-3), note: "Annual option", status: "Expired", createdByUserId: "u4", createdAt: day(-10), requestId: null }
+    ],
     // Notification rules (#108): event -> roles (short) that get it, for their own branch(es). Directly involved people always get it.
-    notifyEvents: [["transferIn", "Lead transferred in"], ["released", "Lead released (inactive)"], ["crossBranch", "Cross-branch work on a lead (follow-up / sale)"]],
+    notifyEvents: [["transferIn", "Lead transferred in"], ["released", "Lead released (inactive)"], ["crossBranch", "Cross-branch work on a lead (follow-up / sale)"], ["quoteRequested", "PT quote requested"]],
     notifyRoles: ["RM", "CM", "SM"],
     notifyDefaults: { transferIn: { CM: true }, released: { CM: true }, crossBranch: { CM: true } },
     tenants: tenants, branches: branches, roles: roles, platformRoles: platformRoles, users: users, lists: lists, people: people,

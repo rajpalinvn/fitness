@@ -77,5 +77,7 @@ Roles with no `leads.view` (Trainer / MXM / Finance by default) see the note "Le
 
 - Q36 (#103): Unassigned row action = "Assign" for users with `leads.assign` (CM / RM / CEO by default); "Take this lead" only for users with `leads.take` but not `leads.assign`.
 
+- PT quote requests (c9, #111): for `pt.quote` users, the open requests asked from me; row action "Create quote". Shown even when leads aren't part of the role (MXM).
+
 ## 5. Status
 Ready for review

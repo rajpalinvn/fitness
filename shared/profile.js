@@ -128,7 +128,7 @@
         '<button class="btn btn-primary" data-pd="retry">Retry</button></div>';
       return;
     }
-    var ro = App.Cross.readOnly(p);
+    var ro = App.Cross.readOnly(p) || App.Quote.viewOnly(p);   // other branch (#105) or quote access only (#110)
     body.innerHTML = '<div class="pd-grid"><div class="pd-left">' + (ro ? roLeft(p) : left(p)) + '</div><div class="pd-right">' + right(p, ro) + "</div></div>";
     App.fillIcons(body);
     if (S.tab === "timeline" && !ro) mountComposer(p);
@@ -140,16 +140,17 @@
   // ---------- READ-ONLY (#105): another branch's lead found by the full mobile. Shows everything, no actions. ----------
   function roLeft(p) {
     var owner = p.ownerUserId ? App.userName(p.ownerUserId) + " (" + App.branchName(p.branchId) + ")" : "Unassigned (" + App.branchName(p.branchId) + ")";
-    var fu = App.Cross.canFollowUp(p), sell = App.Cross.canSellHere(p);
+    var fu = App.Cross.canFollowUp(p), sell = App.Cross.canSellHere(p), qv = App.Quote.viewOnly(p);
     return '<div class="pd-id"><span class="avatar avatar-xl">' + esc(App.initials(p.name)) + "</span>" +
         '<h2 class="pd-name">' + esc(p.name) + "</h2>" +
         '<div class="pd-mobile">' + esc(p.cc + " " + p.mobile) + "</div>" +
         '<div class="cell-sub">' + esc(App.branchName(p.branchId)) + " · Created " + esc(App.fmtDay(p.createdAt)) + "</div></div>" +
       '<div class="stack pd-badges"><span class="badge badge-info">Lead</span><span class="badge' + (p.stage === "Lost" ? " badge-danger" : "") + '">' + esc(p.stage) + "</span>" +
-        '<span class="badge" data-ro>Read only · another branch</span></div>' +
+        '<span class="badge" data-ro>' + (App.Quote.viewOnly(p) ? "View only · PT quote" : "Read only · another branch") + "</span></div>" +
       '<div class="callout" data-ro-box>' + icon("lock") + "<div><strong>Owner: " + esc(owner) + "</strong>" +
-        '<div class="cell-sub">This lead belongs to ' + esc(App.branchName(p.branchId)) + ". You can see it because the full mobile number matched." +
-        (fu ? " Add a follow-up for yourself to work on it (walk-in / inquiry)." : App.Cross.isOpenLead(p) ? " Your role can't add follow-ups on other branches' leads." : "") + "</div></div></div>" +
+        '<div class="cell-sub" data-ro-why>' + (qv ? "You see this lead because of a PT quote (request to you or your open quote): view + quote actions only."
+          : "This lead belongs to " + esc(App.branchName(p.branchId)) + ". You can see it because the full mobile number matched." +
+        (fu ? " Add a follow-up for yourself to work on it (walk-in / inquiry)." : App.Cross.isOpenLead(p) ? " Your role can't add follow-ups on other branches' leads." : "")) + "</div></div></div>" + App.QuoteUI.box(p) +
       '<dl class="kv pd-kv"><dt>Owner</dt><dd data-ro-owner>' + esc(owner) + "</dd><dt>Branch</dt><dd>" + esc(App.branchName(p.branchId)) + "</dd>" +
         "<dt>Stage</dt><dd>" + esc(p.stage) + "</dd><dt>Source</dt><dd>" + esc(p.source) + "</dd>" +
         "<dt>Last activity</dt><dd>" + esc(App.fmtShortWhen(p.lastActivityAt)) + "</dd></dl>" +
@@ -183,7 +184,7 @@
         qa("email", "mail", "Email", !p.email, "No email yet") +
         qa("follow", "plus", "Follow-up", lost, "Re-open the lead first") +
       "</div>" +
-      nextStep(p) + transferBox(p) +
+      nextStep(p) + transferBox(p) + App.QuoteUI.box(p) +
       '<dl class="kv pd-kv">' +
         "<dt>Owner</dt><dd>" + ownerRow(p, owner) + "</dd>" +
         "<dt>Source</dt><dd>" + esc(p.source) + (p.synced ? " · synced" : "") + "</dd>" +
@@ -735,6 +736,9 @@
       case "reopen": App.Lead.reopen(p.id); break;
       case "convert": App.Convert.open(p.id); break;
       case "crossFu": App.Lead.crossFollowUp(p.id); break;
+      case "quoteReq": App.QuoteUI.request(p.id); break;
+      case "quoteNew": App.QuoteUI.create(p.id); break;
+      case "quoteCancel": App.QuoteUI.cancel(t.dataset.q); break;
       case "sellHere": App.Lead.crossFollowUp(p.id, { sellHere: true }); break;
       case "trial": App.Trial.open(p.id); break;
       case "addFf": App.addFfId(p.id); break;

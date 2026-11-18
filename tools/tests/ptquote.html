@@ -1,0 +1,173 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c9: PT quote flow (#110-#113): SE sells membership only; CM / MXM make the PT quote (trainer, price); SE bills it LOCKED.
+var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", TODAY = ROOT + "features/today/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; } function D() { return W().DUMMY; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function type(sel, v, ev) { var e = q(sel); if (!e) throw new Error("missing " + sel); e.value = v; e.dispatchEvent(new (W().Event)(ev || "input", { bubbles: true })); }
+function setSel(sel, v) { var e = q(sel); if (!e) throw new Error("missing " + sel); e.value = v; e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function person(id) { return A().byId(D().people, id); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function next() { click(q('#sellMode [data-cv="next"]')); }
+function toPackageStep() { var g = q("#cvGender"); if (g && !g.value) setSel("#cvGender", "Male"); if (!q("#sellMode [data-pkglist]") && !q("[data-quote-locked]")) next(); }
+function sellThrough(ff) {
+  for (var i = 0; i < 10; i++) {
+    var fin = q('#sellMode [data-cv="finish"]'); if (fin) { click(fin); return true; }
+    var g = q("#cvGender"); if (g && !g.value) setSel("#cvGender", "Male");
+    if (q("#cvFf") && !q("#cvFf").value) { type("#cvFf", ff); var nf = q('#sellMode [data-fob=""]'); if (nf) click(nf); }
+    next();
+  }
+  return false;
+}
+function leaveMode() { var b = q("#sellMode [data-dm-back]"); if (b) click(b); }
+function start(url, roleName, cb) {
+  load(url, function () {
+    ["mock.perms", "mock.settings", "mock.audit", "mock.notifyRules"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+    W().sessionStorage.setItem("mock.role", roleName); W().sessionStorage.setItem("mock.branch", "all");
+    load(url, cb);
+  });
+}
+var queue = [];
+function run() { var t = queue.shift(); if (!t) { document.getElementById("out").textContent = out.join("\n"); return; } t(run); }
+
+// 1. grid rows + settings + CEO approvals via All scope
+queue.push(function (nx) { start(LEADS, "CEO", function () {
+  step("grid rows (#110)", function () {
+    var P = A().Perm;
+    ok("sales.sellMembership: SE/SM/CM/RM/CEO yes", ["SE", "SM", "CM", "RM", "CEO"].every(function (s) { return P.get(s, "sales.sellMembership") === true; }));
+    ok("pt.quote: CM / MXM / RM Branch, CEO All, SE None", P.get("CM", "pt.quote") === "Branch" && P.get("MXM", "pt.quote") === "Branch" && P.get("RM", "pt.quote") === "Branch" && P.get("CEO", "pt.quote") === "All" && P.get("SE", "pt.quote") === "None");
+    ok("sales.sellPTDirect: CEO only", P.get("CEO", "sales.sellPTDirect") === true && ["SE", "SM", "CM", "RM", "MXM"].every(function (s) { return !P.get(s, "sales.sellPTDirect"); }));
+    ok("sales.sellFromQuote: SE / SM / CM yes, MXM no, CEO locked", ["SE", "SM", "CM"].every(function (s) { return P.get(s, "sales.sellFromQuote") === true; }) && !P.get("MXM", "sales.sellFromQuote") && /CEO has every permission/.test(P.lockReason("CEO", "sales.sellFromQuote")));
+    ok("settings: PT quote valid 7 days, PT trials per person 0 (no limit)", A().setting("ptQuoteValidDays") === 7 && A().setting("ptTrialsPerPerson") === 0);
+    ok("every real branch has an MXM and a trainer", ["b1", "b2", "b3"].every(function (b) { return A().Quote.trainers({ branchId: b }).length > 0; }) && D().users.some(function (u) { return u.roleKey === "MXM" && u.branchIds[0] === "b2"; }));
+  });
+  step("CEO approvals come from trials.approve = All (c9)", function () {
+    A().setRole("Club Manager");
+    var mine = A().Trial.pendingApprovals().length;
+    A().setRole("CEO"); var all = A().Trial.pendingApprovals().length;
+    A().Perm.save([{ short: "CM", key: "trials.approve", value: "All" }]); A().setRole("Club Manager");
+    ok("CM with All scope sees every pending approval (" + all + "), not only hers (" + mine + ")", A().Trial.pendingApprovals().length === all && all > mine);
+  });
+  nx();
+}); });
+
+// 2. SE: no PT directly; sellMembership row works; no PT trial; request preselects the only person
+queue.push(function (nx) { start(LEADS, "Sales Executive", function () {
+  step("SE sells membership only (#110)", function () {
+    A().openProfile("p1", { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); toPackageStep();
+    ok("no Premium PT / PT groups for SE; hint to request a quote", !q('#sellMode [data-acc="Premium PT"]') && !q('#sellMode [data-acc="PT"]') && !!q('#sellMode [data-acc="Membership"]') && !!q("[data-no-quotes]"));
+    leaveMode(); A().closeProfile();
+    A().Perm.save([{ short: "SE", key: "sales.sellMembership", value: false }]);
+    A().openProfile("p1", { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); toPackageStep();
+    ok("sales.sellMembership = No hides membership packages (only quotes left)", !q('#sellMode [data-acc="Membership"]'));
+    leaveMode(); A().closeProfile();
+    A().Perm.save([{ short: "SE", key: "sales.sellMembership", value: true }]);
+  });
+  step("SE can't book a PT trial (#112)", function () {
+    A().openProfile("p1", { state: "normal" }); click(q('#profileDrawer [data-pd="trial"]'));
+    ok("Book trial for SE: membership trials only", !!q('[data-tpkg="pk1"]') && !q('[data-tpkg="pk19"]') && !A().Trial.canBookPT(person("p1")));
+    var b = q("#trialMode [data-dm-back]"); if (b) click(b); A().closeProfile();
+  });
+  step("Request PT quote (#111)", function () {
+    A().openProfile("p1", { state: "normal" });
+    ok("SE sees 'Request PT quote', not 'Create PT quote'", !!q('[data-pd="quoteReq"]') && !q('[data-pd="quoteNew"]'));
+    ok("Sec 31 ask list: Sunita (CM) + Vikram (RM, Branch scope); CEO (All) never", A().Quote.askable(person("p1")).map(function (u) { return u.id; }).sort().join() === "u3,u4");
+    A().closeProfile();
+    A().Perm.save([{ short: "SE", key: "leads.view", value: "All" }]);   // to reach a Golf Course lead (only Meera can quote there)
+    A().openProfile("p11", { state: "normal" }); click(q('#profileDrawer [data-pd="quoteReq"]'));
+    ok("only one (Meera, MXM) -> preselected", q("#qrAsk").value === "u9" && q("#qrAsk").options.length === 2);
+    click(q('#quoteReqModal [data-save]'));
+    ok("note required", /Add a note/.test(text("#quoteReqModal")));
+    type("#qrNote", "Wants PT for back pain"); click(q('#quoteReqModal [data-save]'));
+    var r = A().Quote.openRequest("p11");
+    ok("request saved, event QuoteRequested, Meera notified", r && r.askedUserId === "u9" && A().Event.of("p11", "QuoteRequested").length === 1 && D().notifications.some(function (n) { return n.event === "quoteRequested" && n.toUserIds.indexOf("u9") > -1; }));
+    ok("only ONE open request: the button is gone", !q('[data-pd="quoteReq"]') && /Requested from Meera Joshi/.test(text("[data-quote-req]")));
+    A().closeProfile();
+  });
+  nx();
+}); });
+
+// 3. MXM: sees the person only while the request / her quote is open; creates a quote (discount = her own limit: none)
+queue.push(function (nx) { start(LEADS, "MXM", function () {
+  step("MXM access (#110)", function () {
+    var p = person("p42");
+    ok("leads.view None, but the open request opens Tanvi (view + quote actions only)", A().can("leads.view") === "None" && A().canSee(p) && A().Quote.viewOnly(p) && !A().canSee(person("p11")));
+    A().openProfile("p42", { state: "normal" });
+    ok("view-only profile: 'View only · PT quote', Create PT quote, no Convert / composer", /View only · PT quote/.test(text("[data-ro]")) && !!q('[data-pd="quoteNew"]') && !q('[data-pd="convert"]') && !q("[data-composer]"));
+    ok("PT trial booked by Meera with trainer Sanjay, no approval badge", p.trials[0].trainerUserId === "u13" && p.trials[0].approval === "Not needed" && !/Approval pending/.test(text(".pd-badges")));
+    click(q('[data-pd="quoteNew"]'));
+    setSel("#qPkg", "pk17");
+    ok("discount = the CREATOR's limit: MXM has none -> field disabled", q("#qDisc").disabled && /no discount for your role/.test(text("[data-q-limit]")));
+    click(q('#quoteModal [data-save]')); ok("trainer required", /Choose the trainer/.test(text("#quoteModal")));
+    ok("trainers: Golf Course only (Sanjay)", Array.prototype.map.call(q("#qTrainer").options, function (o) { return o.value; }).join() === ",u13");
+    setSel("#qTrainer", "u13"); type("#qNote", "Mornings");
+    click(q('#quoteModal [data-save]'));
+    var qq = A().Quote.list("p42").filter(function (x) { return x.status === "Open"; })[0];
+    ok("quote saved Open, valid 7 days, request closed", qq && qq.trainerUserId === "u13" && qq.validTill === A().Quote.validTillDefault() && !A().Quote.openRequest("p42") && A().Event.of("p42", "QuoteCreated").length === 1);
+    ok("creator keeps access while the quote is Open", A().canSee(p));
+    A().closeProfile();
+    A().QuoteUI.cancel(qq.id); click(q('#quoteCancelModal [data-save]'));
+    ok("cancelled -> event, and Meera loses access", qq.status === "Cancelled" && A().Event.of("p42", "QuoteCancelled").length === 1 && !A().canSee(p));
+  });
+  nx();
+}); });
+
+// 4. CM creates a quote: discount limited by HER limit (30%) on the PT part only
+queue.push(function (nx) { start(LEADS, "Club Manager", function () {
+  step("CM quote: discount within the creator's limit (#111)", function () {
+    A().openProfile("p1", { state: "normal" }); click(q('[data-pd="quoteNew"]'));
+    setSel("#qPkg", "pk17"); setSel("#qTrainer", "u8");
+    click(q('[data-qmode="₹"]')); type("#qDisc", "7000");
+    ok("₹7,000 over 30% of the PT part (₹6,600) -> error", /up to ₹6,600/.test(text("[data-q-derr]")));
+    type("#qDisc", "6600"); setSel("#qReason", "Referral");
+    click(q('#quoteModal [data-save]'));
+    var qq = A().Quote.list("p1")[0];
+    ok("saved: ₹6,600 off the PT part, final ₹23,400", qq && qq.discount === 6600 && A().Quote.money(qq).final === 23400);
+    A().closeProfile();
+  });
+  nx();
+}); });
+
+// 5. SE bills the quote LOCKED; trainer on the PT line; rep = creator; quote Used; expired unusable
+queue.push(function (nx) { start(LEADS, "Sales Executive", function () {
+  step("bill a quote (#113)", function () {
+    A().openProfile("p43", { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); toPackageStep();
+    ok("PT quotes section: open q1 + expired q2 disabled with the date", !!q('[data-quote="q1"]') && q('[data-quote="q2"]').disabled && /Expired on/.test(q('[data-quote="q2"]').textContent));
+    click(q('[data-quote="q2"]')); ok("expired quote unusable", !q("[data-quote-locked]"));
+    click(q('[data-quote="q1"]'));
+    ok("locked bill: package, trainer Deepak, ₹2,200 off, final ₹27,800; no discount input", !!q("[data-quote-locked]") && /Deepak Verma/.test(text("[data-quote-trainer]")) && /₹27,800/.test(text("[data-quote-locked]")) && !q("#cvDisc"));
+    ok("rep = the creator (Priya), separate from the trainer", q("#cvRep").value === "u6");
+    ok("sold to the end", sellThrough("FF-81001"));
+    var p = person("p43"), qq = A().Quote.byId("q1");
+    ok("Client: PT line trainer = quote trainer, rep = Priya, price from the quote", p.kind === "Client" && p.pt.trainerUserId === "u8" && p.pt.salesRepUserId === "u6" && p.pt.finalPrice === 19800 && p.membership.finalPrice === 8000);
+    ok("quote Used + event QuoteUsed", qq.status === "Used" && A().Event.of("p43", "QuoteUsed").length === 1);
+    ok("no bad text", !badText(), badText());
+  });
+  leaveMode(); A().closeProfile();
+  step("expiry job", function () {
+    var x = { id: "qx", personId: "p1", packageId: "pk17", package: "Quarterly + 12 PT", trainerUserId: "u8", price: 30000, refPrice: 8000, discount: 0, validTill: "2020-01-01", status: "Open", createdByUserId: "u4", createdAt: new Date().toISOString() };
+    D().ptQuotes.push(x); A().Quote.expireRun();
+    ok("Open past valid-till -> Expired + event QuoteExpired (system)", x.status === "Expired" && A().Event.of("p1", "QuoteExpired").some(function (e) { return e.byUserId === null; }));
+  });
+  nx();
+}); });
+
+// 6. Today: "PT quote requests" for pt.quote users
+queue.push(function (nx) { start(TODAY, "MXM", function () {
+  step("Today section (#111)", function () {
+    ok("MXM Today: 'PT quote requests' lists Tanvi with Create quote", /PT quote requests/.test(text("#sec-quotes")) && /Tanvi Shah/.test(text("#sec-quotes")) && !!q('#sec-quotes [data-act="quote"]'));
+    ok("no bad text", !badText(), badText());
+  });
+  nx();
+}); });
+
+run();
+</script></body></html>

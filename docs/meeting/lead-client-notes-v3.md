@@ -88,6 +88,10 @@
 | Sales | Back-date a sale start (current month only, #103) | — | — | — | — | ✓ |
 | Leads | Can own leads (`leads.own`, #104) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Sales | Can be sales rep (`sales.rep`, #104) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Sales | Sell membership packages (`sales.sellMembership`, #110) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Sales | Create PT quote / book PT trial (`pt.quote`, #110; also MXM, Branch) | — | — | Branch | Branch | All |
+| Sales | Sell PT / Premium PT without a quote (`sales.sellPTDirect`, #110) | — | — | — | — | ✓ |
+| Sales | Bill a PT quote (`sales.sellFromQuote`, #113; MXM no) | ✓ | ✓ | ✓ | — | ✓ |
 | Leads | Follow-up for myself on another branch's lead (#105) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Sales | "Sell here" on another branch's lead (#106) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Payments | Refund / cancel a payment (no screen yet, #103) | — | — | — | — | ✓ |
@@ -133,8 +137,8 @@ O-R3, O-R5, O-R6, T-R7 (who approves), and **Q8** (permission matrix) everywhere
 
 | ID | Decision |
 |---|---|
-| L1 | **No per-booking override.** Free-trial limits are **settings** (default: 2 per person, 1 per branch, **per trial type**: membership trials and PT trials each have their own count; one running trial per type). Within the limit anyone allowed to book gives the free trial. Over the limit the button is disabled: "Free trial limit reached". To give more, a role with the permission changes the setting (even CEO does it through the setting). |
-| L1b | **Trial approval = a pending reference, not a block.** Every trial booking needs a comment + "Approval asked from". The dropdown is a **rule, not the permission**: it lists only the SM, CM and RM of the lead's branch who have `trials.approve`. The CEO never appears in it, but can approve / reject any pending trial (e.g. from a pending approvals list), since `trials.approve` = All for CEO (locked, #102). Trial is booked at once; status Pending. The approver can mark Approved / Rejected + remark; Rejected is only recorded (trial keeps running). |
+| L1 | **(Membership trials; PT trials: see #112 — no limit by default, Settings "PT trials per person", repeats are info only.)** **No per-booking override.** Free-trial limits are **settings** (default: 2 per person, 1 per branch, **per trial type**: membership trials and PT trials each have their own count; one running trial per type). Within the limit anyone allowed to book gives the free trial. Over the limit the button is disabled: "Free trial limit reached". To give more, a role with the permission changes the setting (even CEO does it through the setting). |
+| L1b | **(MEMBERSHIP trials only, #112: PT trials are CM / MXM assessments with a trainer and need no approval.)** **Trial approval = a pending reference, not a block.** Every trial booking needs a comment + "Approval asked from". The dropdown is a **rule, not the permission**: it lists only the SM, CM and RM of the lead's branch who have `trials.approve`. The CEO never appears in it, but can approve / reject any pending trial (e.g. from a pending approvals list), since `trials.approve` = All for CEO (locked, #102). Trial is booked at once; status Pending. The approver can mark Approved / Rejected + remark; Rejected is only recorded (trial keeps running). |
 | L1c | Free-trial limits are the **same for every role** (a rule about the person, not the staff). More trials only by changing the setting. |
 | L2 | **7-day buffer adjust:** whoever has the permission does the conversion; the adjust checkbox appears for them only, within 7 days after the trial ended. |
 | L3 | Buffer adjust: membership start = **today** (not the trial start, or the client loses days). Full trial price subtracted. |
@@ -204,4 +208,5 @@ The mockup's grid (section 2) is the source; the build will sync to it. Please c
 | M1 | Fixed roles, one role per staff, permissions in a settings grid with defaults (Level 2). | 16 Nov 2026 |
 | #103 | Open questions answered: back date this month only with `sales.backDate`, no future start; discount % + ₹ cap (lower applies); `payments.refund`; Ex-client after N days (30); trial adjust GST on net; Q32 past due → today; Q36 Assign before Take; Q3, Q9, Q14, Q17, Q19, Q21, Q28–Q31, Q33–Q35, Q37 closed; Q2, Q4, Q6, Q10, Q13, Q18 + call / WhatsApp integration parked. | 17 Nov 2026 |
 | #104–#109 | Lead lifecycle: stage + ownership, every change an event (docs/lead-lifecycle.md); `leads.own` / `sales.rep` replace role lists; approvers at Branch scope only; cross-branch follow-up (read-only without it) + Sell here; setting On sale / On first follow-up / Never; rep default = the creator, any branch; notification rules (CM default, involved always); Make them owner on transfer pick. | 18 Nov 2026 |
+| #110–#113 | PT quote flow: SE sells membership only; SE requests a PT quote; CM / MXM create it (Premium PT for leads, trainer of the branch, discount within the creator's limit, valid 7 days); SE bills it locked (trainer on the PT line = PT incentive + session trainer; session payout by session trainer + type, #95). PT trials only by `pt.quote`, with a trainer, no approval, no limit by default. | 18 Nov 2026 |
 | A5 / A7 (changed) | Premium PT = a PT product; membership inside = add-on (free or charged). Discount on the PT line only; reference 0 ≤ ref < price (₹0 line still on the bill); ONE sales rep for the package, membership incentive by scheme. | 17 Nov 2026 |

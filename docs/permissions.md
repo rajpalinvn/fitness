@@ -32,6 +32,10 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `trials.editLimits` | Edit free-trial limit settings (per person, per branch) | Trials | tick | Yes | Yes | Yes | No | No | No | No | No | CEO |
 | `trials.approve` | Can be picked as trial approver (approve / reject) | Trials | scope | All | Branch | Branch | Branch | None | None | None | None | CEO |
 | `trials.adjustAfterEnd` | Paid trial adjust after it ended (7-day buffer) | Trials | scope | All | None | Branch | None | None | None | None | None | CEO |
+| `sales.sellMembership` | Sell membership packages (#110) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
+| `pt.quote` | Create PT quote / book PT trial (#110–#112) | Sales | scope | All | Branch | Branch | None | None | Branch | None | None | CEO |
+| `sales.sellPTDirect` | Sell PT / Premium PT without a quote (#110) | Sales | tick | Yes | No | No | No | No | No | No | No | CEO |
+| `sales.sellFromQuote` | Bill a PT quote (#113) | Sales | tick | Yes | No | Yes | Yes | Yes | No | No | No | CEO |
 | `sales.rep` | Can be sales rep (#104, #107) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
 | `sales.sellCrossBranch` | "Sell here" on another branch's lead (needs `leads.crossBranchFollowUp`, #106) | Sales | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | CEO |
 | `sales.convert` | Convert to Client / Sell | Sales | scope | All | Branch | Branch | Branch | Own | None | None | None | CEO |
@@ -61,6 +65,8 @@ The CEO never appears in that dropdown but can approve / reject any pending tria
 | `inactivityReleaseDays` | Release inactive leads after | 7 | 1–90 days | grid row `settings.editInactivity` |
 | `releaseWarnDaysBefore` | Warn the owner before release | 1 | 0–89, < inactivity days | grid row `settings.editInactivity` |
 | `exClientAfterDays` | Ex-client after (days without an active package) | 30 | 0–365 days | CEO |
+| `ptQuoteValidDays` | PT quote valid for (#111) | 7 days | 1–90 days | CEO |
+| `ptTrialsPerPerson` | PT trials per person (#112) | 0 = no limit | 0–20 | CEO |
 | `crossBranchOwnerChange` | When another branch's staff works on a lead, owner changes (#106) | On sale | On sale / On first follow-up / Never | CEO |
 | `newLeadAssignment` | New-lead assignment | Manual | Manual (Round-robin and on-shift round-robin later) | CEO |
 
@@ -80,3 +86,4 @@ Every saved change (permissions, settings values, trainer types) goes to the aud
 - Logic never checks a role name. Owner / follow-up person / release / pick lists = `leads.own`; sales rep list = `sales.rep` (any branch); trial approvers = `trials.approve` at **Branch** scope in the lead's branch (All-scope never listed).
 - Cross-branch: `leads.crossBranchFollowUp`, `sales.sellCrossBranch` (needs the first). Without them, another branch's lead (found by the full mobile) is read-only.
 - Notification rules (Roles & permissions › Notification rules, CEO): event × RM / CM / SM, default CM only, own branch(es) only; directly involved people always notified. Spec: docs/lead-lifecycle.md.
+- PT quotes (c9, #110–#113): Convert shows PT / Premium PT only with `sales.sellPTDirect`; others pick a "PT quote" (needs `sales.sellFromQuote`). Membership packages need `sales.sellMembership`. PT trials only with `pt.quote`. Quote ask list = `pt.quote` at Branch scope in the person's branch. Notification rule "PT quote requested" (default no extra roles; the asked person always). CEO's "all pending approvals" = `trials.approve` All.

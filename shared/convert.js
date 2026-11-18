@@ -37,9 +37,17 @@
 
   // Packages a lead can buy here (decisions #47, #50, #93): active, sold at the lead's branch, audience New or Both,
   // not an Add-on and NEVER a trial (trials go through Book trial). PT is listed but disabled (#89).
+  // #110: PT / Premium PT directly only with sales.sellPTDirect (CEO); membership only with sales.sellMembership. Others bill a PT quote.
   function sellable(p) {
-    return D.packages.filter(function (x) { return x.active && x.category !== "Add-on" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal"; });
+    var direct = App.can("sales.sellPTDirect") === true, mem = App.can("sales.sellMembership") === true;
+    return D.packages.filter(function (x) {
+      if (!(x.active && x.category !== "Add-on" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal")) return false;
+      return x.category === "Membership" ? mem : direct;
+    });
   }
+  // PT quotes of this person (#113): Open = can be billed; Expired = shown disabled with the date.
+  function quote() { return C && C.quoteId ? App.Quote.byId(C.quoteId) : null; }
+  function quotesFor(p) { return App.can("sales.sellFromQuote") === true || App.can("sales.sellPTDirect") === true ? App.Quote.list(p.id).filter(function (q) { return q.status === "Open" || q.status === "Expired"; }) : []; }
   // Free items: "Once per client" is skipped if the person ever got it free; out of stock -> "Pending issue" (decision #46).
   // In stock: staff choose Issue now (default) or Later (-> Pending issue) — decision #70.
   function freeLines(p, k) {
@@ -57,9 +65,10 @@
   // only (price − reference). The membership line of a Premium PT always stays at the reference price (#103).
   function money() {
     var k = pkg(); if (!k) return { price: 0, base: 0, disc: 0, pct: 0, final: 0, mem: 0, pt: 0, memDisc: 0, ptDisc: 0, memFinal: 0, ptFinal: 0 };
-    var prem = k.type === "Premium PT", mem = prem ? (k.referenceMembershipPrice || 0) : k.price, base = prem ? k.price - mem : k.price;
-    var v = Number(C.disc) || 0, disc = C.mode === "%" ? Math.round(base * v / 100) : Math.round(v);
-    var o = { price: k.price, base: base, disc: disc, pct: base ? disc / base * 100 : 0, final: k.price - disc };
+    var qq = quote(), price = qq ? qq.price : k.price;   // a quote LOCKS price + discount (#113)
+    var prem = k.type === "Premium PT", mem = prem ? (qq ? qq.refPrice : (k.referenceMembershipPrice || 0)) : price, base = prem ? price - mem : price;
+    var v = Number(C.disc) || 0, disc = qq ? (qq.discount || 0) : C.mode === "%" ? Math.round(base * v / 100) : Math.round(v);
+    var o = { price: price, base: base, disc: disc, pct: base ? disc / base * 100 : 0, final: price - disc };
     if (prem) { o.mem = mem; o.pt = base; o.memDisc = 0; o.ptDisc = disc; o.memFinal = mem; o.ptFinal = base - disc; }
     else { o.mem = k.price; o.pt = 0; o.memDisc = disc; o.ptDisc = 0; o.memFinal = o.final; o.ptFinal = 0; }
     return o;
@@ -364,19 +373,44 @@
   // Limit (#103 Q22): the LOWER of (pct % of the line) and the ₹ cap; % 0 = no discount; never above the line (PT part for Premium PT).
   function discError() {
     var k = pkg(), mo = money(), r = App.discountRule();
-    if (!k || !k.price) return "";
+    if (!k || !k.price || quote()) return "";   // a quote was checked against its CREATOR's limit (#111)
     if (Number(C.disc) < 0) return "Discount can't be negative.";
     if (mo.disc > mo.base) return isPrem() ? "Discount can't be more than the PT part (" + App.fmtMoney(mo.base) + ")." : "Discount can't be more than the price.";
     if (mo.disc > 0 && !r.pct) return "No discount for your role.";
     if (mo.disc > App.discountMaxAmount(mo.base)) return App.discountRuleText() + " (here up to " + App.fmtMoney(App.discountMaxAmount(mo.base)) + ").";
     return "";
   }
+  function quoteCard(q) {
+    var mo = App.Quote.money(q), exp = q.status !== "Open", sel = C.quoteId === q.id;
+    return '<button type="button" class="pkg-card' + (sel ? " selected" : "") + '" data-quote="' + q.id + '"' + (exp ? ' disabled title="Expired on ' + esc(App.fmtIsoDate(q.validTill)) + '"' : "") + ' aria-pressed="' + sel + '">' +
+      "<strong>" + esc(q.package) + '</strong><span class="cell-sub">Trainer ' + esc(App.userName(q.trainerUserId)) + " · by " + esc(App.firstName(App.byId(D.users, q.createdByUserId))) + "</span>" +
+      '<span class="pkg-price">' + App.fmtMoney(mo.final) + "</span>" + (mo.disc ? '<span class="cell-sub">' + App.fmtMoney(mo.disc) + " off the PT part</span>" : "") +
+      '<span class="hint">' + (exp ? "Expired on " + esc(App.fmtIsoDate(q.validTill)) : "Valid till " + esc(App.fmtIsoDate(q.validTill))) + "</span></button>";
+  }
+  function repField(p, k) {
+    return '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
+          return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
+          '</select><span class="hint">You, the person creating the sale (#107). The trainer is separate: the quote\'s trainer goes on the PT line.</span></div>';
+  }
   function s2(p) {
-    var k = pkg(), mo = money(), lim = limitPct(), de = C.errors.disc || discError();
+    var k = pkg(), mo = money(), lim = limitPct(), de = C.errors.disc || discError(), qs = quotesFor(p), qq = quote();
+    if (qq) {
+      // Locked bill from the quote (#113): package, trainer, price, discount. Only payment (+ FF ID / key fob) is entered.
+      var qm = App.Quote.money(qq);
+      return '<section class="cv-card" data-quote-locked><h3 class="cv-card-title">PT quote · locked</h3><dl class="kv">' +
+        "<dt>Package</dt><dd>" + esc(qq.package) + "</dd><dt>Trainer (PT line)</dt><dd data-quote-trainer>" + esc(App.userName(qq.trainerUserId)) + "</dd>" +
+        "<dt>Price</dt><dd>" + App.fmtMoney(qm.price) + ' <span class="cell-sub">membership ' + App.fmtMoney(qm.ref) + " + PT " + App.fmtMoney(qm.base) + "</span></dd>" +
+        "<dt>Discount</dt><dd>" + (qm.disc ? App.fmtMoney(qm.disc) + " off the PT part · " + esc(qq.discountReason === "Other" ? qq.discountReasonOther : qq.discountReason) : "None") + "</dd>" +
+        "<dt>Final</dt><dd><strong>" + App.fmtMoney(qm.final) + "</strong></dd><dt>Quote</dt><dd>by " + esc(App.userName(qq.createdByUserId)) + " · valid till " + esc(App.fmtIsoDate(qq.validTill)) + "</dd></dl>" +
+        '<p class="hint">Made by the CM / MXM; nothing here can be changed. <button type="button" class="link-btn" data-unquote>Choose another</button></p>' +
+        '<div class="form-grid">' + repField(p, k) + "</div></section>";
+    }
     var html = '<section class="cv-card"><h3 class="cv-card-title">Package</h3><div class="field pkg-search"><label for="cvPkgQ" class="sr-only">Search packages</label>' +
       '<input class="input" id="cvPkgQ" type="search" data-k="pkgQ" autocomplete="off" placeholder="Search packages by name…" value="' + esc(C.pkgQ) + '"></div>' +
       '<div data-pkglist>' + pkgList(p) + "</div>" + err("pkg");
-    html += '<p class="hint">Trials are booked with "Book trial" (coming in c3), never here. Membership and Premium PT only (#93).</p>';
+    if (qs.length) html += '<div class="acc open" data-quotes><div class="acc-head"><span class="acc-title">PT quotes</span><span class="badge">' + qs.length + '</span></div><div class="pkg-grid acc-body">' + qs.map(quoteCard).join("") + "</div></div>";
+    else if (App.can("sales.sellPTDirect") !== true) html += '<p class="hint" data-no-quotes>PT / Premium PT: ask the CM / MXM for a PT quote ("Request PT quote" on the profile); you then bill it here.</p>';
+    html += '<p class="hint">Trials are booked with "Book trial", never here. Membership and Premium PT only (#93).</p>';
     if (k && k.people === 2) html += '<p class="hint">Converts this person only. Adding the partner comes later.</p>';
     html += "</section>";
     if (k && k.price > 0) {
@@ -427,7 +461,7 @@
   function check2() {
     var e = {}, k = pkg(), mo = money();
     if (!k) { e.pkg = "Choose a package."; return e; }
-    if (k.price > 0) {
+    if (k.price > 0 && !quote()) {
       var de = discError(); if (de) e.disc = de;
       if (mo.disc > 0 && !C.reason) e.reason = "A reason is needed for a discount.";
       else if (mo.disc > 0 && C.reason === "Other" && !C.reasonOther.trim()) e.reasonOther = "Write the reason.";
@@ -494,6 +528,7 @@
     var rows = [["Person", p.name + " · " + p.cc + " " + p.mobile], ["Package", k.name + (prem ? " · 2 lines: Membership (included) " + App.fmtMoney(mo.mem) + " + PT " + App.fmtMoney(mo.pt) : "")], ["Sale type", k.saleType + (prem ? " · membership + PT" : "")],
       ["Start – end", App.fmtDate(new Date(C.start + "T00:00").toISOString()) + " – " + App.fmtDate(e.toISOString())]];
     // Money lines (price, discount, free items, accessories, deposit, GST, total) are in the bill summary on the right.
+    if (quote()) rows.push(["Trainer (PT line)", App.userName(quote().trainerUserId) + " · from the PT quote by " + App.userName(quote().createdByUserId)]);
     rows.push(["Sales rep", App.userName(C.repId) + (prem ? " · whole package (membership part: incentive by scheme)" : "")]);
     if (mo.disc) rows.push(["Discount reason", reasonText()]);
     adjusts().forEach(function (a) { rows.push(["Paid " + App.Trial.label(a.type) + " trial adjusted", "− " + App.fmtMoney(a.amount) + " · " + a.t.package + (a.locked ? " · start = trial start (set by system)" : " · start = today")]); });
@@ -563,7 +598,7 @@
     render();
   }
   function onClick(e) {
-    var t = e.target.closest("[data-pkg],[data-disc],[data-fob],[data-acc],[data-issue],[data-x-add],[data-x-cancel],[data-x-pick],[data-x-del],[data-pay-add],[data-pay-del],[data-pay-slip]"); if (!t || t.disabled) return;
+    var t = e.target.closest("[data-quote],[data-unquote],[data-pkg],[data-disc],[data-fob],[data-acc],[data-issue],[data-x-add],[data-x-cancel],[data-x-pick],[data-x-del],[data-pay-add],[data-pay-del],[data-pay-slip]"); if (!t || t.disabled) return;
     var p = person();
     if (t.dataset.acc) {
       C.open[t.dataset.acc] = !C.open[t.dataset.acc];
@@ -583,7 +618,9 @@
     if (t.dataset.payDel) { C.pay.rows.splice(+t.dataset.payDel, 1); C.errors = {}; render(); return; }
     if (t.dataset.paySlip) { var r = C.pay.rows[+t.dataset.paySlip]; r.slip = r.slip ? "" : "payment-slip-" + (+t.dataset.paySlip + 1) + ".jpg (placeholder)"; render(); return; }
     if (t.dataset.xDel) { C.extras.splice(+t.dataset.xDel, 1); C.errors = {}; updateBill(); return; }
-    if (t.dataset.pkg) { C.pkgId = t.dataset.pkg; delete C.errors.pkg; if (pkg().price === 0) { C.disc = ""; C.reason = ""; C.reasonOther = ""; } syncAdjustDefaults(); }
+    if (t.dataset.quote) { var q0 = App.Quote.byId(t.dataset.quote); if (q0 && q0.status === "Open") { C.quoteId = q0.id; C.pkgId = q0.packageId; C.mode = "₹"; C.disc = String(q0.discount || ""); C.reason = q0.discountReason || ""; C.reasonOther = q0.discountReasonOther || ""; delete C.errors.pkg; syncAdjustDefaults(); } }
+    if (t.hasAttribute("data-unquote")) { C.quoteId = null; C.pkgId = null; C.disc = ""; C.reason = ""; C.reasonOther = ""; }
+    if (t.dataset.pkg) { C.quoteId = null; C.pkgId = t.dataset.pkg; delete C.errors.pkg; if (pkg().price === 0) { C.disc = ""; C.reason = ""; C.reasonOther = ""; } syncAdjustDefaults(); }
     if (t.dataset.disc) { C.mode = t.dataset.disc; }
     if (t.hasAttribute("data-fob")) { C.fob = t.dataset.fob; if (!C.fob) { C.fobFree = false; C.fobFreeWhy = ""; } }
     render();
@@ -700,6 +737,13 @@
       (closed ? '<p class="hint">' + closed + " open follow-up" + (closed > 1 ? "s" : "") + " closed by system · client converted.</p>" : "") +
       (pend.length ? '<div class="stack">' + pend.map(function (x) { return '<span class="badge badge-warning">' + esc(x.t) + "</span>"; }).join("") + "</div>" : "") + "</div>";
     render();
+    // PT quote (#113): the quote's trainer goes on the PT line (PT incentive; session trainer until a trainer change); the quote becomes Used.
+    var qq = quote();
+    if (qq) {
+      if (p.pt) { p.pt.trainerUserId = qq.trainerUserId; p.pt.quoteId = qq.id; }
+      p.membership.quoteId = qq.id; qq.status = "Used"; qq.usedAt = now; qq.usedByUserId = me.id;
+      App.Event.log(p.id, { type: "QuoteUsed", from: "Open", to: "Used", text: "PT quote billed by " + App.firstName(me) + " · trainer " + App.firstName(App.byId(D.users, qq.trainerUserId)) + " on the PT line" });
+    }
     App.Event.log(p.id, { type: "Converted", to: "Client", remark: k.name });
     App.toast(p.name + " is now a client (" + clientNo + ")", "success");
     C.clientId = p.id;

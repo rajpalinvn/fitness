@@ -301,3 +301,11 @@ Ready for review
 | New-lead assignment | Manual / Round-robin / Round-robin among on-shift staff | Yes | — | Manual | Round-robin options disabled ("Later"). |
 - New grid rows: `leads.own`, `leads.crossBranchFollowUp` (Leads), `sales.rep`, `sales.sellCrossBranch` (Sales). See docs/permissions.md.
 
+### PT quote settings + rows (c9, #110–#112)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| PT quote valid for | number 1–90 days | Yes | — | 7 | CEO. Quote valid till = created + N days; then Expired (daily job). |
+| PT trials per person | number 0–20 | Yes | — | 0 (no limit) | CEO. PT trials only; membership trial limits unchanged. |
+| Notification rule "PT quote requested" | checkbox per role | No | — | none | The asked person always gets it. |
+- New grid rows: `sales.sellMembership`, `pt.quote` (scope), `sales.sellPTDirect`, `sales.sellFromQuote` (Sales group).
+
