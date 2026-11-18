@@ -47,7 +47,7 @@
     head.innerHTML = "";
     if (!can()) {
       panel.innerHTML = '<div class="state">' + App.icon("lock") + "<h3>You don't have access to Roles &amp; permissions</h3>" +
-        '<p class="muted">Only the CEO can open this page (decisions #96, #102). Switch "View as" in the avatar menu to try another role.</p></div>';
+        '<p class="muted">Only the CEO can open this page. Switch "View as" in the avatar menu to try another role.</p></div>';
       saveBar(); return;
     }
     var st = A.debugState();
@@ -70,7 +70,7 @@
   // ----- Permissions grid -----
   function grid() {
     var q = S.search.trim().toLowerCase();
-    var h = '<div class="callout">' + App.icon("info") + "<span><strong>Scopes:</strong> None = no access · Own = leads I own + leads with my open follow-up (#97) · " +
+    var h = '<div class="callout">' + App.icon("info") + "<span><strong>Scopes:</strong> None = no access · Own = leads I own + leads with my open follow-up · " +
       "Branch = the staff's branch (all their branches for RM) · All = every branch. CEO has everything (locked) and is the only editor; every saved change goes to the Audit log. " +
       '<span class="badge badge-demo">Default, can change</span></span></div>' +
       '<div class="filter-bar"><input class="input grow" type="search" id="rpSearch" placeholder="Filter actions, e.g. assign, trial, discount" aria-label="Filter actions"></div>' +
@@ -164,7 +164,7 @@
   }
   function values() {
     var errs = setErrors(), cur = P.settings();
-    return '<div class="callout">' + App.icon("info") + "<span>Numbers, not per role (#96). Who can change each value comes from the grid row named under it; " +
+    return '<div class="callout">' + App.icon("info") + "<span>Numbers, not per role. Who can change each value comes from the grid row named under it; " +
       'values with no grid row are changed by CEO. <span class="badge badge-demo">Default, can change</span></span></div>' +
       '<div class="card set-card">' + D.settingDefs.map(function (d) {
         var v = setVal(d.key), changed = d.key in S.pendingSet && S.pendingSet[d.key] !== cur[d.key], eds = P.settingEditors(d);
@@ -203,9 +203,9 @@
 
   // ----- Roles (read-only) -----
   function rolesTab() {
-    return '<div class="callout">' + App.icon("lock") + "<span><strong>Roles are fixed</strong> (decision #95): seeded and locked, no add / delete / rename. One staff = exactly one role. " +
+    return '<div class="callout">' + App.icon("lock") + "<span><strong>Roles are fixed</strong>: seeded and locked, no add / delete / rename. One staff = exactly one role. " +
       "Trainer type is not a role (see the Trainer types tab). Region is a grouping of branches, not a permission scope. " +
-      "SuperAdmin is a platform role (creates tenants and their first CEO account, #102): not a tenant role, not in this list.</span></div>" +
+      "SuperAdmin is a platform role (creates tenants and their first CEO account): not a tenant role, not in this list.</span></div>" +
       '<div class="table-wrap"><table class="table table-admin" id="rolesTable"><thead><tr><th>Role</th><th>Short</th><th>Key</th><th>Reports to</th><th>Branches</th><th>Staff</th></tr></thead><tbody>' +
       D.roles.map(function (r) {
         var staff = D.users.filter(function (u) { return u.roleKey === r.key; });
@@ -219,7 +219,7 @@
   function ttInUse(id) { return D.users.filter(function (u) { return u.trainerTypeId === id; }).length; }
   function trainers() {
     var list = P.trainerTypes();
-    return '<div class="callout">' + App.icon("info") + "<span>Admin master list (#95). Any type can take PT sessions; the type only changes the payout (incentive scheme). " +
+    return '<div class="callout">' + App.icon("info") + "<span>Admin master list. Any type can take PT sessions; the type only changes the payout (incentive scheme). " +
       "A type in use can't be deleted, only deactivated. Each PT session / sale line stores the type at that time.</span></div>" +
       '<div class="table-wrap"><table class="table table-admin" id="ttTable"><thead><tr><th>Trainer type</th><th>Short</th><th>Can take PT sessions</th><th>Status</th><th>In use</th><th>Actions</th></tr></thead><tbody>' +
       (list.length ? list.map(function (t) {

@@ -75,15 +75,18 @@ Before a package is chosen: "Choose a package to see the bill." Tablet: the bill
 |---|---|---|---|---|---|
 | Search packages | search text | No | — | empty | Filters by name across all groups; groups with matches open; none → "No packages match "<text>"" (decision #66). |
 | Package | cards in accordions (+ / −) Membership / Premium PT (membership + PT) / Personal training, count per group; Membership open, others collapsed (#74) | Yes | No | none | Only active, non-trial packages sold at the lead's branch with audience New or Both; no Add-ons (#57, #93). Price = current price from the price history. PT disabled: "PT needs an active membership" (#89). Premium PT card shows "incl. membership ₹8,000 · PT ₹22,000". Couple package converts this person only (partner later). Card shows "Free: T-shirt, Gym towel"; a "Once per client" item the person already got shows "(already received)" and is Skipped in the bill. |
+| PT quotes | cards | — | — | — | Open quotes (pick) / Expired (disabled). A picked quote shows its details LOCKED on step 3. |
+
+The Package step only picks the package (c10).
+
+### Step 3 · Sale & start (price & discount + sales rep first, then sale type, adjust, dates)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
 | Price | read-only | — | — | package price | Locked (#14). |
 | Discount | [% \| ₹] segmented + amount in one row; live line "Discount ₹2,400 · Final ₹21,600" | No | No | 0, % | Can't be negative or more than the line (Premium PT: "more than the PT part"). **Limit = the role's "% · max ₹" from the grid** (`sales.discountMax`, #77, #103): the LOWER of (% of the package line) and the ₹ cap applies; cap 0 = no cap; % 0 = no discount (field disabled, "no discount for your role"). Defaults: SE 10% · no cap, SM 20% · max ₹5,000, CM 30%, RM 50%, CEO 100% (set by the club). Hint "Your limit (role): 20% · max ₹5,000 · here up to ₹4,800". Applies to the **package line only**, never accessories or the fob deposit. Premium PT: % computed on the PT part (price − reference), the cap applies to the PT line. Over the limit: inline "Max 20% · ₹5,000 for your role (here up to ₹4,800)." while typing; Next blocked (#73). |
 | Discount reason | select: Festive offer, Referral, Corporate, Staff family, Other | When discount > 0 | No | — | Shown as soon as the amount is above 0. "A reason is needed for a discount." |
 | Other reason | text | When reason = Other | No | — | "Write the reason." |
 | Sales rep (`salesRepUserId`) | select | Yes | No | **you, the person creating the sale** (#107) | One rep per sale line (#36). Users with `sales.rep` in ANY branch ("Name · Branch", you first). Every change from the default = SalesRepChanged event. Premium PT: ONE select for the whole package (#103); stored on the PT line and, as a reference only, on the membership line (`incentiveByScheme: true`). |
-
-### Step 3 · Sale & start
-| Field | Type | Required | Unique | Default | Notes |
-|---|---|---|---|---|---|
 | Sale type | derived from package | — | — | — | Paid (becomes a Client; next step Corporate entry). Premium PT: "Paid · becomes a Client with membership + PT". |
 | Paid trial adjust | checkbox per trial type | — | — | ticked + locked (running) / unticked (ended, in buffer, permitted) / absent | "Running paid membership trial · adjusted (locked) · membership start = trial start, set by system" / "ended N days ago · within the 7-day buffer" / "past the 7-day buffer, no adjust" / "only roles with 'Paid trial adjust after it ended' can adjust". |
 | Start date | date | Yes | No | today (running paid trial: trial start, disabled) | #41 changed by #103: never in the future (max = today). Back date only within the CURRENT month and only with the grid row `sales.backDate` (CEO yes; others No by default). Hint: "Today. Back dates need the permission …" / "Today, or back to 1 Nov 2026 (this month only). No future dates." / on the 1st: "Back date only within this month (none today)." The running paid trial start is system-set and exempt. |

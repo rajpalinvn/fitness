@@ -75,8 +75,8 @@
     h += '<div class="bill-group"><div class="bill-line"><div class="bill-what"><div>' + esc(k.name) + '</div><div class="cell-sub">' + type + " trial · " + k.days + (k.days === 1 ? " day" : " days") + (k.sessions ? " · " + k.sessions + (k.sessions === 1 ? " session" : " sessions") : "") + "</div></div>" +
       '<div class="bill-amt">' + (k.price ? App.fmtMoney(k.price) : "Free") + "</div></div></div>";
     h += '<div class="bill-group"><div class="bill-line"><div class="bill-what">Dates</div><div class="bill-amt">' + esc(App.fmtDate(new Date(C.start + "T00:00").toISOString())) + (e && k.days > 1 ? " – " + esc(App.fmtDate(e.toISOString())) : "") + "</div></div></div>";
-    if (k.price) h += '<div class="bill-total"><span>Total to pay · in full</span><strong data-total>' + App.fmtMoney(k.price) + "</strong></div><p class=\"hint\">No discount, no items, no partial payment on a trial (#93).</p>";
-    else h += '<p class="hint">Free trial · no payment. Nothing extra: no accessories, free items, FF ID or key fob (#93).</p>';
+    if (k.price) h += '<div class="bill-total"><span>Total to pay · in full</span><strong data-total>' + App.fmtMoney(k.price) + "</strong></div><p class=\"hint\">No discount, no items, no partial payment on a trial.</p>";
+    else h += '<p class="hint">Free trial · no payment. Nothing extra: no accessories, free items, FF ID or key fob.</p>';
     h += type === "PT" ? '<p class="hint" data-tr-trainer>Trainer: ' + (C.trainerId ? esc(App.userName(C.trainerId)) : "—") + " · no approval (PT assessment, decided by " + esc(App.firstName(App.me())) + ").</p>"
       : '<p class="hint">Approval asked from: ' + (C.approverId ? esc(App.userName(C.approverId)) : "—") + " · a pending reference, not a block.</p>";
     return h;
@@ -121,7 +121,7 @@
     var k = pkg(), today = isoDay(new Date()), max = isoDay(plus(today, 30)), e = endDate();
     return sec("Dates", '<div class="form-grid"><div class="field"><label for="trStart">Start date <span class="req">*</span></label>' +
       '<input class="input' + inv("start") + '" id="trStart" data-k="start" type="date" min="' + today + '" max="' + max + '" value="' + esc(C.start) + '">' +
-      (C.errors.start ? err("start") : '<span class="hint">Today up to 30 days ahead. No back dates (#41).</span>') + "</div>" +
+      (C.errors.start ? err("start") : '<span class="hint">Today up to 30 days ahead. No back dates.</span>') + "</div>" +
       '<div class="field"><label>Ends</label><div class="input input-static" data-end>' + (e ? esc(App.fmtDate(e.toISOString())) + ' <span class="muted">· ' + k.days + (k.days === 1 ? " day" : " days") + ", start day included</span>" : "—") + "</div></div></div>" +
       '<p class="hint">The stage becomes <strong>Trial</strong> automatically and the Stage dropdown is locked while the trial runs (L5). When it ends, a follow-up "Trial ended · discuss plans" is created for the owner.</p>');
   }
@@ -160,7 +160,7 @@
   function s4(p) {
     var k = pkg(), methods = App.activePayMethods(), pm = App.payMethod(C.pay.method), needs = !pm || pm.needsRef;
     return sec("Payment · full amount",
-      '<dl class="kv"><dt>Receipt no.</dt><dd><span class="mono">' + esc(App.nextReceiptNo(p.branchId)) + '</span> <span class="cell-sub">auto, per branch</span></dd><dt>Amount</dt><dd><strong>' + App.fmtMoney(k.price) + "</strong> · paid in full, at once (#93)</dd></dl>" +
+      '<dl class="kv"><dt>Receipt no.</dt><dd><span class="mono">' + esc(App.nextReceiptNo(p.branchId)) + '</span> <span class="cell-sub">auto, per branch</span></dd><dt>Amount</dt><dd><strong>' + App.fmtMoney(k.price) + "</strong> · paid in full, at once</dd></dl>" +
       '<div class="form-grid"><div class="field"><label for="trMethod">Method <span class="req">*</span></label><select class="input" id="trMethod" data-k="method">' +
         methods.map(function (x) { return "<option" + (x.name === C.pay.method ? " selected" : "") + ">" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
       '<div class="field"><label for="trRef">Reference / transaction no.' + (needs ? ' <span class="req">*</span>' : "") + '</label><input class="input' + inv("ref") + '" id="trRef" data-k="ref" value="' + esc(C.pay.ref) + '" placeholder="' + (needs ? "e.g. UPI-55821934" : "Not needed for cash") + '">' + err("ref") + "</div></div>" +
@@ -207,7 +207,7 @@
         : t.approverUserId ? " · approval asked from " + App.firstName(App.byId(D.users, t.approverUserId)) : " · no approver available at " + App.branchName(p.branchId));
     App.addTimeline(p.id, "milestone", txt);
     App.Event.log(p.id, { type: "TrialBooked", to: t.id, reason: type, remark: t.comment });
-    if (type === "PT") { /* no approval request (#112) */ }
+    if (type === "PT") { /* no approval request */ }
     else if (t.approverUserId) D.notifications.unshift({ id: "n" + Date.now(), text: "Trial approval asked from you: " + p.name + " · " + k.name + " (" + App.firstName(me) + ")", at: now, unread: true, forUserId: t.approverUserId, trialId: t.id });
     else D.notifications.unshift({ id: "n" + Date.now(), text: "Trial booked with no approver available: " + p.name + " · " + k.name + " · " + App.branchName(p.branchId), at: now, unread: true, forUserId: null, trialId: t.id });
     C.done = true;
@@ -310,10 +310,10 @@
     function draw() {
       var trs = Q.trainers(p), pk = quotePackages(p), mo = money(), de = discErr();
       m2.body.innerHTML = '<p class="muted">' + esc(p.name) + " · " + esc(App.branchName(p.branchId)) + (req ? " · requested by " + esc(App.firstName(App.byId(D.users, req.byUserId))) + ": “" + esc(req.note) + "”" : "") + "</p>" +
-        '<div class="form-grid">' +
+        '<div>' +
         '<div class="field"><label for="qPkg">Package <span class="req">*</span></label><select class="input" id="qPkg" data-q="pkgId"><option value="">Choose…</option>' +
           pk.map(function (x) { return '<option value="' + x.id + '"' + (x.id === S2.pkgId ? " selected" : "") + ">" + esc(x.name) + " · " + App.fmtMoney(x.price) + "</option>"; }).join("") + "</select>" +
-          '<span class="hint">Leads: Premium PT only (membership + PT, #89).</span></div>' +
+          '<span class="hint">Leads: Premium PT only (membership + PT).</span></div>' +
         '<div class="field"><label for="qTrainer">Trainer <span class="req">*</span></label><select class="input" id="qTrainer" data-q="trainerId"><option value="">Choose…</option>' +
           trs.map(function (u) { return '<option value="' + u.id + '"' + (u.id === S2.trainerId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") + "</select>" +
           '<span class="hint">Trainers of ' + esc(App.branchName(p.branchId)) + " who can take PT.</span></div>" +

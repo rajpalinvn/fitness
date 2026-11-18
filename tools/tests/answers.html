@@ -76,22 +76,22 @@ load(LEADS, function () {
       role("Sales Executive");
       ok("SE 10% · no cap: ₹1,00,000 line -> ₹10,000", A().discountMaxAmount(100000) === 10000 && A().discountRuleText() === "Max 10% for your role");
       role("Sales Manager");
-      startConvert("p1"); pick("pk7", "Membership");
+      startConvert("p1"); pick("pk7", "Membership"); next();
       click(q('[data-disc="₹"]')); type("#cvDisc", "4900");
       ok("SM on ₹24,000: ₹4,900 over 20% (₹4,800) -> error names the limit", /Max 20% · ₹5,000 for your role/.test(text("[data-disc-err]")) && /up to ₹4,800/.test(text("[data-disc-err]")));
       type("#cvDisc", "4800"); ok("₹4,800 OK", q("[data-disc-err]").hidden);
       leave();
-      startConvert("p1"); pick("pk18", "Premium PT");   // ₹95,000, PT part ₹71,000 -> 20% = 14,200, cap 5,000
+      startConvert("p1"); pick("pk18", "Premium PT"); next();   // ₹95,000, PT part ₹71,000 -> 20% = 14,200, cap 5,000
       click(q('[data-disc="₹"]')); type("#cvDisc", "5001");
       ok("Premium PT: cap applies to the PT part (₹5,000)", /Max 20% · ₹5,000/.test(text("[data-disc-err]")) && /up to ₹5,000/.test(text("[data-disc-err]")));
       leave();
       grid("SE", "sales.discountMax", { pct: 0, cap: 0 }); role("Sales Executive");
-      startConvert("p1"); pick("pk7", "Membership");
+      startConvert("p1"); pick("pk7", "Membership"); next();
       ok("% 0 = no discount: field disabled, 'no discount for your role'", q("#cvDisc").disabled && /no discount for your role/.test(text("[data-disc-limit]")));
       leave(); clearAll(); role("CEO");
     });
     step("Premium PT: discount on the PT line only, one sales rep", function () {
-      startConvert("p1"); pick("pk17", "Premium PT");
+      startConvert("p1"); pick("pk17", "Premium PT"); next();
       ok("one sales rep select", !!q("#cvRep") && !q("#cvRepPt") && /One sales rep for the whole Premium PT package/.test(mtext()));
       ok("hint: discount on the PT part only", /Discount on the PT part only \(₹22,000\); the membership stays at ₹8,000/.test(mtext()));
       type("#cvDisc", "10");
@@ -101,7 +101,7 @@ load(LEADS, function () {
       leave();
     });
     step("Premium PT with reference ₹0 (membership free)", function () {
-      startConvert("p1"); pick("pk21", "Premium PT");
+      startConvert("p1"); pick("pk21", "Premium PT"); next();
       ok("bill: ₹0 membership line still shown, 'free, no GST'", /₹0/.test(text('[data-line="mem"]')) && /free, no GST/.test(text('[data-line="mem"]')) && /₹12,000/.test(text('[data-line="pt"]')));
       ok("total ₹12,000; GST only on PT: ₹571.43", /₹12,000/.test(text("[data-total]")) && /₹571\.43/.test(text("[data-gst]")), text("[data-gst]"));
       type("#cvDisc", "10");

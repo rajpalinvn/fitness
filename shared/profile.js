@@ -529,7 +529,7 @@
           fld("Source", '<select class="input" name="source">' + opt(L.sources, p.source) + "</select>", true) +
           fld("Temperature", '<select class="input" name="temperature">' + opt(L.temperatures, p.temperature) + "</select>", true) +
           (stageEditable ? fld("Stage", '<select class="input" name="stage"' + (App.Trial.anyRunning(p) ? " disabled" : "") + ">" + opt(p.stage === "Trial" ? ["Trial"].concat(L.stageChoices) : L.stageChoices, p.stage) + "</select>", true,
-            App.Trial.anyRunning(p) ? "Locked while a trial runs (Trial is set by Book trial, #94). It unlocks when the trial ends." : "New / Contacted / Negotiation. Trial is set by Book trial; Converted and Lost by their own actions.") : "") +
+            App.Trial.anyRunning(p) ? "Locked while a trial runs (Trial is set by Book trial). It unlocks when the trial ends." : "New / Contacted / Negotiation. Trial is set by Book trial; Converted and Lost by their own actions.") : "") +
           fld("Inquiry type", '<select class="input" name="inquiryType">' + opt(L.inquiryTypes, p.inquiryType, true) + "</select>") +
           fld("Campaign", '<input class="input" name="campaign" value="' + esc(p.campaign || "") + '">') +
         "</div>" +

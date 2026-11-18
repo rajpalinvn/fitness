@@ -1,0 +1,77 @@
+<!doctype html>
+<html><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c10: staff never see decision numbers. Fails if the rendered text of any visited screen contains "#" + digits.
+// Visits every page (several roles), profile drawers (lead, client, read-only, quote view), Convert steps, Book trial steps,
+// the quote modals and every Settings › Roles & permissions tab.
+var ROOT = "../../", out = [], fr = document.getElementById("f"), RX = /#\d+/;
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) return false; el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); return true; }
+function setSel(sel, v) { var e = q(sel); if (!e) return; e.value = v; e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+// Visible text only (hidden templates and debug-only parts excluded); also titles / aria-labels / placeholders.
+function visibleText() {
+  var t = Dc().body.innerText;
+  Array.prototype.forEach.call(qa("[title],[aria-label],[placeholder]"), function (e) { t += " " + (e.getAttribute("title") || "") + " " + (e.getAttribute("aria-label") || "") + " " + (e.getAttribute("placeholder") || ""); });
+  return t;
+}
+function check(where) { var m = RX.exec(visibleText()), ctx = m ? visibleText().substr(Math.max(0, m.index - 50), 100).replace(/\s+/g, " ") : ""; ok("no decision number · " + where, !m, ctx); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function next() { click(q('#sellMode [data-cv="next"]')); }
+function closeAll() { try { closeAll0(); } catch (e) {} }
+function closeAll0() { var b = q("#sellMode [data-dm-back]") || q("#trialMode [data-dm-back]"); if (b) click(b); Array.prototype.forEach.call(qa(".modal.open [data-close]"), function (c) { click(c); }); if (A().closeProfile) A().closeProfile(); }
+function start(url, roleName, cb) {
+  load(url, function () {
+    ["mock.perms", "mock.settings", "mock.audit", "mock.notifyRules"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+    W().sessionStorage.setItem("mock.role", roleName); W().sessionStorage.setItem("mock.branch", "all");
+    load(url, cb);
+  });
+}
+var queue = [function (nx) { ok("detector catches a decision number", RX.test("Membership and Premium PT only (#93)") && !RX.test("Membership and Premium PT only")); nx(); }];
+function run() { var t = queue.shift(); if (!t) { document.getElementById("out").textContent = out.join("\n"); return; } t(run); }
+function page(path, roleName, extra) {
+  queue.push(function (nx) { start(ROOT + path, roleName, function () { step(path + " as " + roleName, function () { check(path + " · " + roleName); if (extra) extra(); }); closeAll(); nx(); }); });
+}
+
+["Sales Executive", "Club Manager", "CEO", "MXM"].forEach(function (r) { page("features/today/index.html", r); });
+["features/leads/index.html", "features/clients/index.html", "features/settings/index.html",
+ "features/settings/packages.html", "features/settings/items.html", "features/settings/sales.html"].forEach(function (pth) { page(pth, "CEO"); });
+page("features/settings/roles.html", "CEO", function () {
+  Array.prototype.forEach.call(qa("[data-rtab]"), function (t) { click(t); check("roles tab " + t.textContent.trim()); });
+});
+// Profiles + Convert + trial + quote modals
+page("features/leads/index.html", "CEO", function () {
+  ["p1", "p5", "p7", "p18", "p40", "p42", "p43", "p21", "p22"].forEach(function (id) {
+    A().openProfile(id, { state: "normal" });
+    Array.prototype.forEach.call(qa(".pd-tabs [data-tab-k]"), function (t) { click(t); check("profile " + id + " · " + t.textContent.trim()); });
+    A().closeProfile();
+  });
+  // Convert: walk every step with Premium PT (CEO sells it directly)
+  A().openProfile("p6", { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]'));
+  setSel("#cvGender", "Female"); check("convert step 1"); next();
+  click(q('#sellMode [data-acc="Premium PT"]')); click(q('#sellMode [data-pkg="pk17"]')); check("convert step 2 (Premium PT)"); next();
+  check("convert step 3 (price & discount, adjust)"); next(); check("convert step 4"); next(); check("convert step 5"); next(); check("convert step 6");
+  closeAll();
+  // Book trial (membership + PT)
+  A().openProfile("p1", { state: "normal" }); click(q('#profileDrawer [data-pd="trial"]')); check("trial step 1");
+  click(q('[data-tpkg="pk1"]')); click(q('#trialMode [data-tr="next"]')); check("trial dates"); click(q('#trialMode [data-tr="next"]')); check("trial approval");
+  closeAll();
+  A().openProfile("p26", { state: "normal" }); click(q('#profileDrawer [data-pd="trial"]')); click(q('[data-tpkg="pk19"]')); click(q('#trialMode [data-tr="next"]')); click(q('#trialMode [data-tr="next"]')); check("PT trial trainer step");
+  closeAll();
+  A().QuoteUI.create("p1"); setSel("#qPkg", "pk17"); check("create quote modal"); closeAll();
+  A().Lead.move("p1"); check("move modal"); closeAll();
+});
+page("features/leads/index.html", "Sales Executive", function () {
+  A().openProfile("p43", { state: "normal" }); click(q('#profileDrawer [data-pd="convert"]')); next();
+  click(q('[data-quote="q1"]')); check("SE convert step 2 with quotes"); next(); check("SE convert step 3 locked quote");
+  closeAll();
+  A().Perm.save([{ short: "SE", key: "leads.view", value: "All" }]);
+  A().openProfile("p11", { state: "normal" }); click(q('[data-pd="quoteReq"]')); check("request quote modal"); closeAll();
+  A().openProfile("p41", { state: "normal" }); check("SE profile p41");
+});
+page("features/leads/index.html", "MXM", function () { A().openProfile("p42", { state: "normal" }); check("MXM view-only profile"); });
+run();
+</script></body></html>

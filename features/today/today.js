@@ -192,7 +192,10 @@
       return '<button class="today-card' + (n ? " tone-" + s.tone : " tone-clear") + '" data-jump="' + s.k + '"><span class="count">' + n + '</span><span class="label">' + esc(s.t) + "</span>" +
         '<span class="cell-sub">' + (n ? esc(s.words) : icon("check", "ico-xs") + " All clear") + "</span></button>";
     }).join("");
-    var note = leadsRole() ? "" : '<div class="callout">' + icon("info") + "<span>Leads and follow-ups aren't part of your role. Your tasks are below.</span></div>";
+    // No leads role: name the work this user does have here (PT quote requests); the old line only when nothing else shows.
+    var extra = secs.filter(function (s) { return s.k === "quotes"; });
+    var note = leadsRole() ? "" : '<div class="callout" data-role-note>' + icon("info") + "<span>" +
+      (extra.length ? "Your work here: " + extra.map(function (s) { return s.t; }).join(", ") + " and your tasks." : "Leads and follow-ups aren't part of your role. Your tasks are below.") + "</span></div>";
     if (!total) {
       box.innerHTML = note + '<div class="card today-clear">' + icon("check") + "<h2>All caught up</h2><p class=\"muted\">Nothing needs you right now. New leads and follow-ups will show up here.</p></div>";
       return;

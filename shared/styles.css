@@ -391,6 +391,7 @@ kbd {
   .demo-chip .dc-long { display: none; }
   .demo-chip .dc-short { display: inline; }
   .pill .pill-text { max-width: 90px; }
+  .dd-select.block .pill .pill-text { max-width: none; }   /* form fields: full label (only top-bar pills are capped) */
   :root { --drawer-width: 92vw; }
 }
 

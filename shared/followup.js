@@ -1,5 +1,5 @@
 /* Shared follow-up + lead-status flows. ONE implementation used by the list,
-   the profile drawer composer and the NEXT STEP box (decision #7).
+   the profile drawer composer and the NEXT STEP box.
      App.Followup.mountForm(container, personId) -> { value(), reset() }
      App.Followup.openAdd(personId, opts)        add follow-up modal
      App.Followup.openOutcome(followUpId)        log outcome -> (lost?) -> next follow-up
@@ -7,10 +7,10 @@
      App.Lead.markLost(personId, opts)           reason modal ("Other" needs text)
      App.Lead.reopen(personId)                   clears reason, timeline "Re-opened", asks next follow-up
      App.Lead.assign(personId)                   pick owner from the lead's branch -> App.Owner.change
-     App.Lead.move(personId)                     move to another branch (#98)
-     App.Lead.pickPerson(personId)               transferred in: new-branch CM picks the follow-up SE (#98)
-     App.Lead.take(personId)                     "Take this lead" (#100)
-     App.Owner.change(ids, newOwnerId, opts)     THE owner-change dialog (#99): single, bulk, client, re-open
+     App.Lead.move(personId)                     move to another branch
+     App.Lead.pickPerson(personId)               transferred in: new-branch CM picks the follow-up SE
+     App.Lead.take(personId)                     "Take this lead"
+     App.Owner.change(ids, newOwnerId, opts)     THE owner-change dialog: single, bulk, client, re-open
      App.Owner.apply(ids, newOwnerId, choice, o) the same without UI (choice: move | close | keep)
    Load after shell.js. */
 (function () {
@@ -494,7 +494,7 @@
       '<div class="field"><label for="pickSe">Follow-up person (' + esc(App.branchName(p.branchId)) + ') <span class="req">*</span></label>' + seField("pickSe", p.branchId) + "</div>" +
       '<div class="field"><label for="pickDue">Follow-up due <span class="req">*</span></label><input class="input" type="date" id="pickDue" value="' + isoDate(plusDays(1)) + '" min="' + isoDate(new Date()) + '"></div>' +
       '<div class="field"><label><input type="checkbox" id="pickOwner" checked> Make them owner</label>' +
-        '<span class="hint">Owner change rules apply (#99): you choose what happens to ' + esc(App.firstName(App.byId(D.users, p.ownerUserId))) + "'s open follow-ups. Untick: the owner stays.</span></div>" +
+        '<span class="hint">Owner change rules apply: you choose what happens to ' + esc(App.firstName(App.byId(D.users, p.ownerUserId))) + "'s open follow-ups. Untick: the owner stays.</span></div>" +
       '<span class="error" data-perr hidden></span>';
     App.enhanceSelect(m.body.querySelector("#pickSe"));
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Give follow-up</button>';

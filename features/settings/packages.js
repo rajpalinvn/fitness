@@ -108,11 +108,11 @@
     return '<div class="field"><label>Price history</label><table class="mini-table"><thead><tr><th>From</th><th>Price</th>' + (prem ? "<th>Ref. membership</th>" : "") + '<th></th></tr></thead><tbody>' + h.map(function (x) {
       var st = x.from > t ? '<span class="badge badge-warning">Upcoming</span>' : x.price === cur.price && x === h.filter(function (y) { return y.from <= t; })[0] ? '<span class="badge badge-success">Current</span>' : '<span class="muted">Past</span>';
       return "<tr><td>" + esc(App.fmtDate(x.from + "T00:00")) + "</td><td>" + (x.price ? App.fmtMoney(x.price) : "Free") + "</td>" + (prem ? "<td>" + (x.referenceMembershipPrice != null ? App.fmtMoney(x.referenceMembershipPrice) : "—") + "</td>" : "") + "<td>" + st + "</td></tr>";
-    }).join("") + "</tbody></table></div>" + (prem ? '<span class="hint">The reference membership price follows the price rule (#50): after the first sale it can\'t be edited in place; a new price entry carries a new reference price. Past sales keep theirs.</span>' : "");
+    }).join("") + "</tbody></table></div>" + (prem ? '<span class="hint">The reference membership price follows the price rule: after the first sale it can\'t be edited in place; a new price entry carries a new reference price. Past sales keep theirs.</span>' : "");
   }
   function freeItemsHtml() {
     if (F.category === "Add-on") return "";
-    if (F.isTrial && !isPrem()) return '<div class="field"><label>Free items</label><span class="muted">Trials give nothing extra: no accessories, no free items, no FF ID, no key fob (decision #93).</span></div>';
+    if (F.isTrial && !isPrem()) return '<div class="field"><label>Free items</label><span class="muted">Trials give nothing extra: no accessories, no free items, no FF ID, no key fob.</span></div>';
     var acc = D.items.filter(function (i) { return i.kind === "Accessory" && i.active; });
     return '<div class="field"><label>Free items</label>' + (F.freeItems.length ? F.freeItems.map(function (f, i) {
       return '<div class="free-row" data-fi="' + i + '">' +
@@ -140,7 +140,7 @@
           (isAdd ? "" : '<option value="">Not set</option>') + subTypes(c).map(function (s) { return "<option" + (s === F.subType ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select>" +
           '<span class="hint">' + (isAdd ? "Add-on kinds are fixed in the app. First kind: Transfer." : "Optional. List managed by admin.") + "</span>" + A.err(errors, "subType") + "</div>" +
         (isAdd || prem ? "" : '<div class="field"><label>Trial <span class="req">*</span></label>' + A.chipSeg("isTrial", [["false", "No"], ["true", "Yes"]], String(F.isTrial), !canEdit() || locked("isTrial")) + lockHint("isTrial") + "</div>") +
-        (prem ? '<div class="field"><label>Trial</label><div class="input input-static">No <span class="muted">· Premium PT has no trial (#92)</span></div></div>' : "") +
+        (prem ? '<div class="field"><label>Trial</label><div class="input input-static">No <span class="muted">· Premium PT has no trial</span></div></div>' : "") +
         (isPT ? '<div class="field"><label>People <span class="req">*</span></label>' + A.chipSeg("people", [["1", "Single"], ["2", "Couple"]], String(F.people), !canEdit() || locked("people")) +
           '<span class="hint">Couple is PT only. Both people must be clients with an active membership.</span></div>' : "") +
         (isAdd ? "" : '<div class="field"><label for="pkDays">' + (prem ? "Membership days" : "Days") + ' <span class="req">*</span></label><input class="input input-num' + (errors.days ? " invalid" : "") + '" id="pkDays" type="number" min="1" data-f="days" value="' + esc(F.days) + '"' + dis("days") + ">" + lockHint("days") + A.err(errors, "days") + "</div>") +
@@ -160,7 +160,7 @@
           return '<button type="button" class="chip' + (on ? " selected" : "") + '" aria-pressed="' + on + '" data-pkbranch="' + b.id + '"' + dis("") + ">" + (on ? App.icon("check", "ico-xs") : "") + esc(b.name) + "</button>";
         }).join("") + "</div>" + A.err(errors, "branchIds") + "</div>" +
         (prem ? "" : '<div class="field span-2"><label class="check"><input type="checkbox" data-f="requiresMembership"' + (F.requiresMembership ? " checked" : "") + (isPT && !F.isTrial ? " disabled checked" : dis("")) + "> Requires an active membership</label>" +
-          '<span class="hint">' + (isPT && F.isTrial ? "PT trial: ON = clients only; OFF = leads and clients (#94)." : isPT ? "PT always needs an active paid membership." : "The client must have an active membership to buy this.") + "</span></div>") +
+          '<span class="hint">' + (isPT && F.isTrial ? "PT trial: ON = clients only; OFF = leads and clients." : isPT ? "PT always needs an active paid membership." : "The client must have an active membership to buy this.") + "</span></div>") +
         '<div class="field span-2">' + freeItemsHtml() + "</div>" +
         '<div class="field span-2"><label class="check"><input type="checkbox" data-f="active"' + (F.active ? " checked" : "") + dis("") + "> Active (can be sold)</label></div>" +
         '<div class="field span-2">' + historyTable() + "</div>" +

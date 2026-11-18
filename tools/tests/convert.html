@@ -76,7 +76,7 @@ load(LEADS, function () {
       check('[data-x-free="0"]', true);
       ok("Free switch: line free, total back", /₹24,000/.test(text("[data-total]")) && !!q('[data-x-why="0"]'));
       next(); ok("free item outside the package needs a reason", /A reason is needed for a free item/.test(text(".cv-bill")));
-      type('[data-x-why="0"]', "Manager approval");
+      type('[data-x-why="0"]', "Manager approval"); next();   // c10: price & discount are on the next step (Sale & start)
       ok("no Final price box at the bottom", !q(".cv-total") && !q("[data-final]"));
       ok("price locked shown", /₹24,000/.test(mtext()) && /locked/.test(mtext()));
       ok("sales rep defaults to the creator (#107), not the owner", q("#cvRep").value === W().App.me().id);
@@ -94,7 +94,7 @@ load(LEADS, function () {
       ok("over the limit: inline error live, names the limit", !q("[data-disc-err]").hidden && /Max 10% for your role/.test(text("[data-disc-err]")));
       next();
       ok("Sales Executive capped at 10% (no cap), Next blocked", /Max 10% for your role/.test(mtext()) && !!q("#cvDisc"));
-      W().App.state.role = "CEO"; type("#cvDisc", "10"); next();
+      W().App.state.role = "CEO"; type("#cvDisc", "10"); click(q('#sellMode [data-cv="back"]')); next();   // re-render step 3 as CEO
       ok("step 3: sale type automatic = Paid", /Sale type · automatic/i.test(mtext()) && /Paid/.test(mtext()));
       ok("end date shown, start day included", /start day included/.test(mtext()) && /365 days/.test(mtext()));
       ok("date shows as '12 Nov 2026' (not mm/dd/yyyy)", /^\d{1,2} [A-Z][a-z]{2} \d{4}$/.test(q("#cvStart").closest(".date-field").querySelector(".date-text").textContent.trim()), q("#cvStart").closest(".date-field") && q("#cvStart").closest(".date-field").textContent);
@@ -172,11 +172,12 @@ load(LEADS, function () {
       pick("pk17", "Premium PT");
       ok("Premium PT card: incl. membership", /incl\. membership ₹8,000/.test(q('[data-pkg="pk17"]').textContent) && /PT ₹22,000/.test(q('[data-pkg="pk17"]').textContent));
       ok("bill: 2 lines (Membership included ₹8,000 + PT ₹22,000) summing to ₹30,000", /Membership \(included\)/.test(text('[data-line="mem"]')) && /₹8,000/.test(text('[data-line="mem"]')) && /₹22,000/.test(text('[data-line="pt"]')) && /₹30,000/.test(text("[data-total]")));
+      next();   // c10: price & discount are on the next step (Sale & start)
       ok("ONE sales rep field for the package, default = the creator (#107)", q("#cvRep").value === W().App.me().id && !q("#cvRepPt"));
       type("#cvDisc", "10");
       ok("10% on the PT part only: ₹2,200 off PT, membership stays ₹8,000; total ₹27,800 (#103)", /PT line only/.test(text('[data-line="disc"]')) && /₹2,200/.test(text('[data-line="disc"]')) && /₹27,800/.test(text("[data-total]")), text(".cv-bill").slice(0, 300));
       ok("GST per line (2 decimals each): ₹380.95 + ₹942.86 = ₹1,323.81", /GST 5%\s*₹1,323\.81/.test(text("[data-gst]")), text("[data-gst]"));
-      pickSel("cvReason", "Referral"); next();
+      pickSel("cvReason", "Referral");
       ok("sale type: becomes a Client with membership + PT", /membership \+ PT/.test(mtext()));
       next();
       ok("Corporate entry: FF ID required marker, fob chips (Sec 31)", /FF ID \*/.test(mtext()) && !!q('[data-fob="KF-S31-0014"]'));
@@ -235,9 +236,9 @@ load(LEADS, function () {
       startConvert("p8");
       next(); ok("gender required", /Choose a gender/.test(mtext()));
       pickSel("cvGender", "Female"); next();
-      pick("pk4", "Membership");
+      pick("pk4", "Membership"); next();
       ok("rep defaults to converting user when unassigned", q("#cvRep").value === W().App.me().id || !!q("#cvRep").value);
-      next(); next(); type("#cvFf", "FF-90002"); click(q('#sellMode [data-fob=""]')); next();
+      next(); type("#cvFf", "FF-90002"); click(q('#sellMode [data-fob=""]')); next();
       ok("summary: owner = you", /lead was unassigned/.test(mtext()));
       finish();
       var p = person("p8");

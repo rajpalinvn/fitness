@@ -2,13 +2,13 @@
    Opens IN the profile drawer as "Sell mode" (App.DrawerMode), not as a modal.
      App.Convert.open(personId)
    Steps: 1 Details · 2 Package · 3 Sale & start · 4 Corporate entry (FF ID required, key fob may be Pending) · 5 Summary · 6 Payment.
-   Offers Membership and Premium PT only (#93); trials are booked with "Book trial" (c3), never here. PT stays disabled (#89).
+   Offers Membership and Premium PT only; trials are booked with "Book trial" (c3), never here. PT stays disabled.
    Premium PT (#92, #93 changed by #103) = a PT product; the membership inside it is an add-on (free or charged). 2 lines at sale:
    "Membership (included)" = reference price (may be ₹0, never discounted), "PT" = the rest; the discount applies to the PT line ONLY.
    ONE sales rep for the whole package; the membership line stores it as a reference ("incentive by scheme").
-   Discount limit (#103 Q22): the LOWER of (% of the package line) and the role's ₹ cap.
-   Start date (#103 Q1): today; no future; back date only this month with sales.backDate. Allocation: accessories → fob deposit → membership line → PT line.
-   The person becomes a client when the first payment is saved (#79).
+   Discount limit: the LOWER of (% of the package line) and the role's ₹ cap.
+   Start date: today; no future; back date only this month with sales.backDate. Allocation: accessories → fob deposit → membership line → PT line.
+   The person becomes a client when the first payment is saved.
    Load after profile.js. */
 (function () {
   var D = window.DUMMY, esc = App.esc, icon = App.icon;
@@ -291,7 +291,7 @@
       html += "</div>";
     }
     var adj = adjusts();
-    if (adj.length) html += '<div class="bill-group"><div class="bill-group-label">Paid trial adjusted (#94)</div>' + adj.map(function (a) {
+    if (adj.length) html += '<div class="bill-group"><div class="bill-group-label">Paid trial adjusted</div>' + adj.map(function (a) {
       return bline("Paid " + App.Trial.label(a.type) + " trial · " + esc(a.t.package), "− " + App.fmtMoney(a.amount), (a.locked ? "Running · adjusted, locked" : "Ended · adjusted by " + esc(App.state.role)) + " · full trial price", "", ' data-adj="' + a.type + '"');
     }).join("") + "</div>";
     var fl = freeLines(p, k);
@@ -390,48 +390,19 @@
   function repField(p, k) {
     return '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
-          '</select><span class="hint">You, the person creating the sale (#107). The trainer is separate: the quote\'s trainer goes on the PT line.</span></div>';
+          '</select><span class="hint">You, the person creating the sale. The trainer is separate: the quote\'s trainer goes on the PT line.</span></div>';
   }
   function s2(p) {
     var k = pkg(), mo = money(), lim = limitPct(), de = C.errors.disc || discError(), qs = quotesFor(p), qq = quote();
-    if (qq) {
-      // Locked bill from the quote (#113): package, trainer, price, discount. Only payment (+ FF ID / key fob) is entered.
-      var qm = App.Quote.money(qq);
-      return '<section class="cv-card" data-quote-locked><h3 class="cv-card-title">PT quote · locked</h3><dl class="kv">' +
-        "<dt>Package</dt><dd>" + esc(qq.package) + "</dd><dt>Trainer (PT line)</dt><dd data-quote-trainer>" + esc(App.userName(qq.trainerUserId)) + "</dd>" +
-        "<dt>Price</dt><dd>" + App.fmtMoney(qm.price) + ' <span class="cell-sub">membership ' + App.fmtMoney(qm.ref) + " + PT " + App.fmtMoney(qm.base) + "</span></dd>" +
-        "<dt>Discount</dt><dd>" + (qm.disc ? App.fmtMoney(qm.disc) + " off the PT part · " + esc(qq.discountReason === "Other" ? qq.discountReasonOther : qq.discountReason) : "None") + "</dd>" +
-        "<dt>Final</dt><dd><strong>" + App.fmtMoney(qm.final) + "</strong></dd><dt>Quote</dt><dd>by " + esc(App.userName(qq.createdByUserId)) + " · valid till " + esc(App.fmtIsoDate(qq.validTill)) + "</dd></dl>" +
-        '<p class="hint">Made by the CM / MXM; nothing here can be changed. <button type="button" class="link-btn" data-unquote>Choose another</button></p>' +
-        '<div class="form-grid">' + repField(p, k) + "</div></section>";
-    }
     var html = '<section class="cv-card"><h3 class="cv-card-title">Package</h3><div class="field pkg-search"><label for="cvPkgQ" class="sr-only">Search packages</label>' +
       '<input class="input" id="cvPkgQ" type="search" data-k="pkgQ" autocomplete="off" placeholder="Search packages by name…" value="' + esc(C.pkgQ) + '"></div>' +
       '<div data-pkglist>' + pkgList(p) + "</div>" + err("pkg");
     if (qs.length) html += '<div class="acc open" data-quotes><div class="acc-head"><span class="acc-title">PT quotes</span><span class="badge">' + qs.length + '</span></div><div class="pkg-grid acc-body">' + qs.map(quoteCard).join("") + "</div></div>";
     else if (App.can("sales.sellPTDirect") !== true) html += '<p class="hint" data-no-quotes>PT / Premium PT: ask the CM / MXM for a PT quote ("Request PT quote" on the profile); you then bill it here.</p>';
-    html += '<p class="hint">Trials are booked with "Book trial", never here. Membership and Premium PT only (#93).</p>';
+    html += '<p class="hint">Trials are booked with "Book trial", never here. Membership and Premium PT only.</p>';
     if (k && k.people === 2) html += '<p class="hint">Converts this person only. Adding the partner comes later.</p>';
     html += "</section>";
-    if (k && k.price > 0) {
-      html += '<section class="cv-card"><h3 class="cv-card-title">Price &amp; discount</h3><div class="form-grid">' +
-        '<div class="field"><label>Price</label><div class="input input-static">' + App.fmtMoney(k.price) + ' <span class="muted">· locked</span></div></div>' +
-        // Discount (decision #73): [% | ₹] + amount in one row, live line under it, limit note small.
-        '<div class="field"><label for="cvDisc">Discount</label><div class="disc-row"><div class="seg seg-join" role="radiogroup" aria-label="Discount type">' +
-          ["%", "₹"].map(function (x) { return '<button type="button" class="seg-btn' + (C.mode === x ? " active" : "") + '" role="radio" aria-checked="' + (C.mode === x) + '" data-disc="' + x + '">' + x + "</button>"; }).join("") +
-          '</div><input class="input input-num' + (de ? " invalid" : "") + '" id="cvDisc" data-k="disc" type="number" min="0" value="' + esc(C.disc) + '" placeholder="0"' + (App.discountRule().pct ? "" : " disabled") + "></div>" +
-          '<div class="disc-live" data-disc-line>' + discLine() + "</div>" +
-          '<span class="error" data-disc-err' + (de ? "" : " hidden") + ">" + de + "</span>" +
-          '<span class="hint">' + (k.type === "Premium PT" ? "Discount on the PT part only (" + App.fmtMoney(mo.base) + "); the membership stays at " + App.fmtMoney(mo.mem) + "." : "Discount applies to the package only, not accessories or the key fob deposit.") + "</span>" +
-          '<span class="hint" data-disc-limit>Your limit (' + esc(App.state.role) + "): " + (App.discountRule().pct ? esc(App.Perm.text(App.discountRule(), { type: "pctcap" })) + " · here up to " + App.fmtMoney(App.discountMaxAmount(mo.base)) : "no discount for your role") + "</span></div>" +
-        (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><select class="input' + inv("reason") + '" id="cvReason" data-k="reason">' +
-            '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
-            (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
-        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
-          return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
-          '</select><span class="hint">' + (k.type === "Premium PT" ? "One sales rep for the whole Premium PT package. Whether the membership part pays any incentive, and to whom, is set by the incentive scheme." : "Gets the credit for this sale line. Defaults to you (the person creating the sale); any staff who can be sales rep, any branch.") + "</span></div>" +
-        "</div></section>";
-    }
+    if (qq) html += '<p class="hint" data-quote-picked>PT quote picked: ' + esc(qq.package) + ". Price, discount and trainer are shown on the next step (locked).</p>";
     return html;
   }
   // Accordions per category (+ / −) with a count; search filters across all groups and opens the ones with matches.
@@ -459,8 +430,12 @@
     return any ? html : '<div class="state">No packages match "' + esc(C.pkgQ.trim()) + '".</div>';
   }
   function check2() {
+    var e = {}; if (!pkg()) e.pkg = "Choose a package.";
+    return e;
+  }
+  function checkPrice() {
     var e = {}, k = pkg(), mo = money();
-    if (!k) { e.pkg = "Choose a package."; return e; }
+    if (!k) return e;
     if (k.price > 0 && !quote()) {
       var de = discError(); if (de) e.disc = de;
       if (mo.disc > 0 && !C.reason) e.reason = "A reason is needed for a discount.";
@@ -483,16 +458,51 @@
         (a.locked ? ' <span class="badge badge-info">Locked</span>' : "") + '</span></label><div class="cell-sub">' + esc(a.why) + (a.locked ? " · the trial ends at conversion" : "") + "</div>";
     }).join(""));
   }
+  // Step 3 top: price & discount + sales rep (moved from the Package step; same rules). A picked quote shows it LOCKED.
+  function priceSection(p) {
+    var k = pkg(), mo = money(), lim = limitPct(), de = C.errors.disc || discError(), qq = quote(), html = "";
+    if (qq) {
+      // Locked bill from the quote (#113): package, trainer, price, discount. Only payment (+ FF ID / key fob) is entered.
+      var qm = App.Quote.money(qq);
+      return '<section class="cv-card" data-quote-locked><h3 class="cv-card-title">PT quote · locked</h3><dl class="kv">' +
+        "<dt>Package</dt><dd>" + esc(qq.package) + "</dd><dt>Trainer (PT line)</dt><dd data-quote-trainer>" + esc(App.userName(qq.trainerUserId)) + "</dd>" +
+        "<dt>Price</dt><dd>" + App.fmtMoney(qm.price) + ' <span class="cell-sub">membership ' + App.fmtMoney(qm.ref) + " + PT " + App.fmtMoney(qm.base) + "</span></dd>" +
+        "<dt>Discount</dt><dd>" + (qm.disc ? App.fmtMoney(qm.disc) + " off the PT part · " + esc(qq.discountReason === "Other" ? qq.discountReasonOther : qq.discountReason) : "None") + "</dd>" +
+        "<dt>Final</dt><dd><strong>" + App.fmtMoney(qm.final) + "</strong></dd><dt>Quote</dt><dd>by " + esc(App.userName(qq.createdByUserId)) + " · valid till " + esc(App.fmtIsoDate(qq.validTill)) + "</dd></dl>" +
+        '<p class="hint">Made by the CM / MXM; nothing here can be changed. <button type="button" class="link-btn" data-unquote>Choose another</button></p>' +
+        repField(p, k) + "</section>";
+    }
+    if (k && k.price > 0) {
+      html += '<section class="cv-card"><h3 class="cv-card-title">Price &amp; discount</h3><div class="form-grid">' +
+        '<div class="field"><label>Price</label><div class="input input-static">' + App.fmtMoney(k.price) + ' <span class="muted">· locked</span></div></div>' +
+        // Discount (decision #73): [% | ₹] + amount in one row, live line under it, limit note small.
+        '<div class="field"><label for="cvDisc">Discount</label><div class="disc-row"><div class="seg seg-join" role="radiogroup" aria-label="Discount type">' +
+          ["%", "₹"].map(function (x) { return '<button type="button" class="seg-btn' + (C.mode === x ? " active" : "") + '" role="radio" aria-checked="' + (C.mode === x) + '" data-disc="' + x + '">' + x + "</button>"; }).join("") +
+          '</div><input class="input input-num' + (de ? " invalid" : "") + '" id="cvDisc" data-k="disc" type="number" min="0" value="' + esc(C.disc) + '" placeholder="0"' + (App.discountRule().pct ? "" : " disabled") + "></div>" +
+          '<div class="disc-live" data-disc-line>' + discLine() + "</div>" +
+          '<span class="error" data-disc-err' + (de ? "" : " hidden") + ">" + de + "</span>" +
+          '<span class="hint">' + (k.type === "Premium PT" ? "Discount on the PT part only (" + App.fmtMoney(mo.base) + "); the membership stays at " + App.fmtMoney(mo.mem) + "." : "Discount applies to the package only, not accessories or the key fob deposit.") + "</span>" +
+          '<span class="hint" data-disc-limit>Your limit (' + esc(App.state.role) + "): " + (App.discountRule().pct ? esc(App.Perm.text(App.discountRule(), { type: "pctcap" })) + " · here up to " + App.fmtMoney(App.discountMaxAmount(mo.base)) : "no discount for your role") + "</span></div>" +
+        (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><select class="input' + inv("reason") + '" id="cvReason" data-k="reason">' +
+            '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
+            (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
+        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
+          return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
+          '</select><span class="hint">' + (k.type === "Premium PT" ? "One sales rep for the whole Premium PT package. Whether the membership part pays any incentive, and to whom, is set by the incentive scheme." : "Gets the credit for this sale line. Defaults to you (the person creating the sale); any staff who can be sales rep, any branch.") + "</span></div>" +
+        "</div></section>";
+    }
+    return html;
+  }
   function s3(p) {
     var k = pkg(), r = App.saleStartRange(), e = endDate(), locked = startLocked();
-    return sec("Sale type", saleBox(k)) + adjustBox() + sec("Dates",
+    return priceSection(p) + sec("Sale type", saleBox(k)) + adjustBox() + sec("Dates",
       '<div class="form-grid"><div class="field"><label for="cvStart">Start date <span class="req">*</span></label>' +
         '<input class="input' + inv("start") + '" id="cvStart" data-k="start" type="date" min="' + (locked ? C.start : r.min) + '" max="' + (locked ? C.start : r.max) + '" value="' + esc(C.start) + '"' + (locked ? " disabled" : "") + ">" +
-        (C.errors.start ? err("start") : locked ? '<span class="hint" data-start-locked>Set by system = the paid trial\'s start date (' + esc(App.fmtIsoDate(C.start)) + "). Exempt from the back-date rule (#94, #103).</span>" : '<span class="hint" data-start-hint>' + esc(r.hint) + "</span>") + "</div>" +
+        (C.errors.start ? err("start") : locked ? '<span class="hint" data-start-locked>Set by system = the paid trial\'s start date (' + esc(App.fmtIsoDate(C.start)) + "). Exempt from the back-date rule.</span>" : '<span class="hint" data-start-hint>' + esc(r.hint) + "</span>") + "</div>" +
       '<div class="field"><label>Ends</label><div class="input input-static" data-end>' + (e ? esc(App.fmtDate(e.toISOString())) + ' <span class="muted">· ' + k.days + (k.days === 1 ? " day" : " days") + ", start day included</span>" : "—") + "</div></div></div>");
   }
   function check3() {
-    var e = {}, msg = startLocked() ? "" : App.saleStartError(C.start);
+    var e = checkPrice(), msg = startLocked() ? "" : App.saleStartError(C.start);
     if (msg) e.start = msg;
     return e;
   }
@@ -500,7 +510,7 @@
   // Step 4 — Corporate entry: FF ID & key fob (decisions #67, #72, #75)
   function s4(p) {
     var st = stock(p), fobOk = needsFob();
-    var head = '<section class="cv-card"><h3 class="cv-card-title">' + esc(CORP) + '</h3><p class="muted">FF ID is required to convert (decision #93). The key fob can be assigned later and shows as pending until then.</p>' +
+    var head = '<section class="cv-card"><h3 class="cv-card-title">' + esc(CORP) + '</h3><p class="muted">FF ID is required to convert. The key fob can be assigned later and shows as pending until then.</p>' +
       '<div class="field"><label for="cvFf">FF ID <span class="req">*</span></label><input class="input' + inv("ffId") + '" id="cvFf" data-k="ffId" value="' + esc(C.ffId) + '" placeholder="e.g. FF-20500" required>' +
         (C.errors.ffId ? err("ffId") : '<span class="hint">From the corporate software. Enter the client there first, then the FF ID here.</span>') + "</div>";
     head += '<div class="field"><label>Key fob</label>';

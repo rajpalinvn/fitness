@@ -96,7 +96,7 @@
     { key: "sales.convert",         module: "Sales",    label: "Convert to Client / Sell",                              type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     // Max discount per role = % AND a ₹ cap; the LOWER applies; cap 0 = no ₹ cap; % 0 = no discount (#77, #103 Q22).
     // Defaults keep the #77 % with no cap; demo: SM 20% · max ₹5,000. CEO set by the club in the grid (Q31 closed).
-    { key: "sales.discountMax",     module: "Sales",    label: "Max discount % · max ₹ (#77, #103)",                    type: "pctcap", defaults: { SE: { pct: 10, cap: 0 }, SM: { pct: 20, cap: 5000 }, CM: { pct: 30, cap: 0 }, RM: { pct: 50, cap: 0 }, CEO: { pct: 100, cap: 0 } } },
+    { key: "sales.discountMax",     module: "Sales",    label: "Max discount % · max ₹",                    type: "pctcap", defaults: { SE: { pct: 10, cap: 0 }, SM: { pct: 20, cap: 5000 }, CM: { pct: 30, cap: 0 }, RM: { pct: 50, cap: 0 }, CEO: { pct: 100, cap: 0 } } },
     // PT quote flow (#110): SE sells MEMBERSHIP only; PT / Premium PT are decided by CM / MXM in a quote; the SE bills the quote.
     { key: "sales.sellMembership",  module: "Sales",    label: "Sell membership packages",                              type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
     { key: "pt.quote",              module: "Sales",    label: "Create PT quote / book PT trial (CM / MXM decide trainer + price)", type: "scope", defaults: { CM: "Branch", MXM: "Branch", RM: "Branch", CEO: "All" } },
@@ -104,29 +104,29 @@
     { key: "sales.sellFromQuote",   module: "Sales",    label: "Bill a PT quote",                                       type: "tick",   defaults: { SE: true, SM: true, CM: true, CEO: true } },
     { key: "sales.rep",             module: "Sales",    label: "Can be sales rep",                                      type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
     { key: "sales.sellCrossBranch", module: "Sales",    label: "\"Sell here\" on another branch's lead (needs the cross-branch follow-up row)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true }, requires: "leads.crossBranchFollowUp" },
-    { key: "sales.backDate",        module: "Sales",    label: "Back-date a sale start (current month only, #103)",     type: "tick",   defaults: {} },
-    { key: "payments.refund",       module: "Payments", label: "Refund / cancel a payment (no screen yet, #103)",       type: "tick",   defaults: {} },
+    { key: "sales.backDate",        module: "Sales",    label: "Back-date a sale start (current month only)",     type: "tick",   defaults: {} },
+    { key: "payments.refund",       module: "Payments", label: "Refund / cancel a payment (no screen yet)",       type: "tick",   defaults: {} },
     { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.collectPayment", module: "Clients", label: "Collect payment",                                       type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.issueItems",    module: "Clients",  label: "Issue FF ID / key fob / item on a client",           type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
-    { key: "clients.waive",         module: "Clients",  label: "Waive pending item (#67)",                              type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "clients.waive",         module: "Clients",  label: "Waive pending item",                              type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.packages",     module: "Settings", label: "Packages",                                              type: "tick",   defaults: { CEO: true } },
     { key: "settings.viewMasters",  module: "Settings", label: "View Packages / Items / Tax / Sales rules (read-only)", type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
-    { key: "settings.stock",        module: "Settings", label: "Accessory / key fob stock (#56)",                       type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.stock",        module: "Settings", label: "Accessory / key fob stock",                       type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.editInactivity", module: "Settings", label: "Edit inactivity release days",                        type: "tick",   defaults: { CM: true, RM: true, CEO: true } },
     { key: "settings.rolesPermissions", module: "Settings", label: "Roles & permissions",                               type: "tick",   defaults: { CEO: true }, lock: "all" }
   ];
   // Settings values (decision #96, notes "Settings values"). Who can change: a grid row (permission key) or CEO.
   var settingDefs = [
-    { key: "freeTrialsPerPerson",      label: "Free trials per person (each trial type)", def: 2, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Counted by mobile number across all branches, separately for Membership trials and PT trials (#94)." },
+    { key: "freeTrialsPerPerson",      label: "Free trials per person (each trial type)", def: 2, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Counted by mobile number across all branches, separately for Membership trials and PT trials." },
     { key: "freeTrialsPerBranch",      label: "Free trials per branch (each trial type)", def: 1, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Must be the same or fewer than per person." },
     { key: "paidTrialAdjustBufferDays", label: "Paid trial adjust buffer after it ends", def: 7, min: 0, max: 30, unit: "days", by: "CEO", hint: "Within this many days after a paid trial ended, the adjust is still offered (to roles with the grid row)." },
-    { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned (#100)." },
+    { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
-    { key: "exClientAfterDays",        label: "Ex-client after (days without an active package)", def: 30, min: 0, max: 365, unit: "days", by: "CEO", hint: "Expired for this many days after the last package ends (membership or PT), then Ex-client (#103)." },
-    { key: "ptQuoteValidDays",         label: "PT quote valid for",                     def: 7, min: 1, max: 90, unit: "days", by: "CEO", hint: "A PT quote can be billed until this many days after it is made; then it shows Expired (#111)." },
-    { key: "ptTrialsPerPerson",        label: "PT trials per person",                   def: 0, min: 0, max: 20, unit: "trials (0 = no limit)", by: "CEO", hint: "PT trials are CM / MXM assessments: no approval, no limit by default; repeats show as info only (#94 changed by #112)." },
-    { key: "crossBranchOwnerChange",   label: "When another branch's staff works on a lead, owner changes", def: "On sale", options: ["On sale", "On first follow-up", "Never"], by: "CEO", hint: "On the trigger the lead moves to that staff's branch, they become the owner and the old owner's open follow-ups close (\"Taken over by <branch>\"). Never: owner and branch stay; the seller is only the sales rep (#106)." },
+    { key: "exClientAfterDays",        label: "Ex-client after (days without an active package)", def: 30, min: 0, max: 365, unit: "days", by: "CEO", hint: "Expired for this many days after the last package ends (membership or PT), then Ex-client." },
+    { key: "ptQuoteValidDays",         label: "PT quote valid for",                     def: 7, min: 1, max: 90, unit: "days", by: "CEO", hint: "A PT quote can be billed until this many days after it is made; then it shows Expired." },
+    { key: "ptTrialsPerPerson",        label: "PT trials per person",                   def: 0, min: 0, max: 20, unit: "trials (0 = no limit)", by: "CEO", hint: "PT trials are CM / MXM assessments: no approval, no limit by default; repeats show as info only." },
+    { key: "crossBranchOwnerChange",   label: "When another branch's staff works on a lead, owner changes", def: "On sale", options: ["On sale", "On first follow-up", "Never"], by: "CEO", hint: "On the trigger the lead moves to that staff's branch, they become the owner and the old owner's open follow-ups close (\"Taken over by <branch>\"). Never: owner and branch stay; the seller is only the sales rep." },
     { key: "newLeadAssignment",        label: "New-lead assignment",                    def: "Manual", options: ["Manual", "Round-robin", "Round-robin among on-shift staff"], by: "CEO", hint: "Round-robin and on-shift round-robin come later (need shift data, docs/lead-lifecycle.md)." }
   ];
 

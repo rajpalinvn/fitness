@@ -1,5 +1,5 @@
 /* Clients list (decision #91). Same list-first pattern as Leads. Reads only window.DUMMY.
-   Cards count role + top-bar branch only. "Needs attention" = any pending item, same helpers as Today (#61, #67, #82). */
+   Cards count role + top-bar branch only. "Needs attention" = any pending item, same helpers as Today. */
 (function () {
   var D = window.DUMMY, esc = App.esc;
   var $ = function (id) { return document.getElementById(id); };

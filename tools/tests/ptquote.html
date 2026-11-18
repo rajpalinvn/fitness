@@ -143,6 +143,8 @@ queue.push(function (nx) { start(LEADS, "Sales Executive", function () {
     ok("PT quotes section: open q1 + expired q2 disabled with the date", !!q('[data-quote="q1"]') && q('[data-quote="q2"]').disabled && /Expired on/.test(q('[data-quote="q2"]').textContent));
     click(q('[data-quote="q2"]')); ok("expired quote unusable", !q("[data-quote-locked]"));
     click(q('[data-quote="q1"]'));
+    ok("Package step only picks: no discount / rep there; note points to the next step", !q("#cvDisc") && !q("#cvRep") && /next step/.test(text("[data-quote-picked]")));
+    next();
     ok("locked bill: package, trainer Deepak, ₹2,200 off, final ₹27,800; no discount input", !!q("[data-quote-locked]") && /Deepak Verma/.test(text("[data-quote-trainer]")) && /₹27,800/.test(text("[data-quote-locked]")) && !q("#cvDisc"));
     ok("rep = the creator (Priya), separate from the trainer", q("#cvRep").value === "u6");
     ok("sold to the end", sellThrough("FF-81001"));
@@ -164,8 +166,14 @@ queue.push(function (nx) { start(LEADS, "Sales Executive", function () {
 queue.push(function (nx) { start(TODAY, "MXM", function () {
   step("Today section (#111)", function () {
     ok("MXM Today: 'PT quote requests' lists Tanvi with Create quote", /PT quote requests/.test(text("#sec-quotes")) && /Tanvi Shah/.test(text("#sec-quotes")) && !!q('#sec-quotes [data-act="quote"]'));
+    ok("MXM line: 'Your work here: PT quote requests', not 'aren't part of your role'", /Your work here: PT quote requests/.test(text("[data-role-note]")) && !/aren't part of your role/.test(text("#sections")));
     ok("no bad text", !badText(), badText());
   });
+  nx();
+}); });
+// Trainer (no quote section): keeps the old line
+queue.push(function (nx) { start(TODAY, "Trainer", function () {
+  step("Trainer Today line", function () { ok("Trainer: old line 'Leads and follow-ups aren't part of your role'", /aren't part of your role/.test(text("[data-role-note]"))); });
   nx();
 }); });
 
