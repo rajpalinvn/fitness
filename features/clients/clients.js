@@ -6,7 +6,7 @@
   var CARDS = [["attention", "Needs attention", "pending items"], ["active", "Active", "more than 15 days left"], ["renewal", "Renewal due", "any package ≤ 15 days"],
     ["expired", "Expired", "counts in renewals"], ["ex", "Ex-client", "no active package"]];
   var PENDING_TYPES = [["addFf", "FF ID pending"], ["goFob", "Key fob pending"], ["issue", "Pending issue"], ["pay", "Payment due"]];
-  var S = { card: "", search: "", rep: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, mode: "loading" };
+  var S = { card: "", search: "", rep: "", owner: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, mode: "loading" };
   if (/[?&]view=attention\b/.test(location.search)) S.card = "attention";
   var lastList = [];
 
@@ -18,9 +18,9 @@
     var ms = App.clientStatus(p);
     if (ms.key === "ex") return { key: "ex", text: "Ex-client", badge: "", left: ms.left };
     if (ms.cls === "red") return { key: "expired", text: "Expired", badge: "badge-danger", left: ms.left };
-    // Renewal due = ANY package (membership or PT) within 15 days, each on its own (c6); Expired / Ex-client stay client level.
-    var rd = App.renewalsDue(p);
-    if (rd.length) return { key: "renewal", text: rd.map(function (x) { return x.what + " renewal due"; }).join(" · "), badge: "badge-warning", left: Math.min.apply(null, rd.map(function (x) { return x.st.left; })), due: rd };
+    // Renewal due = ANY package <= 15 days OR already expired while the client is still Active (c7); Expired / Ex-client stay client level.
+    var rd = App.packagesNeedingRenewal(p);
+    if (rd.length) return { key: "renewal", text: rd.map(function (x) { return x.label; }).join(" · "), badge: "badge-warning", left: Math.min.apply(null, rd.map(function (x) { return x.st.left; })), due: rd };
     return { key: "active", text: "Active", badge: "badge-success", left: ms.left };
   }
   function balances(p) {
@@ -37,6 +37,7 @@
         if (!hit) return false;
       }
       if (S.rep && p.membership.salesRepUserId !== S.rep) return false;
+      if (S.owner && p.ownerUserId !== S.owner) return false;
       if (S.pt && !p.pt) return false;
       if (S.bal && !balances(p).length) return false;
       if (S.pending && !App.profilePending(p).some(function (i) { return i.k === S.pending; })) return false;
@@ -69,13 +70,15 @@
     opts($("fStatus"), "Active + Renewal due", CARDS.map(function (c) { return [c[0], c[1]]; }));
     var reps = D.users.filter(function (u) { return D.people.some(function (p) { return p.membership && p.membership.salesRepUserId === u.id; }); }).map(function (u) { return [u.id, u.name]; });
     ["fRep", "mRep"].forEach(function (id) { opts($(id), "All sales reps", reps); });
+    // Owner (More filters): same rule as Leads, users who own at least one person on this list.
+    opts($("fOwner"), "All owners", D.users.filter(function (u) { return D.people.some(function (p) { return p.membership && p.ownerUserId === u.id; }); }).map(function (u) { return [u.id, u.name]; }));
     ["fBranch", "mBranch"].forEach(function (id) { opts($(id), "All branches", D.branches.map(function (b) { return [b.id, b.name]; }), "all"); });
     opts($("fPending"), "Any", PENDING_TYPES);
     syncControls();
   }
   function syncControls() {
     $("fStatus").value = S.card; $("fSearch").value = S.search;
-    $("fRep").value = $("mRep").value = S.rep; $("fBranch").value = $("mBranch").value = S.branch || "all";
+    $("fRep").value = $("mRep").value = S.rep; $("fOwner").value = S.owner; $("fBranch").value = $("mBranch").value = S.branch || "all";
     $("fPending").value = S.pending; $("fFrom").value = S.from; $("fTo").value = S.to; $("fPt").checked = S.pt; $("fBal").checked = S.bal;
     [$("fFrom"), $("fTo")].forEach(function (i) { if (i._syncDate) i._syncDate(); });
     App.syncAllSelects(document.querySelector(".main"));
@@ -92,6 +95,7 @@
     if (S.card) t.push(["card", CARDS.filter(function (c) { return c[0] === S.card; })[0][1]]);
     if (S.search) t.push(["search", 'Search: "' + S.search + '"']);
     if (S.rep) t.push(["rep", "Sales rep: " + App.userName(S.rep)]);
+    if (S.owner) t.push(["owner", "Owner: " + App.userName(S.owner)]);
     if (S.pending) t.push(["pending", "Pending: " + PENDING_TYPES.filter(function (x) { return x[0] === S.pending; })[0][1]]);
     if (S.from) t.push(["from", "Joined from " + App.fmtIsoDate(S.from)]);
     if (S.to) t.push(["to", "Joined to " + App.fmtIsoDate(S.to)]);
@@ -106,7 +110,7 @@
   function endsCell(p) {
     var st = status(p), left = st.left, end = App.lastPackageEnd(p);
     return '<div class="when">' + esc(App.fmtDate(end)) + "</div>" + (st.key === "ex" ? '<span class="badge">Ex-client · ended ' + (-left) + " days ago</span>" :
-      (st.key === "renewal" ? st.due.map(function (x) { return '<span class="badge badge-warning" data-renew="' + x.what + '">' + x.what + " renewal due · " + (x.st.left === 0 ? "today" : x.st.left + (x.st.left === 1 ? " day" : " days")) + "</span>"; }).join(" ") :
+      (st.key === "renewal" ? st.due.map(function (x) { return '<span class="badge badge-warning" data-renew="' + x.what + '">' + esc(x.label) + "</span>"; }).join(" ") :
       '<span class="badge ' + st.badge + '">' + (left < 0 ? "Expired " + (-left === 1 ? "1 day" : -left + " days") + " ago" : left === 0 ? "Ends today" : left + (left === 1 ? " day" : " days") + " left") + "</span>")) +
       (p.pt && p.pt.end && p.membership && p.membership.end && p.pt.end !== p.membership.end ? '<div class="cell-sub">Membership ' + esc(App.fmtDate(p.membership.end)) + " · PT " + esc(App.fmtDate(p.pt.end)) + "</div>" : "");
   }
@@ -201,9 +205,9 @@
     $(id).addEventListener(ev || "change", function () { S[key] = this.type === "checkbox" ? this.checked : this.value; syncControls(); render(); });
   }
   bind("fSearch", "search", "input"); bind("fStatus", "card"); bind("fRep", "rep"); bind("mRep", "rep"); bind("fBranch", "branch"); bind("mBranch", "branch");
-  bind("fPending", "pending"); bind("fFrom", "from"); bind("fTo", "to"); bind("fPt", "pt"); bind("fBal", "bal");
+  bind("fOwner", "owner"); bind("fPending", "pending"); bind("fFrom", "from"); bind("fTo", "to"); bind("fPt", "pt"); bind("fBal", "bal");
   $("btnMore").addEventListener("click", function () { $("moreFilters").classList.toggle("open"); });
-  function clearAll() { S.card = ""; S.search = ""; S.rep = ""; S.pending = ""; S.from = ""; S.to = ""; S.pt = false; S.bal = false; S.branch = App.state.branchId; syncControls(); render(); }
+  function clearAll() { S.card = ""; S.search = ""; S.rep = ""; S.owner = ""; S.pending = ""; S.from = ""; S.to = ""; S.pt = false; S.bal = false; S.branch = App.state.branchId; syncControls(); render(); }
   $("btnClear").addEventListener("click", clearAll);
   $("btnRetry").addEventListener("click", load);
   document.addEventListener("click", function (e) { if (e.target.closest("#btnClear2")) clearAll(); });
@@ -217,7 +221,7 @@
   }
   document.addEventListener("DOMContentLoaded", function () {
     fillFilters();
-    ["fStatus", "fRep", "fBranch", "mRep", "mBranch", "fPending"].forEach(function (id) { App.enhanceSelect($(id)); });
+    ["fStatus", "fRep", "fBranch", "mRep", "mBranch", "fOwner", "fPending"].forEach(function (id) { App.enhanceSelect($(id)); });
     load();
   });
 })();

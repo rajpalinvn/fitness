@@ -507,6 +507,17 @@
     return out.filter(function (x) { return x.st; });
   };
   App.renewalsDue = function (p) { return App.packageStatuses(p).filter(function (x) { return x.st.key === "renewal"; }); };
+  // Packages needing renewal (Clients "Renewal due"): a client that is not Expired / Ex-client at client level, with ANY package
+  // <= 15 days left OR already expired (e.g. membership expired while PT runs). x.label = badge text.
+  App.packagesNeedingRenewal = function (p) {
+    var cs = App.clientStatus(p); if (!cs || cs.key === "ex" || cs.key === "expired") return [];
+    return App.packageStatuses(p).filter(function (x) { return x.st.key === "renewal" || x.st.key === "expired"; }).map(function (x) {
+      var l = x.st.left;
+      x.label = x.st.key === "expired" ? (x.what === "Membership" && App.ptOnHold(p) ? "Membership expired · PT on hold" : x.what + " expired")
+        : x.what + " renewal due · " + (l === 0 ? "today" : l + (l === 1 ? " day" : " days"));
+      return x;
+    });
+  };
   // PT needs an active membership (#83 + c6): UNLOCKED = by payment (unchanged); USABLE now = unlocked AND the membership is
   // active today. Membership ended while PT still runs -> "PT on hold" (the PT end date keeps running; freeze is parked).
   App.ptUnlockedOf = function (p) { var t = p && p.pt; return t ? App.ptUnlocked(t.price, t.discount, t.sessions, t.payment ? t.payment.paid : 0) : 0; };

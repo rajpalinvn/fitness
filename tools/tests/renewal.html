@@ -35,6 +35,15 @@ load(CL, function () {
       click(q('[data-card="renewal"]'));
       ok("Renewal due card includes Kabir (membership due, PT longer)", ids().indexOf("p18") > -1);
       ok("badge says which: 'Membership renewal due · 12 days'", /Membership renewal due · 12 days/.test(text('#rows tr[data-id="p18"]')));
+      ok("c7: Nikhil (membership expired, client Active) is in Renewal due", ids().indexOf("p40") > -1);
+      ok("c7: Nikhil badge 'Membership expired · PT on hold'", /Membership expired · PT on hold/.test(text('#rows tr[data-id="p40"] [data-renew]')));
+      ok("c7: Pallavi (client Expired) not in Renewal due", ids().indexOf("p21") < 0);
+      ok("c7: packagesNeedingRenewal(Nikhil) = Membership", A().packagesNeedingRenewal(person("p40")).map(function (x) { return x.what; }).join() === "Membership");
+      click(q('[data-card="renewal"]'));
+      var o = q("#fOwner"); o.value = "u6"; o.dispatchEvent(new (W().Event)("change", { bubbles: true }));
+      ok("c7: Owner filter (More filters) keeps only that owner's clients", ids().length > 0 && ids().every(function (i) { return person(i).ownerUserId === "u6"; }) && /Owner: /.test(text("#activeFilters")));
+      o.value = ""; o.dispatchEvent(new (W().Event)("change", { bubbles: true }));
+      click(q('[data-card="renewal"]'));
       click(q('[data-card="renewal"]')); click(q('[data-card="expired"]'));
       ok("Expired card stays client level: p21 only (not Nikhil, not Kabir)", ids().join() === "p21", ids().join());
       click(q('[data-card="expired"]'));
