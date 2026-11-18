@@ -8,7 +8,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 - **Tick** cells: Yes / No. **Number** cells: whole number 0–100 (%). **Pct + cap** cell (`sales.discountMax`): { pct 0–100, capRupees >= 0 }; the LOWER of (pct % of the package line) and the cap applies; cap 0 = no cap; pct 0 = no discount. Premium PT: on the PT part only.
 - **Roles** (10 tenant roles, #102, #114): CEO, RM (Regional Manager), CM (Club Manager), SM (Sales Manager), SE (Sales Executive),
   MXM, TR (Trainer), FIN (Finance), MKT (Marketing), HR. Multi-branch roles (branches picked when the user is created, one or
-  many): RM, Finance, HR. Only CEO has All. SuperAdmin is a platform role (creates tenants + the first CEO account) and has no column.
+  many): RM, Finance, HR, Marketing. Only CEO has All. SuperAdmin is a platform role (creates tenants + the first CEO account) and has no column.
 - **Locked**: CEO has every permission (whole column locked, top tenant role). `settings.rolesPermissions` is locked for every
   role (CEO only). `leads.view` can't go below Own for CEO / RM / CM / SM / SE ("an owner can always see and log follow-ups on
   their own leads"). Validation, not a lock: at least one role besides CEO keeps `leads.assign`.
@@ -17,6 +17,9 @@ Keys are stable dotted strings; the grid stores role × key → value.
   HR has nothing in the mockup yet (staff screens are in the real app only). No role-specific code paths: only grid rows.
 - Masters (#114): every master has its OWN View row (old single `settings.viewMasters` dropped, same defaults: SM / CM / RM
   Branch, CEO All locked, others None) plus its existing edit rule. Read-only for SM works as before (banner "View only").
+  #115: BRANCH-owned masters (Packages, Items / stock, Lead sources) = scope; COMPANY-wide masters (Lost reasons, Tax,
+  Sales rules, Trainer types) = tick. Lead sources are branch-assignable ("Applies to" = all branches, default, or
+  selected branches; a region = pick its branches); the lead Source dropdown shows only sources for the lead's branch.
 
 | Key | Label | Module | Values | CEO | RM | CM | SM | SE | MXM | TR | FIN | MKT | HR | Locked |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -54,12 +57,13 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `settings.packages` | Packages | Settings | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `settings.viewPackages` | View Packages (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
 | `settings.viewItems` | View Items (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
-| `settings.viewTax` | View Tax categories (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
-| `settings.viewSalesRules` | View Sales rules (edit: `settings.packages`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
-| `settings.viewTrainerTypes` | View Trainer types (edit: `settings.rolesPermissions`) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
-| `settings.viewLeadSources` | View Lead sources (no screen yet) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | Branch | None | CEO |
-| `settings.editLeadSources` | Edit Lead sources (no screen yet) | Settings | tick | Yes | No | No | No | No | No | No | No | Yes | No | CEO |
-| `settings.viewLostReasons` | View Lost reasons (no screen yet; edit rule open, Q) | Settings | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |
+| `settings.viewTax` | View Tax categories (company-wide; edit: `settings.packages`) | Settings | tick | Yes | Yes | Yes | Yes | No | No | No | No | No | No | CEO |
+| `settings.viewSalesRules` | View Sales rules (company-wide; edit: `settings.packages`) | Settings | tick | Yes | Yes | Yes | Yes | No | No | No | No | No | No | CEO |
+| `settings.viewTrainerTypes` | View Trainer types (company-wide; edit: `settings.rolesPermissions`) | Settings | tick | Yes | Yes | Yes | Yes | No | No | No | No | No | No | CEO |
+| `settings.viewLeadSources` | View Lead sources (branch-assignable, #115; SE Branch for the Source dropdown; no screen yet) | Settings | scope | All | Branch | Branch | Branch | Branch | None | None | None | Branch | None | CEO |
+| `settings.editLeadSources` | Create / edit Lead sources (Branch = only sources for my branches; no screen yet) | Settings | scope | All | Branch | None | None | None | None | None | None | Branch | None | CEO |
+| `settings.viewLostReasons` | View Lost reasons (company-wide; no screen yet) | Settings | tick | Yes | Yes | Yes | Yes | No | No | No | No | No | No | CEO |
+| `settings.editLostReasons` | Edit Lost reasons (company-wide; no screen yet) | Settings | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `settings.stock` | Accessory / key fob stock (#56) | Settings | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
 | `settings.editInactivity` | Edit inactivity release days | Settings | tick | Yes | Yes | Yes | No | No | No | No | No | No | No | CEO |
 | `settings.rolesPermissions` | Roles & permissions | Settings | tick | Yes | No | No | No | No | No | No | No | No | No | every cell (CEO only) |

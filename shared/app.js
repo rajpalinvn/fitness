@@ -466,13 +466,18 @@
     if ((s === "Branch" || s === "Own") && u) return u.branchIds.slice();
     return [];
   };
+  // Lead sources that apply to a branch (#115): all-branch sources + the ones assigned to this branch.
+  App.sourcesFor = function (branchId) {
+    var L = DUMMY.lists, m = L.leadSourceBranches || {};
+    return L.sources.filter(function (s) { return !m[s] || !branchId || m[s].indexOf(branchId) > -1; });
+  };
   App.access = {
     // Sales rules edit has no row of its own → settings.packages (accepted mapping). View-only = one View row per master (#114).
     salesRules: function () { return App.can("settings.packages") === true; },
     editMasters: function () { return App.can("settings.packages") === true; },
     // One View row per master (#114): view(key) where key = packages | items | tax | salesRules.
     viewMaster: function (k) { var r = { packages: "settings.viewPackages", items: "settings.viewItems", tax: "settings.viewTax", salesRules: "settings.viewSalesRules" }[k];
-      return App.can("settings.packages") === true || App.can(r) !== "None"; },
+      var v = App.can(r); return App.can("settings.packages") === true || v === true || (typeof v === "string" && v !== "None"); },
     stock: function () { return App.can("settings.stock") !== "None"; },
     stockBranches: function () { return App.scopeBranches("settings.stock"); },
     // Pending items on a client (#62): Add FF ID / Assign fob / Issue item → clients.issueItems; Collect payment → clients.collectPayment.

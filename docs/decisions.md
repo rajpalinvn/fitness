@@ -705,3 +705,11 @@
     created (one or many). Only CEO = All. (c) Two fixed roles: MARKETING (MKT) and HR, each a grid column; None / No / 0
     on every lead, trial, sales and client key. Marketing: View + edit Lead sources. HR: nothing in the mockup yet (staff
     screens are real-app only). No role-specific code paths.
+115. Lead sources branch-assignable; master row types (18 Nov 2026, c12). A lead source has "Applies to" = all branches
+    (default) or selected branches (a region = pick its branches). Creating / editing a lead: the Source dropdown shows
+    only sources that apply to the lead's branch. `settings.viewLeadSources` and `settings.editLeadSources` are SCOPE
+    (Branch = see / create / edit sources only for my own branches). Defaults: CEO All (locked); Marketing and RM View +
+    Edit Branch; CM, SM View Branch, Edit None; SE View Branch (dropdown), Edit None; others None. COMPANY-wide masters
+    (Lost reasons, Tax, Sales rules, Trainer types) have TICK View / Edit rows; BRANCH-owned masters (Packages, Items /
+    stock, Lead sources) have SCOPE rows. New `settings.editLostReasons`: CEO only. Marketing is MULTI-branch (like
+    Finance / HR). Marketing and HR report to CEO. No lead-source / lost-reason / trainer-type screen in the mockup.

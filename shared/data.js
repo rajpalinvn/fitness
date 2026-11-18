@@ -37,10 +37,10 @@
     { key: "SALES_EXECUTIVE",  name: "Sales Executive",  short: "SE",  reportsTo: "SALES_MANAGER",    multiBranch: false },
     { key: "MXM",              name: "MXM",              short: "MXM", reportsTo: "CLUB_MANAGER",     multiBranch: false },
     { key: "TRAINER",          name: "Trainer",          short: "TR",  reportsTo: "MXM",              multiBranch: false },
-    // Finance / HR: branches picked when the user is created, one or many (#114). Only CEO has every branch (All).
+    // Finance / HR / Marketing: branches picked when the user is created, one or many (#114). Only CEO has every branch (All).
     { key: "FINANCE",          name: "Finance",          short: "FIN", reportsTo: "CLUB_MANAGER",     multiBranch: true  },
     // Marketing / HR (#114): no lead / trial / sales / client access by default. HR has nothing in the mockup yet (staff screens are real-app only).
-    { key: "MARKETING",        name: "Marketing",        short: "MKT", reportsTo: "CEO",              multiBranch: false },
+    { key: "MARKETING",        name: "Marketing",        short: "MKT", reportsTo: "CEO",              multiBranch: true  },
     { key: "HR",               name: "HR",               short: "HR",  reportsTo: "CEO",              multiBranch: true  }
   ];
 
@@ -72,7 +72,7 @@
     { id: "u14", name: "Rakesh Yadav",  role: "MXM",              roleKey: "MXM",              branches: ["b2"],             branchIds: ["b2"] },
     { id: "u15", name: "Imran Khan",    role: "Trainer",          roleKey: "TRAINER",          branches: ["b2"],             branchIds: ["b2"], trainerTypeId: "tt2" },
     // c11 (#114): Marketing + HR demo staff.
-    { id: "u16", name: "Kavya Menon",   role: "Marketing",        roleKey: "MARKETING",        branches: ["b1"],             branchIds: ["b1"] },
+    { id: "u16", name: "Kavya Menon",   role: "Marketing",        roleKey: "MARKETING",        branches: ["b1", "b2"],       branchIds: ["b1", "b2"] },
     { id: "u17", name: "Farhan Ali",    role: "HR",               roleKey: "HR",               branches: ["b1", "b3"],       branchIds: ["b1", "b3"] }
   ];
 
@@ -118,15 +118,18 @@
     { key: "clients.issueItems",    module: "Clients",  label: "Issue FF ID / key fob / item on a client",           type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.waive",         module: "Clients",  label: "Waive pending item",                              type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.packages",     module: "Settings", label: "Packages",                                              type: "tick",   defaults: { CEO: true } },
-    // One View row per master (#114; replaces the old single "view masters" row, same defaults). Edit rule stays as before.
+    // One View row per master (#114). Branch-owned masters (Packages, Items, Lead sources) = scope; company-wide masters
+    // (Tax, Sales rules, Trainer types, Lost reasons) = tick (#115). Edit rule stays as before unless listed here.
     { key: "settings.viewPackages",     module: "Settings", label: "View Packages (edit: Packages row)",                  type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.viewItems",        module: "Settings", label: "View Items (edit: Packages row)",                     type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
-    { key: "settings.viewTax",          module: "Settings", label: "View Tax categories (edit: Packages row)",            type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
-    { key: "settings.viewSalesRules",   module: "Settings", label: "View Sales rules (edit: Packages row)",               type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
-    { key: "settings.viewTrainerTypes", module: "Settings", label: "View Trainer types (edit: Roles & permissions row)",  type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
-    { key: "settings.viewLeadSources",  module: "Settings", label: "View Lead sources (no screen yet)",                   type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", MKT: "Branch", CEO: "All" } },
-    { key: "settings.editLeadSources",  module: "Settings", label: "Edit Lead sources (no screen yet)",                   type: "tick",  defaults: { MKT: true, CEO: true } },
-    { key: "settings.viewLostReasons",  module: "Settings", label: "View Lost reasons (no screen yet)",                   type: "scope", defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "settings.viewTax",          module: "Settings", label: "View Tax categories (edit: Packages row)",            type: "tick",  defaults: { SM: true, CM: true, RM: true } },
+    { key: "settings.viewSalesRules",   module: "Settings", label: "View Sales rules (edit: Packages row)",               type: "tick",  defaults: { SM: true, CM: true, RM: true } },
+    { key: "settings.viewTrainerTypes", module: "Settings", label: "View Trainer types (edit: Roles & permissions row)",  type: "tick",  defaults: { SM: true, CM: true, RM: true } },
+    // Lead sources are branch-assignable (#115): Branch = see / create / edit sources only for my own branches. SE View = Branch (Source dropdown).
+    { key: "settings.viewLeadSources",  module: "Settings", label: "View Lead sources (no screen yet)",                   type: "scope", defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", MKT: "Branch", CEO: "All" } },
+    { key: "settings.editLeadSources",  module: "Settings", label: "Create / edit Lead sources (no screen yet)",          type: "scope", defaults: { RM: "Branch", MKT: "Branch", CEO: "All" } },
+    { key: "settings.viewLostReasons",  module: "Settings", label: "View Lost reasons (no screen yet)",                   type: "tick",  defaults: { SM: true, CM: true, RM: true } },
+    { key: "settings.editLostReasons",  module: "Settings", label: "Edit Lost reasons (no screen yet)",                   type: "tick",  defaults: { CEO: true } },
     { key: "settings.stock",        module: "Settings", label: "Accessory / key fob stock",                       type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.editInactivity", module: "Settings", label: "Edit inactivity release days",                        type: "tick",   defaults: { CM: true, RM: true, CEO: true } },
     { key: "settings.rolesPermissions", module: "Settings", label: "Roles & permissions",                               type: "tick",   defaults: { CEO: true }, lock: "all" }
@@ -148,6 +151,9 @@
   var lists = {
     sources: ["Walk-in", "Phone Call", "Referral", "WhatsApp", "Website", "Facebook",
       "Instagram", "Google", "Hoarding", "Pamphlet", "Others"],
+    // Lead sources are branch-assignable (#115): branches null = all branches (default); else the branches it applies to
+    // (a region = pick its branches). Quick lead / edit lead show only the sources that apply to the lead's branch.
+    leadSourceBranches: { "Hoarding": ["b1"], "Pamphlet": ["b1", "b2"] },
     followUpTypes: ["Call", "WhatsApp", "Visit planned", "Free trial planned", "Payment expected"],
     outcomes: ["Interested", "No answer", "Call later", "Will visit", "Not interested"],
     lostReasons: ["Price high", "Joined competitor", "Not interested", "No response",

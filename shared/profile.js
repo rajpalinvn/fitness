@@ -526,7 +526,7 @@
           fld("Gender", '<select class="input" name="gender">' + opt(L.genders, p.gender, true) + "</select>") +
           fld("Birth date", '<input class="input" name="birthDate" type="date" value="' + esc(p.birthDate || "") + '">') +
           fld("FF ID", '<input class="input" name="ffId" value="' + esc(p.ffId || "") + '">', false, "ID from the other software. Unique.") +
-          fld("Source", '<select class="input" name="source">' + opt(L.sources, p.source) + "</select>", true) +
+          fld("Source", '<select class="input" name="source">' + opt(App.sourcesFor(p.branchId).concat(p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? [p.source] : []), p.source) + "</select>", true, "Only sources for " + App.branchName(p.branchId) + ".") +
           fld("Temperature", '<select class="input" name="temperature">' + opt(L.temperatures, p.temperature) + "</select>", true) +
           (stageEditable ? fld("Stage", '<select class="input" name="stage"' + (App.Trial.anyRunning(p) ? " disabled" : "") + ">" + opt(p.stage === "Trial" ? ["Trial"].concat(L.stageChoices) : L.stageChoices, p.stage) + "</select>", true,
             App.Trial.anyRunning(p) ? "Locked while a trial runs (Trial is set by Book trial). It unlocks when the trial ends." : "New / Contacted / Negotiation. Trial is set by Book trial; Converted and Lost by their own actions.") : "") +
@@ -817,7 +817,7 @@
           '<span class="error" data-qldup' + (dup ? "" : " hidden") + ">" + qlDupHtml(dup) + "</span>" + (dup ? "" : er("mobile")) + '<span class="hint">Unique across all branches.</span></div>' +
         // Mobile first (duplicate check before typing a name), Name second — decision #74.
         '<div class="field"><label for="qlName">Name <span class="req">*</span></label><input class="input' + inv("name") + '" id="qlName" data-q="name" value="' + esc(QL.name) + '" autocomplete="off">' + er("name") + "</div>" +
-        '<div class="field"><label for="qlSource">Source <span class="req">*</span></label><select class="input' + inv("source") + '" id="qlSource" data-q="source">' + opt(L.sources, QL.source, "Choose…") + "</select>" + er("source") + "</div>" +
+        '<div class="field"><label for="qlSource">Source <span class="req">*</span></label><select class="input' + inv("source") + '" id="qlSource" data-q="source">' + opt(App.sourcesFor(QL.branchId), QL.source, "Choose…") + "</select>" + er("source") + "</div>" +
         '<div class="field"><label>Temperature</label><div class="seg" role="radiogroup" aria-label="Temperature">' + L.temperatures.map(function (t) {
           return '<button type="button" class="seg-btn' + (QL.temperature === t ? " active" : "") + '" role="radio" aria-checked="' + (QL.temperature === t) + '" data-qltemp="' + t + '">' + t + "</button>"; }).join("") + "</div></div>" +
         '<div class="field"><label for="qlOwner">Owner <span class="req">*</span></label><select class="input" id="qlOwner" data-q="ownerUserId">' + qlOwners(QL.branchId).map(function (u, i) {
@@ -844,6 +844,7 @@
     QL[k] = e.target.value;
     if (k === "branchId" && e.type === "change") {   // owner list follows the branch
       if (!qlOwners(QL.branchId).some(function (u) { return u.id === QL.ownerUserId; })) QL.ownerUserId = App.me().id;
+      if (QL.source && App.sourcesFor(QL.branchId).indexOf(QL.source) < 0) QL.source = "";   // #115: source must apply to the branch
       qlRender(); return;
     }
     if (k === "mobile" || k === "cc") {   // live duplicate check

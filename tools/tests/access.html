@@ -63,8 +63,8 @@ load(LEADS, function () {
                 P().save([{ short: "SM", key: "settings.viewPackages", value: "None" }], "Permissions"); W().App.setRole("Sales Manager");
                 ok("SM with viewPackages None: no access to Packages", /don't have access/.test(text("#content")));
                 ok("…but still views Items / Tax / Sales rules (own rows, #114)", W().App.access.viewMaster("items") && W().App.access.viewMaster("tax") && W().App.access.viewMaster("salesRules"));
-                W().App.setRole("Marketing"); ok("Marketing: no Packages, nothing on leads / sales / clients by default", !W().App.access.viewMaster("packages") && ["leads.view", "trials.book", "sales.convert", "clients.view"].every(function (k) { return W().App.can(k) === "None"; }) && W().App.can("settings.editLeadSources") === true);
-                W().App.setRole("HR"); ok("HR: nothing in the mockup", !W().App.access.viewMaster("items") && W().App.can("leads.view") === "None" && W().App.can("settings.editLeadSources") === false);
+                W().App.setRole("Marketing"); ok("Marketing: no Packages, nothing on leads / sales / clients by default", !W().App.access.viewMaster("packages") && ["leads.view", "trials.book", "sales.convert", "clients.view"].every(function (k) { return W().App.can(k) === "None"; }) && W().App.can("settings.editLeadSources") === "Branch");
+                W().App.setRole("HR"); ok("HR: nothing in the mockup", !W().App.access.viewMaster("items") && W().App.can("leads.view") === "None" && W().App.can("settings.editLeadSources") === "None");
                 clear();
               });
               step("issue items vs collect payment (clients.issueItems / clients.collectPayment)", function () {

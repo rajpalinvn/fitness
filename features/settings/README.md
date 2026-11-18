@@ -213,9 +213,9 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 ## 1. Screens
 | Screen / part | File | Purpose |
 |---|---|---|
-| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 43 actions grouped by module (Leads, Trials, Sales, Payments, Clients, Settings) × 10 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN, MKT, HR). |
+| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 44 actions grouped by module (Leads, Trials, Sales, Payments, Clients, Settings) × 10 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN, MKT, HR). |
 | Settings values tab | `?tab=values` | 6 numbers / choices (free-trial limits, adjust buffer, inactivity days, warning days, new-lead assignment). |
-| Roles tab | `?tab=roles` | Read-only: the 10 fixed tenant roles, short, key, reports to, single / multi branch (multi: CEO, RM, Finance, HR), staff count. HR: nothing in the mockup yet (staff screens are real-app only). |
+| Roles tab | `?tab=roles` | Read-only: the 10 fixed tenant roles, short, key, reports to, single / multi branch (multi: CEO, RM, Finance, HR, Marketing), staff count. HR: nothing in the mockup yet (staff screens are real-app only). |
 | Trainer types tab | `?tab=trainers` | Admin master list (GT, PT, GT-PT); add / edit in the shared form drawer. |
 | Audit log tab | `?tab=audit` | Every saved change: who, when, tab, what, old → new; newest first; filter by tab. |
 | Shared helpers | `shared/app.js` → `App.Perm`, `App.can(key)`, `App.setting(key)` | Defaults from `DUMMY.permissionDefs` / `settingDefs` + session-storage overrides (`mock.perms`, `mock.settings`, `mock.trainerTypes`, `mock.audit`), same pattern as Display prefs. |
@@ -282,7 +282,7 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 |---|---|
 | CEO column | Every cell locked, All / Yes / 100%. |
 | Finance (Nisha Bhatia, Sec 65) | Column of "—" (None), editable; appears in View as. |
-| Marketing (Kavya Menon, Sec 31) / HR (Farhan Ali, Sec 31 + Golf Course) | All None except Marketing: Lead sources view + edit; both appear in View as. |
+| Marketing (Kavya Menon, Sec 31 + Sec 65) / HR (Farhan Ali, Sec 31 + Golf Course) | All None except Marketing: Lead sources view + edit (Branch); both multi-branch; both appear in View as. |
 | Trainer types in use | PT (Deepak), GT-PT (Sanjay): no Delete. GT unused: Delete allowed. |
 | Audit "who" | Anita Kapoor (CEO) when viewing as CEO. |
 

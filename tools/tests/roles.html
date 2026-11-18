@@ -46,12 +46,13 @@ var DOC = {
   "settings.packages": [true, false, false, false, false, false, false, false],
   "settings.viewPackages": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
   "settings.viewItems": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
-  "settings.viewTax": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
-  "settings.viewSalesRules": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
-  "settings.viewTrainerTypes": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
-  "settings.viewLeadSources": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None", "Branch"],
-  "settings.editLeadSources": [true, false, false, false, false, false, false, false, true],
-  "settings.viewLostReasons": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
+  "settings.viewTax": [true, true, true, true, false, false, false, false],
+  "settings.viewSalesRules": [true, true, true, true, false, false, false, false],
+  "settings.viewTrainerTypes": [true, true, true, true, false, false, false, false],
+  "settings.viewLeadSources": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None", "Branch"],
+  "settings.editLeadSources": ["All", "Branch", "None", "None", "None", "None", "None", "None", "Branch"],
+  "settings.viewLostReasons": [true, true, true, true, false, false, false, false],
+  "settings.editLostReasons": [true, false, false, false, false, false, false, false],
   "settings.stock": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
   "settings.editInactivity": [true, true, true, false, false, false, false, false],
   "settings.rolesPermissions": [true, false, false, false, false, false, false, false]
@@ -74,7 +75,7 @@ load(SET, function () {
       step("defaults = docs/permissions.md", function () {
         var bad = [];
         Object.keys(DOC).forEach(function (k) { SHORTS.forEach(function (s, i) { if (JSON.stringify(P().get(s, k)) !== JSON.stringify(DOC[k][i])) bad.push(s + "." + k + "=" + JSON.stringify(P().get(s, k))); }); });
-        ok("43 permission keys (incl. leads.own, sales.rep, cross-branch rows), 10 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 43 && D().roles.length === 10 && !D().permissionDefs.some(function (d) { return d.key === "settings.viewMasters"; }) && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
+        ok("44 permission keys (incl. leads.own, sales.rep, cross-branch rows), 10 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 44 && D().roles.length === 10 && !D().permissionDefs.some(function (d) { return d.key === "settings.viewMasters"; }) && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
         ok("tenant: one tenant, tenantId on branches, users, people, packages", D().tenants.length === 1 && D().branches.every(function (b) { return b.tenantId === "t1"; }) && D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.tenantId === "t1"; }) && D().people.every(function (p) { return p.tenantId === "t1"; }) && D().packages.every(function (p) { return p.tenantId === "t1"; }));
         ok("every default matches docs/permissions.md", !bad.length, bad.join(" "));
         ok("App.can for CEO: rolesPermissions true, leads.view All, discount 100", W().App.can("settings.rolesPermissions") === true && W().App.can("leads.view") === "All" && W().App.can("sales.discountMax").pct === 100);
@@ -86,7 +87,7 @@ load(SET, function () {
       step("grid", function () {
         ok("6 tabs (incl. Notification rules), Permissions active", qa("#rpTabs .tab").length === 6 && /Permissions/.test(text("#rpTabs .tab.active")));
         ok("10 role columns in order, no SA", Array.prototype.map.call(qa("#permTable thead th.perm-col"), function (t) { return t.textContent; }).join() === SHORTS.join());
-        ok("6 module groups (incl. Payments), 43 rows", qa("#permTable .perm-group").length === 6 && qa("#permTable tr[data-perm]").length === 43);
+        ok("6 module groups (incl. Payments), 44 rows", qa("#permTable .perm-group").length === 6 && qa("#permTable tr[data-perm]").length === 44);
         ok("chip shows value, not an open dropdown", /Branch/.test(chip("SM", "leads.view").textContent) && !q(".perm-pop") && !qa("#permTable select").length);
         ok("CEO column locked with reason", SHORTS.length === 10 && Object.keys(DOC).every(function (k) { return chip("CEO", k).classList.contains("locked"); }) && /every permission/.test(chip("CEO", "leads.view").dataset.tip));
         ok("Roles & permissions row locked for every role", SHORTS.every(function (s) { return chip(s, "settings.rolesPermissions").classList.contains("locked"); }));
@@ -145,7 +146,7 @@ load(SET, function () {
           type("#rpSearch", "discount"); ok("search filters rows", qa("#permTable tr[data-perm]").length === 1 && qa("#permTable .perm-group").length === 1);
           type("#rpSearch", "zzz"); ok("no match state", /No actions match/.test(text("#permTable")));
           type("#rpSearch", "");
-          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 30); click(q('[data-module="Leads"]'));
+          click(q('[data-module="Leads"]')); ok("collapse hides the Leads rows", qa("#permTable tr[data-perm]").length === 31); click(q('[data-module="Leads"]'));
         });
         step("settings values", function () {
           click(q('[data-rtab="values"]'));
@@ -177,7 +178,8 @@ load(SET, function () {
             click(q('[data-tt="tt2"] [data-tt-act="toggle"]'));
           });
           step("roles + audit filter", function () {
-            click(q('[data-rtab="roles"]')); ok("multi-branch: CEO, RM, Finance, HR (#114)", ["CEO", "REGIONAL_MANAGER", "FINANCE", "HR"].every(function (k) { return /Multi/.test(text('[data-role-row="' + k + '"]')); }) && /Single/.test(text('[data-role-row="MARKETING"]')));
+            click(q('[data-rtab="roles"]')); ok("multi-branch: CEO, RM, Finance, HR, Marketing", ["CEO", "REGIONAL_MANAGER", "FINANCE", "HR", "MARKETING"].every(function (k) { return /Multi/.test(text('[data-role-row="' + k + '"]')); }) && /Single/.test(text('[data-role-row="SALES_EXECUTIVE"]')));
+            ok("company-wide masters = tick, branch-owned = scope", ["viewTax", "viewSalesRules", "viewTrainerTypes", "viewLostReasons", "editLostReasons"].every(function (k) { return W().App.Perm && D().permissionDefs.filter(function (d) { return d.key === "settings." + k; })[0].type === "tick"; }) && ["viewPackages", "viewItems", "viewLeadSources", "editLeadSources"].every(function (k) { return D().permissionDefs.filter(function (d) { return d.key === "settings." + k; })[0].type === "scope"; }));
             ok("10 fixed tenant roles with reports-to and staff count", qa("#rolesTable tbody tr").length === 10 && /platform role/.test(text("#panel")) && /Roles are fixed/.test(text("#panel")) && /Sales Manager/.test(text('[data-role-row="SALES_EXECUTIVE"]')) && /\b4\b/.test(text('[data-role-row="SALES_EXECUTIVE"] td:last-child')));
             click(q('[data-rtab="audit"]')); type("#auditFilter", "Trainer types"); ok("audit filter by tab", qa("#auditTable tbody tr").length >= 3 && Array.prototype.every.call(qa("#auditTable tbody tr td:nth-child(3)"), function (td) { return td.textContent === "Trainer types"; }));
             ok("no bad text", !badText(), badText());

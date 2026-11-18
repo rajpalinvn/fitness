@@ -39,6 +39,11 @@ load(LEADS, function () {
       ok("unique number clears the message", q("[data-qldup]").hidden);
       click(q('[data-ql="more"]'));
       ok("More details: email, gender, birth date, inquiry, campaign, remarks", !!q("#qlEmail") && !!q("#qlGender") && !!q("#qlBirth") && !!q("#qlInq") && !!q("#qlCamp") && !!q("#qlRem") && !!q("#qlFf"));
+      (function () {
+        var A = W().App, opts = function () { return Array.prototype.map.call(qa("#qlSource option"), function (o) { return o.textContent; }); };
+        ok("source dropdown: all-branch sources + this branch's (#115)", A.sourcesFor("b1").indexOf("Hoarding") > -1 && A.sourcesFor("b3").indexOf("Hoarding") < 0 && A.sourcesFor("b3").indexOf("Pamphlet") < 0 && A.sourcesFor("b2").indexOf("Pamphlet") > -1 && A.sourcesFor("b3").indexOf("Walk-in") > -1);
+        var b = q("#qlBranch").value; ok("quick lead Source list follows the lead's branch", JSON.stringify(opts().slice(1)) === JSON.stringify(A.sourcesFor(b)), b + ": " + opts().join());
+      })();
       type("#qlName", "Tanvi Desai"); pickSel("qlSource", "Referral");
       type("#qlEmail", "aarav.patel@example.com"); click(q('[data-ql="save"]'));
       ok("email must be unique", /already used/.test(text("#quickLeadDrawer")) && qOpen());
