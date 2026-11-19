@@ -787,3 +787,7 @@
     (c) Today section "Releases tomorrow": my visible leads whose inactivity release is tomorrow; row action "Add
     follow-up"; View all → Leads list filter "Releasing" (`?view=releasing`: leads inside the release-warning window).
     (d) The sidebar Today badge = the count of "Overdue or not set" (unchanged; now tested).
+122. Releasing soon (19 Nov 2026, c19). Changes #121 (c). ONE rule for the Today section and the Leads "Releasing"
+    filter: leads inside the release-warning window (setting "Warn the owner before release"). The section is renamed
+    "Releasing soon"; each row shows the release badge ("Releases tomorrow" / "Releases in N days") and "Add follow-up".
+    Managers see their branch's releasing leads with the owner shown.

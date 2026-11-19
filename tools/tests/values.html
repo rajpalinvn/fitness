@@ -75,11 +75,16 @@ load(SV, function () {
         role("CEO");
       });
     load(TODAY, function () {
-      step("Today: Releases tomorrow section + sidebar badge", function () {
+      step("Today: Releasing soon section (same rule as the filter) + sidebar badge", function () {
         A().setBranch("all"); role("Sales Executive");
-        var exp = A().visibleLeads("all").filter(function (p) { var i = A().Release.info(p); return i && i.inactive && i.warn && i.left === 1; });
-        ok("section lists leads releasing tomorrow (Gaurav)", !!q("#sec-releasing") && exp.length > 0 && exp.every(function (p) { return text("#sec-releasing").indexOf(p.name) > -1; }) && /Gaurav/.test(text("#sec-releasing")), text("#sec-releasing"));
+        var exp = A().visibleLeads("all").filter(function (p) { var i = A().Release.info(p); return i && i.inactive && i.warn; });
+        ok("section = leads in the warning window (Gaurav), titled Releasing soon", /Releasing soon/.test(text("#h-releasing")) && !!q("#sec-releasing") && exp.length > 0 && exp.every(function (p) { return text("#sec-releasing").indexOf(p.name) > -1; }) && /Gaurav/.test(text("#sec-releasing")), text("#sec-releasing"));
         ok("row action Add follow-up; View all -> Leads ?view=releasing", !!q('#sec-releasing [data-act="addfu"]') && /view=releasing/.test(q("#sec-releasing .today-all").getAttribute("href")));
+        A().Perm.saveSettings({ releaseWarnDaysBefore: 3 }); A().dataChanged();
+        var wide = A().visibleLeads("all").filter(function (p) { var i = A().Release.info(p); return i && i.inactive && i.warn; });
+        ok("longer warning window: section follows the same rule", qa("#sec-releasing .today-row").length === Math.min(wide.length, 5) && +text("#sec-releasing .tab-count") === wide.length, wide.length);
+        A().Perm.resetSettings(); A().dataChanged();
+        role("Club Manager"); ok("manager sees branch leads releasing soon with the owner", !q("#sec-releasing") || /Priya|Arjun|Rahul|Pooja|Unassigned/.test(text("#sec-releasing")) || /No lead is releasing soon/.test(text("#sec-releasing"))); role("Sales Executive");
         var badge = +text('.nav-item[data-tip="Today"] .nav-badge');
         ok("sidebar Today badge = Overdue or not set count", badge === A().counts().attention && badge === A().visibleLeads("all").filter(A().needsAttention).length, badge);
       });
