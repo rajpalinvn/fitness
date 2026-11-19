@@ -20,6 +20,9 @@ Keys are stable dotted strings; the grid stores role × key → value.
   #115: BRANCH-owned masters (Packages, Items / stock, Lead sources) = scope; COMPANY-wide masters (Lost reasons, Tax,
   Sales rules, Trainer types) = tick. Lead sources are branch-assignable ("Applies to" = all branches, default, or
   selected branches; a region = pick its branches); the lead Source dropdown shows only sources for the lead's branch.
+  #116: all masters (Packages incl. which branches sell them, Items, Tax, Sales rules) are COMPANY-level, decided by the
+  CEO: `settings.packages` stays a CEO-only tick. The branch part is separate: item stock per branch = `settings.stock`
+  (scope; RM / CM manage their branch's stock); selling = the `sales.*` rows.
 
 | Key | Label | Module | Values | CEO | RM | CM | SM | SE | MXM | TR | FIN | MKT | HR | Locked |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,6 +32,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `leads.viewLost` | View lost leads | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
 | `leads.own` | Can own leads (owner lists, follow-up person, release / pick lists, #104) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
 | `leads.crossBranchFollowUp` | Add a follow-up for myself on another branch's lead (walk-in / inquiry, #105) | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
+| `leads.export` | Export leads (real app only; no export screen in the mockup, #116) | Leads | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `leads.create` | Create lead | Leads | tick | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | CEO |
 | `leads.assign` | Assign / reassign / change owner (leads and clients) | Leads | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO; at least one other role keeps it |
 | `leads.assignFollowUp` | Assign a follow-up to another staff (any branch) | Leads | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |

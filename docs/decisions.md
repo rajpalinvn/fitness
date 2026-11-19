@@ -332,7 +332,7 @@
     has no payment step.
     Changed by #92: the person becomes a client on the first payment of a Membership or Premium PT; a paid trial payment does not.
 80. Payment methods are an admin list (Settings → Payment methods). Default,
-    can change: Cash, UPI, Net banking, Card; admin can add or disable;
+    can change: Cash, UPI, Bank transfer (was Net banking, #116), Card; admin can add or disable;
     online payment comes later.
 81. Payment rows: method, amount, reference / transaction no. (required
     except Cash), optional slip. Several rows = split payment. Receipt no. is
@@ -713,3 +713,18 @@
     (Lost reasons, Tax, Sales rules, Trainer types) have TICK View / Edit rows; BRANCH-owned masters (Packages, Items /
     stock, Lead sources) have SCOPE rows. New `settings.editLostReasons`: CEO only. Marketing is MULTI-branch (like
     Finance / HR). Marketing and HR report to CEO. No lead-source / lost-reason / trainer-type screen in the mockup.
+116. Masters, lead source filter, export, payment reference (19 Nov 2026, c13). Closes Q32–Q34.
+    (a) Q32: masters (Packages incl. which branches sell them, Items, Tax, Sales rules) are always COMPANY-level, decided
+    by the CEO: `settings.packages` stays a CEO-only tick, no split. The branch part is separate: stock of items per
+    branch = `settings.stock` (scope; RM / CM add and manage their branch's stock); selling = the `sales.*` rows.
+    (b) Q33: edit lead keeps a saved source that no longer applies to the lead's branch (history stays true) with a small
+    note "Not used at this branch"; if the user changes it, only sources for the lead's branch are offered.
+    (c) Q34: Leads list Source filter = company-wide sources + the sources of the top-bar branch; "All branches" shows all
+    sources, branch-specific ones tagged with their branches ("Hoarding · Sec 31"). Filtering keeps the selected branch.
+    (d) `leads.export` "Export leads" (tick): CEO Yes (locked), everyone else No. Real app only; no export screen.
+    (e) Payment reference (Convert payment step). Cash: reference = the receipt number, automatic, not editable. Each other
+    method has "Needs reference" (Sales rules > Payment methods): UPI = UTR / transaction ID, Card = approval code or
+    last 4, Cheque = cheque number + bank name, Bank transfer = UTR. Duplicate = same method + same reference anywhere in
+    the company (cheque: same bank + number; spaces / case ignored). NOT a block: a warning showing where it was used
+    ("Used on 12 Nov in Rahul Verma's payment"); staff must tick a confirm box and give a reason; the payment row is
+    flagged for Finance / CEO (badge on the profile receipt). "Bank transfer (was Net banking, #116)" is renamed "Bank transfer".

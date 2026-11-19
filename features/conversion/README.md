@@ -110,7 +110,9 @@ many open follow-ups will be closed by system. All money is in the bill summary.
 | Receipt no. | read-only | — | Yes, per branch | next number | `<branch prefix>-<6 digits>`, e.g. S31-000124 (Sec 31), S65-…, GC-…. Taken on save. |
 | Method (per row) | select of **active** payment methods | Yes | No | first active (Cash) | Settings → Payment methods. Disabled methods are hidden. |
 | Amount (per row) | number, 2 decimals | Yes (> 0) | No | row 1 = total to pay | "Enter an amount." |
-| Reference / transaction no. (per row) | text | Yes, except Cash | No | — | "Reference no. is needed for UPI." |
+| Reference (per row) | text | Yes, except Cash | No | Cash: the receipt no. (auto, read-only) | Label from the method (#116): UPI "UTR / transaction ID", Card "Approval code or last 4", Bank transfer "UTR", Cheque "Cheque number". Error "UTR / transaction ID is needed for UPI." |
+| Bank name (Cheque only) | text | Yes for Cheque | No | — | "Enter the bank name." Cheque duplicate = same bank + number. |
+| Duplicate reference confirm (per row) | checkbox + reason | Yes when the ref was used before | No | unticked | Same method + same ref anywhere in the company (#116). Warning, NOT a block: "This reference was used before. Used on 21 Oct in Divya Nair's payment (S31-000101)". "Tick the box to confirm this is a different payment." / "Enter a reason." Saved row gets `dup { usedOn, personId, reason, by, flagged }` → badge "Duplicate reference · flagged for Finance / CEO" on the profile receipt. Dummy: p22 (second receipt reuses p19's UPI ref). |
 | Slip (per row) | upload | No | No | — | Mockup: toggles "Slip attached" (placeholder file). |
 | + Add payment row | link | — | — | 1 row | Split payment (e.g. Cash + UPI). Rows can be removed (×). |
 | Total · Paid now · Balance due | derived, live | — | — | — | Also in the bill (Paid now, Balance due). |

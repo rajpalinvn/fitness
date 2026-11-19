@@ -194,7 +194,7 @@ Methods: **+ Payment method** opens an inline form (name, reference required); t
 |---|---|---|---|---|---|
 | Minimum first payment on packages | number % | Yes | — | 30 | 0–100. At conversion: accessories + fob deposit in full + this % of the package after discount (#85). Not used for later installments. |
 | Max discount (per role) | read-only (grid row `sales.discountMax`) | — | — | SE 10, SM 20, CM 30, RM 50, CEO 100 (Q31), Trainer / MXM / Finance / Marketing / HR 0 | Edited only in Roles & permissions (0–100, whole number). "Changed" badge when it differs from the default. Package only. |
-| Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Net banking, Card | "Enter a name." / "This method already exists." |
+| Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Bank transfer, Card | "Enter a name." / "This method already exists." |
 | Reference no. required | switch | — | — | On (Cash: off) | Payment step asks for a reference when on. |
 | Active | switch | — | — | On (Cheque: off, dummy) | At least one method stays active. Online payment (gateway) later. |
 
@@ -213,7 +213,7 @@ Access: **CEO only** (grid row `settings.rolesPermissions`, locked). Everyone el
 ## 1. Screens
 | Screen / part | File | Purpose |
 |---|---|---|
-| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 44 actions grouped by module (Leads, Trials, Sales, Payments, Clients, Settings) × 10 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN, MKT, HR). |
+| Permissions tab | `roles.html?tab=permissions` + `roles.js` | The grid: 45 actions grouped by module (Leads, Trials, Sales, Payments, Clients, Settings) × 10 tenant roles (CEO, RM, CM, SM, SE, MXM, TR, FIN, MKT, HR). |
 | Settings values tab | `?tab=values` | 6 numbers / choices (free-trial limits, adjust buffer, inactivity days, warning days, new-lead assignment). |
 | Roles tab | `?tab=roles` | Read-only: the 10 fixed tenant roles, short, key, reports to, single / multi branch (multi: CEO, RM, Finance, HR, Marketing), staff count. HR: nothing in the mockup yet (staff screens are real-app only). |
 | Trainer types tab | `?tab=trainers` | Admin master list (GT, PT, GT-PT); add / edit in the shared form drawer. |

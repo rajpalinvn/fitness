@@ -19,6 +19,7 @@ function D() { return W().DUMMY; } function person(id) { return W().App.byId(D()
 function M() { return q("#sellMode"); } function mtext() { return M() ? M().innerText : ""; }
 function next() { click(q('#sellMode [data-cv="next"]')); }
 function btnSave() { return q('#sellMode [data-cv="finish"]'); }
+function change(sel, v) { var e = q(sel); if (typeof v === "boolean") e.checked = v; else e.value = v; e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
 function save() { click(q('#sellMode [data-cv="finish"]')); }
 function finish() { if (q('#sellMode [data-cv="next"]')) next(); save(); }   // through the Payment step (prefilled full, Cash)
 function isoPlus(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
@@ -132,8 +133,19 @@ load(LEADS, function () {
       type("#payA0", "10000"); ok("ABOVE minimum: Save enabled", !btnSave().disabled);
       save(); ok("partial membership needs a due date", /Pick a due date/.test(mtext()));
       click(q("[data-pay-add]")); pickSel("payM1", "UPI"); type("#payA1", "6200"); save();
-      ok("split: UPI needs a reference", /Reference no. is needed for UPI/.test(mtext()));
-      type("#payR1", "UPI-99887766"); type("#payDue", isoPlus(5));
+      ok("split: UPI needs a reference (label from the method)", /UTR \/ transaction ID is needed for UPI/.test(mtext()));
+      ok("Cash reference = receipt no., auto + read-only", q("#payR0").readOnly && q("#payR0").value === "S31-000124");
+      // #116 duplicate reference: warning (not a block), confirm + reason, flagged for Finance / CEO
+      type("#payR1", "upi-40012001"); change("#payR1", "upi-40012001");
+      ok("duplicate ref: warning shows where it was used", /This reference was used before/.test(text('[data-pay-dup="1"]')) && /in Divya Nair's payment \(S31-000101\)/.test(text('[data-pay-dup="1"]')), text('[data-pay-dup="1"]'));
+      type("#payDue", isoPlus(5)); save();
+      ok("duplicate ref: must confirm", person("p1").kind === "Lead" && /Tick the box to confirm/.test(mtext()));
+      change('[data-pay="dupOk"][data-i="1"]', true); save();
+      ok("duplicate ref: reason required", person("p1").kind === "Lead" && /Enter a reason/.test(mtext()));
+      ok("unique ref: no warning", !W().App.payRefDup("UPI", "UPI-99887766") && !!W().App.payRefDup("UPI", " UPI-4001 2001 ") && !W().App.payRefDup("Card", "UPI-40012001"));
+      type("#payR1", "UPI-99887766"); change("#payR1", "UPI-99887766");
+      ok("changing to a new ref removes the warning", !q('[data-pay-dup="1"]'));
+      type("#payDue", isoPlus(5));
       ok("due date text in bill as '17 Nov 2026'", /by \d{1,2} [A-Z][a-z]{2} \d{4}/.test(text("[data-bill-paid]")));
       ok("live: Paid now ₹16,200 · Balance ₹6,600", /Paid now\s*₹16,200/.test(text("[data-pay-sum]")) && /Balance due\s*₹6,600/.test(text("[data-pay-sum]")));
       save();
@@ -148,6 +160,7 @@ load(LEADS, function () {
       ok("done screen + payment note", /now a client \(CL-1003\)/.test(mtext()) && /Receipt S31-000124/.test(mtext()));
       ok("no FF ID pending (required at conversion), no Key fob pending", !/FF ID pending/.test(mtext()) && !/Key fob pending/.test(mtext()) && p.ffId === "FF-90001");
       ok("timeline milestone human text", D().timeline.some(function (t) { return t.personId === "p1" && /Converted to Client · Annual Membership · ₹21,600 \(₹2,400 off: Festive offer\) · key fob KF-S31-0013/.test(t.text); }));
+      ok("Cash row saved with the receipt no. as reference", p.membership.payment.receipts[0].rows[0].ref === "S31-000124");
       ok("payment saved: receipt, split rows, balance + due", p.membership.payment.receipts[0].no === "S31-000124" && p.membership.payment.receipts[0].rows.length === 2 &&
         p.membership.payment.paid === 16200 && W().App.payBalance(p.membership.payment) === 6600 && p.membership.payment.dueDate === isoPlus(5));
       ok("balance creates a Payment expected follow-up on the due date", D().followUps.some(function (f) { return f.personId === "p1" && f.type === "Payment expected" && f.status === "Open" && f.dueDate === isoPlus(5); }));

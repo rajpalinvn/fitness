@@ -24,6 +24,7 @@ var DOC = {
   "leads.viewUnassigned": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
   "leads.take": ["All", "Branch", "Branch", "None", "None", "None", "None", "None"],
   "leads.viewLost": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
+  "leads.export": [true, false, false, false, false, false, false, false],
   "leads.create": [true, true, true, true, true, false, false, false],
   "leads.assign": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
   "leads.assignFollowUp": ["All", "Branch", "Branch", "Branch", "Own", "None", "None", "None"],
@@ -75,7 +76,7 @@ load(SET, function () {
       step("defaults = docs/permissions.md", function () {
         var bad = [];
         Object.keys(DOC).forEach(function (k) { SHORTS.forEach(function (s, i) { if (JSON.stringify(P().get(s, k)) !== JSON.stringify(DOC[k][i])) bad.push(s + "." + k + "=" + JSON.stringify(P().get(s, k))); }); });
-        ok("44 permission keys (incl. leads.own, sales.rep, cross-branch rows), 10 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 44 && D().roles.length === 10 && !D().permissionDefs.some(function (d) { return d.key === "settings.viewMasters"; }) && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
+        ok("45 permission keys (incl. leads.own, sales.rep, cross-branch rows), 10 tenant roles; SuperAdmin = platform role", D().permissionDefs.length === 45 && D().roles.length === 10 && !D().permissionDefs.some(function (d) { return d.key === "settings.viewMasters"; }) && !D().roles.some(function (r) { return r.key === "SUPER_ADMIN"; }) && D().platformRoles[0].platform === true);
         ok("tenant: one tenant, tenantId on branches, users, people, packages", D().tenants.length === 1 && D().branches.every(function (b) { return b.tenantId === "t1"; }) && D().users.filter(function (u) { return !u.platform; }).every(function (u) { return u.tenantId === "t1"; }) && D().people.every(function (p) { return p.tenantId === "t1"; }) && D().packages.every(function (p) { return p.tenantId === "t1"; }));
         ok("every default matches docs/permissions.md", !bad.length, bad.join(" "));
         ok("App.can for CEO: rolesPermissions true, leads.view All, discount 100", W().App.can("settings.rolesPermissions") === true && W().App.can("leads.view") === "All" && W().App.can("sales.discountMax").pct === 100);
@@ -87,7 +88,7 @@ load(SET, function () {
       step("grid", function () {
         ok("6 tabs (incl. Notification rules), Permissions active", qa("#rpTabs .tab").length === 6 && /Permissions/.test(text("#rpTabs .tab.active")));
         ok("10 role columns in order, no SA", Array.prototype.map.call(qa("#permTable thead th.perm-col"), function (t) { return t.textContent; }).join() === SHORTS.join());
-        ok("6 module groups (incl. Payments), 44 rows", qa("#permTable .perm-group").length === 6 && qa("#permTable tr[data-perm]").length === 44);
+        ok("6 module groups (incl. Payments), 45 rows", qa("#permTable .perm-group").length === 6 && qa("#permTable tr[data-perm]").length === 45);
         ok("chip shows value, not an open dropdown", /Branch/.test(chip("SM", "leads.view").textContent) && !q(".perm-pop") && !qa("#permTable select").length);
         ok("CEO column locked with reason", SHORTS.length === 10 && Object.keys(DOC).every(function (k) { return chip("CEO", k).classList.contains("locked"); }) && /every permission/.test(chip("CEO", "leads.view").dataset.tip));
         ok("Roles & permissions row locked for every role", SHORTS.every(function (s) { return chip(s, "settings.rolesPermissions").classList.contains("locked"); }));

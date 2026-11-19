@@ -17,6 +17,7 @@ function D() { return W().DUMMY; }
 function QD() { return q("#quickLeadDrawer"); } function qOpen() { return !!QD() && QD().classList.contains("open"); }
 function width(id) { return q("#" + id).getBoundingClientRect().width; }
 function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function change(sel, v) { var e = q(sel); e.value = v; e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
 function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
 
 load(LEADS, function () {
@@ -74,6 +75,23 @@ load(LEADS, function () {
       click(q("[data-sr-create]"));
       ok("search: Create lead with this number prefills cc + number", qOpen() && q("#qlMobile").value === "90000 06666" && q("#qlCc").value === "+91");
       click(QD().querySelector("[data-close]"));
+    });
+    step("Leads Source filter follows the branch", function () {
+      var A = W().App, so = function () { return Array.prototype.map.call(qa("#fSource option"), function (o) { return o.textContent; }); };
+      A.setBranch("all");
+      ok("All branches: every source, branch-only ones tagged", so().indexOf("Hoarding · Sec 31") > -1 && so().indexOf("Pamphlet · Sec 31, Sec 65") > -1 && so().indexOf("Walk-in") > -1, so().join());
+      A.setBranch("b3");
+      ok("Golf Course: company-wide only (no Hoarding / Pamphlet)", so().indexOf("Walk-in") > -1 && !so().some(function (t) { return /Hoarding|Pamphlet/.test(t); }), so().join());
+      A.setBranch("b1"); change("#fSource", "Hoarding");
+      ok("Sec 31: Hoarding offered untagged; filter keeps the branch", so().indexOf("Hoarding") > -1 && A.state.branchId === "b1");
+      A.setBranch("all");
+    });
+    step("Edit lead: saved source not used at the lead's branch", function () {
+      var p = W().App.byId(W().DUMMY.people, "p1"), old = p.source, ob = p.branchId; p.source = "Hoarding"; p.branchId = "b3";
+      W().App.openProfile("p1", { state: "normal" }); click(q('[data-tab-k="details"]')); click(q('[data-pd="edit"]'));
+      var sel = q('[data-details] select[name="source"]'), opts = Array.prototype.map.call(sel.options, function (o) { return o.value; });
+      ok("saved source kept + note", sel.value === "Hoarding" && /Not used at this branch/.test(text("[data-details]")) && opts.indexOf("Pamphlet") < 0, opts.join());
+      p.source = old; p.branchId = ob; W().App.closeProfile();
     });
     step("Drawer width setting applies to every drawer", function () {
       Dc().documentElement.setAttribute("data-drawer", "60");

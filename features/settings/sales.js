@@ -41,9 +41,9 @@
         (S.err ? '<span class="error">' + esc(S.err) + "</span>" : "") + "</div>" +
         '<div class="field"><label>Reference no.</label><label class="switch"><input type="checkbox" id="pmRef" checked><span>Required</span></label></div></div>' +
         '<div class="stack"><button class="btn" data-sr="cancel">Cancel</button><button class="btn btn-primary" data-sr="save">Add method</button></div></div>' : "") +
-      '<div class="table-wrap"><table class="table table-admin"><thead><tr><th>Method</th><th>Reference / transaction no.</th><th>Status</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table class="table table-admin"><thead><tr><th>Method</th><th>Needs reference</th><th>Status</th></tr></thead><tbody>' +
       list.map(function (m) {
-        return "<tr><td>" + esc(m.name) + (m.isDefault ? ' <span class="cell-sub">default</span>' : "") + "</td><td>" + (m.needsRef ? "Required" : "Not needed") + "</td><td>" +
+        return "<tr><td>" + esc(m.name) + (m.isDefault ? ' <span class="cell-sub">default</span>' : "") + "</td><td>" + (m.name === "Cash" ? 'No <span class="cell-sub">· reference = receipt no. (auto)</span>' : m.needsRef ? "Yes" + (m.refLabel ? ' <span class="cell-sub">· ' + esc(m.refLabel) + (m.needsBank ? " + bank name" : "") + "</span>" : "") : "No") + "</td><td>" +
           (can() ? '<label class="switch"><input type="checkbox" data-pm="' + m.id + '"' + (m.active ? " checked" : "") + '><span>' + (m.active ? "Active" : "Disabled") + "</span></label>"
             : '<span class="badge ' + (m.active ? "badge-success" : "") + '">' + (m.active ? "Active" : "Disabled") + "</span>") + "</td></tr>";
       }).join("") + "</tbody></table></div>";

@@ -5,9 +5,7 @@ Every question we have not decided yet. When one is decided, move it to
 
 | # | Question | Context | Who decides | Mockup does now |
 |---|---|---|---|---|
-| Q32 | **Edit rule for Packages / Items** | Packages / Items are branch-owned (scope, #115), but their edit row `settings.packages` is a tick that also covers Tax and Sales rules (company-wide). Split into a scope edit row for Packages / Items and tick edit rows for Tax / Sales rules? | Product owner | Unchanged: `settings.packages` tick edits all four. |
-| Q33 | **Saved source no longer applies** | A lead's saved Source no longer applies to its branch (lead moved, or the source's branches changed). Edit lead: keep it selectable, force a new pick, or clear it? | Product owner | Keeps it selectable in edit lead; Quick lead clears it on branch change. |
-| Q34 | **Leads list Source filter** | Should the Leads list "Source" filter also show only sources for the selected branch? | Product owner | Shows all sources. |
+| — | No open questions right now | Q32–Q34 answered in #116 (19 Nov 2026). | — | — |
 
 ## Parked (later phase)
 

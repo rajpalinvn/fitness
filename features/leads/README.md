@@ -47,7 +47,7 @@ App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shar
 | Search ("Filter: name, mobile, email") | text | No | — | empty | Filters this list only (global search = top bar). Name, email, or mobile. Mobile matches with or without +91 or leading 0 (decision #11). |
 | Stage | select | No | — | "Open leads (all stages)" | Default hides Lost. Lost only via Lost card or this filter. |
 | Owner | select | No | — | All owners | Includes "Unassigned". |
-| Source | select | No | — | All sources | |
+| Source | select | No | — | All sources | Company-wide sources + the top-bar branch's sources; "All branches" = every source, branch-only ones tagged ("Hoarding · Sec 31", #116). A picked source that doesn't apply to a newly picked branch is cleared. |
 | Branch | select | No | — | Top-bar branch | "All branches" shows the Branch column. |
 | Temperature | select (More filters) | No | — | Any | |
 | Follow-up | select (More filters) | No | — | Any | Overdue / Due today / Scheduled / No follow-up set. |

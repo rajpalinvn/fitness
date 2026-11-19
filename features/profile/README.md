@@ -49,7 +49,7 @@
 | Gender | select | No | No | Not set yet | Female / Male / Other |
 | Birth date | date | No | No | — | |
 | FF ID | text | No | Yes, company-wide | — | ID from the other software. |
-| Source | select | Yes | No | — | Lead sources that apply to the lead's branch (#115). A saved source that no longer applies stays selectable (open question). |
+| Source | select | Yes | No | — | Lead sources that apply to the lead's branch (#115). A saved source that no longer applies stays selected with the note "Not used at this branch" (#116); changing it offers only the branch's sources. |
 | Temperature | select | Yes | No | Warm | Hot / Warm / Cold (fixed). |
 | Stage | select | Yes | No | New | Configurable stages only; hidden for Lost and Clients (Converted/Lost set by actions). |
 | Inquiry type | select | No | No | Not set yet | Call / Walk-in |

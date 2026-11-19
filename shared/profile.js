@@ -526,7 +526,7 @@
           fld("Gender", '<select class="input" name="gender">' + opt(L.genders, p.gender, true) + "</select>") +
           fld("Birth date", '<input class="input" name="birthDate" type="date" value="' + esc(p.birthDate || "") + '">') +
           fld("FF ID", '<input class="input" name="ffId" value="' + esc(p.ffId || "") + '">', false, "ID from the other software. Unique.") +
-          fld("Source", '<select class="input" name="source">' + opt(App.sourcesFor(p.branchId).concat(p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? [p.source] : []), p.source) + "</select>", true, "Only sources for " + App.branchName(p.branchId) + ".") +
+          fld("Source", '<select class="input" name="source">' + opt(App.sourcesFor(p.branchId).concat(p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? [p.source] : []), p.source) + "</select>", true, p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? "Not used at this branch. Change it to pick from " + App.branchName(p.branchId) + "'s sources." : "Only sources for " + App.branchName(p.branchId) + ".") +
           fld("Temperature", '<select class="input" name="temperature">' + opt(L.temperatures, p.temperature) + "</select>", true) +
           (stageEditable ? fld("Stage", '<select class="input" name="stage"' + (App.Trial.anyRunning(p) ? " disabled" : "") + ">" + opt(p.stage === "Trial" ? ["Trial"].concat(L.stageChoices) : L.stageChoices, p.stage) + "</select>", true,
             App.Trial.anyRunning(p) ? "Locked while a trial runs (Trial is set by Book trial). It unlocks when the trial ends." : "New / Contacted / Negotiation. Trial is set by Book trial; Converted and Lost by their own actions.") : "") +
@@ -627,7 +627,8 @@
           (can ? ' <button class="link-btn" data-pd="pay" data-item="' + (line === p.pt ? "pt" : "membership") + '">Collect payment</button>' : "") : '<span class="badge badge-success">Paid in full</span>') + "</dd>" +
         "<dt>Receipts</dt><dd>" + pay.receipts.map(function (r) {
           return '<div><span class="mono">' + esc(r.no) + "</span> · " + esc(App.fmtDate(r.at)) + " · " + r.rows.map(function (x) {
-            return esc(x.method) + " " + App.fmtMoney(x.amount) + (x.ref ? " (" + esc(x.ref) + ")" : ""); }).join(" + ") + "</div>";
+            return esc(x.method) + " " + App.fmtMoney(x.amount) + (x.ref ? " (" + (x.bank ? esc(x.bank) + " " : "") + esc(x.ref) + ")" : "") +
+              (x.dup ? ' <span class="badge badge-warning" data-pay-flag title="' + esc("Reference also used on " + x.dup.usedOn + " · reason: " + x.dup.reason) + '">Duplicate reference · flagged for Finance / CEO</span>' : ""); }).join(" + ") + "</div>";
         }).join("") + "</dd></dl></section>";
   }
   function ptSection(p) {

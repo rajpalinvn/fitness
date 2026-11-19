@@ -32,7 +32,7 @@ load(SALES, function () {
     });
     step("Payment methods", function () {
       click(q('[data-stab="methods"]'));
-      ok("defaults Cash, UPI, Net banking, Card + disabled Cheque", /Cash/.test(text("#panel")) && /Net banking/.test(text("#panel")) && /Disabled/.test(text("#panel")) && qa("[data-pm]").length === 5);
+      ok("defaults Cash, UPI, Bank transfer, Card + disabled Cheque; reference label per method", /Cash/.test(text("#panel")) && /Bank transfer/.test(text("#panel")) && /UTR \/ transaction ID/.test(text("#panel")) && /Approval code or last 4/.test(text("#panel")) && /Cheque number \+ bank name/.test(text("#panel")) && /receipt no\. \(auto\)/.test(text("#panel")) && /Disabled/.test(text("#panel")) && qa("[data-pm]").length === 5);
       click(q('[data-sr="add"]')); click(q('[data-sr="save"]'));
       ok("name required", /Enter a name/.test(text("#panel")));
       type("#pmName", "upi"); click(q('[data-sr="save"]'));
@@ -40,7 +40,7 @@ load(SALES, function () {
       type("#pmName", "Wallet"); click(q('[data-sr="save"]'));
       ok("method added", D().paymentMethods.some(function (m) { return m.name === "Wallet" && m.active; }));
       change('[data-pm="pm3"]', false);
-      ok("disable a method", !W().App.payMethod("Net banking").active && W().App.activePayMethods().every(function (m) { return m.name !== "Net banking"; }));
+      ok("disable a method", !W().App.payMethod("Bank transfer").active && W().App.activePayMethods().every(function (m) { return m.name !== "Bank transfer"; }));
       ok("no bad text", !badText(), badText());
     });
     step("View only / no access", function () {
@@ -51,6 +51,13 @@ load(SALES, function () {
       W().App.setRole("CEO");
     });
     load(LEADS, function () {
+      step("Duplicate reference dummy (p22) flagged for Finance / CEO", function () {
+        var r = person("p22").membership.payment.receipts[1].rows[0];
+        ok("p22 second receipt reuses p19's UPI ref, with reason + flag", r.ref === "UPI-40012001" && r.dup && r.dup.flagged && r.dup.usedOn === "S31-000101" && !!r.dup.reason);
+        W().App.openProfile("p22", { state: "normal" }); click(q('[data-tab-k="membership"]'));
+        ok("profile shows the flag badge", /Duplicate reference · flagged for Finance \/ CEO/.test(text("[data-pay-sec]")), text("[data-pay-sec]"));
+        W().App.closeProfile();
+      });
       step("Profile payments: split, partial, PT sessions", function () {
         W().App.openProfile("p13", { state: "normal", tab: "membership" });
         ok("split cash + UPI on one receipt", /Cash ₹3,000 \+ UPI ₹6,200 \(UPI-77120345\)/.test(text("[data-pay-sec]")) && /Paid in full/.test(text("[data-pay-sec]")));

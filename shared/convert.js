@@ -560,14 +560,23 @@
   function s6(p) {
     var t = payTotals(), methods = App.activePayMethods(), tomorrow = isoDay(plus(isoDay(new Date()), 1));
     var rows = C.pay.rows.map(function (r, i) {
-      var pm = App.payMethod(r.method), needs = !pm || pm.needsRef;
+      var pm = App.payMethod(r.method), needs = !pm || pm.needsRef, cash = r.method === "Cash", lbl = (pm && pm.refLabel) || "Reference no.";
+      var dup = !cash && App.payRefDup(r.method, r.ref, r.bank);
+      var refField = cash
+        ? '<div class="field"><label for="payR' + i + '">Reference</label><input class="input" id="payR' + i + '" value="' + esc(App.nextReceiptNo(p.branchId)) + '" readonly data-pay-cashref><span class="hint">Receipt no., filled automatically.</span></div>'
+        : '<div class="field"><label for="payR' + i + '">' + esc(lbl) + (needs ? ' <span class="req">*</span>' : "") + '</label><input class="input' + inv("pr" + i) + '" id="payR' + i + '" data-pay="ref" data-i="' + i + '" value="' + esc(r.ref) + '">' + err("pr" + i) + "</div>" +
+          (pm && pm.needsBank ? '<div class="field"><label for="payB' + i + '">Bank name <span class="req">*</span></label><input class="input' + inv("pb" + i) + '" id="payB' + i + '" data-pay="bank" data-i="' + i + '" value="' + esc(r.bank || "") + '">' + err("pb" + i) + "</div>" : "");
+      var dupBox = dup ? '<div class="callout callout-warn pay-dup" data-pay-dup="' + i + '">' + icon("alert") + "<span><strong>This reference was used before.</strong> " + esc(App.payDupText(dup)) +
+          '. You can still save: confirm with a reason. The payment is flagged for Finance / CEO.' +
+          '<label class="check mt-2"><input type="checkbox" data-pay="dupOk" data-i="' + i + '"' + (r.dupOk ? " checked" : "") + "> I checked: this is a different payment</label>" +
+          '<input class="input mt-2' + inv("pd" + i) + '" data-pay="dupWhy" data-i="' + i + '" aria-label="Reason" placeholder="Reason (required)" value="' + esc(r.dupWhy || "") + '">' + err("pd" + i) + "</span></div>" : "";
       return '<div class="pay-row" data-pay-row="' + i + '">' +
         '<div class="field"><label for="payM' + i + '">Method <span class="req">*</span></label><select class="input" id="payM' + i + '" data-pay="method" data-i="' + i + '">' +
           methods.map(function (x) { return "<option" + (x.name === r.method ? " selected" : "") + ">" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
         '<div class="field"><label for="payA' + i + '">Amount <span class="req">*</span></label><input class="input' + inv("pa" + i) + '" id="payA' + i + '" type="number" min="1" step="0.01" data-pay="amount" data-i="' + i + '" value="' + esc(r.amount) + '">' + err("pa" + i) + "</div>" +
-        '<div class="field"><label for="payR' + i + '">Reference / transaction no.' + (needs ? ' <span class="req">*</span>' : "") + '</label><input class="input' + inv("pr" + i) + '" id="payR' + i + '" data-pay="ref" data-i="' + i + '" value="' + esc(r.ref) + '" placeholder="' + (needs ? "e.g. UPI-55821934" : "Not needed for cash") + '">' + err("pr" + i) + "</div>" +
+        refField +
         '<div class="pay-row-actions"><button type="button" class="btn btn-sm" data-pay-slip="' + i + '">' + icon("upload", "ico-sm") + (r.slip ? "Slip attached" : "Slip (optional)") + "</button>" +
-          (C.pay.rows.length > 1 ? '<button type="button" class="btn btn-ghost icon-btn btn-sm" data-pay-del="' + i + '" aria-label="Remove payment row ' + (i + 1) + '">' + icon("x", "ico-sm") + "</button>" : "") + "</div></div>";
+          (C.pay.rows.length > 1 ? '<button type="button" class="btn btn-ghost icon-btn btn-sm" data-pay-del="' + i + '" aria-label="Remove payment row ' + (i + 1) + '">' + icon("x", "ico-sm") + "</button>" : "") + "</div>" + dupBox + "</div>";
     }).join("");
     return sec("Payment",
       '<dl class="kv"><dt>Receipt no.</dt><dd><span class="mono" data-receipt>' + esc(App.nextReceiptNo(p.branchId)) + '</span> <span class="cell-sub">auto, per branch · read-only</span></dd></dl>' +
@@ -586,7 +595,12 @@
     var e = {}, t = payTotals(), today = isoDay(new Date());
     C.pay.rows.forEach(function (r, i) {
       if (!(Number(r.amount) > 0)) e["pa" + i] = "Enter an amount.";
-      var pm = App.payMethod(r.method); if (pm && pm.needsRef && !r.ref.trim()) e["pr" + i] = "Reference no. is needed for " + esc(r.method) + ".";
+      var pm = App.payMethod(r.method); if (pm && pm.needsRef && !r.ref.trim()) e["pr" + i] = esc(pm.refLabel || "Reference no.") + " is needed for " + esc(r.method) + ".";
+      if (pm && pm.needsBank && !String(r.bank || "").trim()) e["pb" + i] = "Enter the bank name.";
+      if (r.method !== "Cash" && App.payRefDup(r.method, r.ref, r.bank)) {   // #116: warning, not a block — confirm + reason
+        if (!r.dupOk) e["pd" + i] = "Tick the box to confirm this is a different payment.";
+        else if (!String(r.dupWhy || "").trim()) e["pd" + i] = "Enter a reason.";
+      }
     });
     if (t.paid > t.total + 1e-9) e.pay = "Paid now is more than the total (" + App.fmtMoney(t.total) + ").";
     else if (belowMin()) e.pay = esc(minMsg()) + ".";
@@ -648,7 +662,9 @@
     if (d.pay) {   // payment rows: update totals live without re-rendering the input
       C.pay.rows[+d.i][d.pay] = e.target.value;
       if (d.pay === "amount") C.pay.auto = false;   // staff typed an amount: stop following the total
-      if (d.pay === "method" && e.type === "change") { render(); return; }
+      if (d.pay === "dupOk") C.pay.rows[+d.i].dupOk = e.target.checked;
+      if ((d.pay === "method" || d.pay === "dupOk") && e.type === "change") { render(); return; }
+      if ((d.pay === "ref" || d.pay === "bank") && e.type === "change") { render(); return; }   // re-check duplicates when the field is left
       var needDue = partialOk() && payTotals().balance > 0;
       if (needDue !== !!m.body.querySelector("#payDue")) {   // due date appears / disappears with the balance
         var id = e.target.id; render(); var back = m.body.querySelector("#" + id); if (back) back.focus(); return;
@@ -721,7 +737,14 @@
     }
     // Payment (decisions #79–#83): one receipt for this payment, split rows allowed. Balance -> due date + Payment expected follow-up.
     var receiptNo = App.nextReceiptNo(p.branchId, true), al = alloc();
-    var rows = C.pay.rows.map(function (r) { return { method: r.method, amount: Math.round(Number(r.amount) * 100) / 100, ref: r.ref.trim() || null, slip: r.slip || null }; });
+    var rows = C.pay.rows.map(function (r) {
+      var h = r.method === "Cash" ? null : App.payRefDup(r.method, r.ref, r.bank);
+      var row = { method: r.method, amount: Math.round(Number(r.amount) * 100) / 100, ref: r.method === "Cash" ? "@RECEIPT" : (r.ref.trim() || null), slip: r.slip || null };
+      if (r.bank) row.bank = r.bank.trim();
+      if (h) row.dup = { usedOn: h.no, personId: h.personId, reason: r.dupWhy.trim(), by: App.me().id, flagged: true };   // flagged for Finance / CEO
+      return row;
+    });
+    rows.forEach(function (r) { if (r.ref === "@RECEIPT") r.ref = receiptNo; });   // #116: Cash reference = the receipt number
     var receipt = { no: receiptNo, at: now, by: me.id, rows: rows };
     // Allocation: accessories → fob deposit → membership line → PT line (#93). The membership line carries accessories + deposit.
     p.membership.payment = { total: T.total - al.ptDue, paid: T.paid - al.pt, dueDate: T.balance && (T.total - al.ptDue) > (T.paid - al.pt) ? C.payDue : null, receipts: [receipt] };

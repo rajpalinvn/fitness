@@ -329,6 +329,20 @@
   App.minFirstPayPct = function () { var v = DUMMY.salesRules && DUMMY.salesRules.minFirstPayPct; return typeof v === "number" ? v : 0; };
   App.payBalance = function (pay) { return pay ? Math.max(0, Math.round((pay.total - pay.paid) * 100) / 100) : 0; };
   App.activePayMethods = function () { return DUMMY.paymentMethods.filter(function (m) { return m.active; }); };
+  // Duplicate payment reference (#116): same method + same reference anywhere in the company (cheque: same bank + number).
+  // Not a block: a warning with where it was used; staff confirm with a reason; the row is flagged for Finance / CEO.
+  App.payRefKey = function (ref) { return String(ref || "").replace(/\s+/g, "").toUpperCase(); };
+  App.payRefDup = function (method, ref, bank) {
+    var k = App.payRefKey(ref), bk = App.payRefKey(bank), hit = null; if (!k || method === "Cash") return null;
+    DUMMY.people.forEach(function (p) { [p.membership, p.pt].forEach(function (line) {
+      var pay = line && line.payment; if (!pay || hit) return;
+      pay.receipts.forEach(function (rc) { rc.rows.forEach(function (r) {
+        if (!hit && r.method === method && App.payRefKey(r.ref) === k && (method !== "Cheque" || App.payRefKey(r.bank) === bk)) hit = { no: rc.no, at: rc.at, personId: p.id, personName: p.name };
+      }); });
+    }); });
+    return hit;
+  };
+  App.payDupText = function (h) { return "Used on " + App.fmtDay(h.at) + " in " + h.personName + "'s payment (" + h.no + ")"; };
   App.payMethod = function (name) { return DUMMY.paymentMethods.filter(function (m) { return m.name === name; })[0] || null; };
   // Receipt no. per branch, e.g. S31-000124. take=true uses the number.
   App.nextReceiptNo = function (branchId, take) {

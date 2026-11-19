@@ -89,6 +89,7 @@
     { key: "leads.viewLost",        module: "Leads",    label: "View lost leads",                                       type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "leads.own",             module: "Leads",    label: "Can own leads (owner lists, follow-up person, release / pick lists)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
     { key: "leads.crossBranchFollowUp", module: "Leads", label: "Add a follow-up for myself on another branch's lead (walk-in / inquiry)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
+    { key: "leads.export",          module: "Leads",    label: "Export leads (no export screen yet)",                   type: "tick",   defaults: {} },
     { key: "leads.create",          module: "Leads",    label: "Create lead",                                           type: "tick",   defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true } },
     { key: "leads.assign",          module: "Leads",    label: "Assign / reassign / change owner (leads and clients)", type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" }, atLeastOne: true },
     { key: "leads.assignFollowUp",  module: "Leads",    label: "Assign a follow-up to another staff (any branch)",      type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
@@ -443,6 +444,10 @@
   // EDGE: PT 24 sessions ₹22,000, paid ₹11,000 -> per session 916.67 -> 12 of 24 unlocked; balance ₹11,000 due in 10 days
   P("p39").membership.payment = pay(9200, null, [rc("S31-000060", day(-135), "u6", [["Cash", 9200]])]);
   P("p40").membership.payment = pay(4200, null, [rc("S31-000090", day(-35), "u6", [["UPI", 4200, "UPI-40012010"]])]);
+  // EDGE (#116): duplicate reference — p22's UPI ref was already used on p19's payment; staff confirmed with a reason -> flagged for Finance / CEO.
+  P("p22").membership.payment.receipts.push(rc("S31-000102", day(-26), "u6", [["UPI", 0.01, "UPI-40012001"]]));
+  (function (r) { r.amount = 500; r.dup = { usedOn: "S31-000101", personId: "p19", reason: "Same UPI paid two bills (family)", by: "u6", flagged: true }; })(P("p22").membership.payment.receipts[1].rows[0]);
+  P("p22").membership.payment.total += 500; P("p22").membership.payment.paid += 500;
   P("p40").pt = { packageId: "pk9", package: "PT 12 Sessions", price: 12000, discount: 0, finalPrice: 12000, sessions: 12, start: day(-50), end: day(40),
     salesRepUserId: "u6", payment: pay(12000, null, [rc("S31-000091", day(-50), "u6", [["Card", 12000, "CARD-7710"]])]) };
   P("p24").pt = { packageId: "pk10", package: "PT 24 Sessions", price: 22000, discount: 0, finalPrice: 22000, sessions: 24, start: day(-40), end: day(140),
@@ -696,11 +701,12 @@
     salesRules: { minFirstPayPct: 30 }, salesRuleDefaults: { minFirstPayPct: 30 },
     // Payment methods (decision #80). Default, can change. needsRef: reference / transaction no. required.
     paymentMethods: [
-      { id: "pm1", name: "Cash", needsRef: false, active: true, isDefault: true },
-      { id: "pm2", name: "UPI", needsRef: true, active: true, isDefault: true },
-      { id: "pm3", name: "Net banking", needsRef: true, active: true, isDefault: true },
-      { id: "pm4", name: "Card", needsRef: true, active: true, isDefault: true },
-      { id: "pm5", name: "Cheque", needsRef: true, active: false, isDefault: false }   // EDGE: disabled method (hidden in Sell mode)
+      // #116: Cash reference = the receipt number (auto, read-only). refLabel = what staff type; Cheque also needs the bank name.
+      { id: "pm1", name: "Cash", needsRef: false, active: true, isDefault: true, refLabel: "Receipt no. (auto)" },
+      { id: "pm2", name: "UPI", needsRef: true, active: true, isDefault: true, refLabel: "UTR / transaction ID" },
+      { id: "pm3", name: "Bank transfer", needsRef: true, active: true, isDefault: true, refLabel: "UTR" },
+      { id: "pm4", name: "Card", needsRef: true, active: true, isDefault: true, refLabel: "Approval code or last 4" },
+      { id: "pm5", name: "Cheque", needsRef: true, active: false, isDefault: false, refLabel: "Cheque number", needsBank: true }   // EDGE: disabled method (hidden in Sell mode)
     ],
     // Receipt no. per branch (decision #81): <prefix>-<6 digits>, next = last + 1. Default, can change.
     receiptPrefix: { b1: "S31", b2: "S65", b3: "GC" },

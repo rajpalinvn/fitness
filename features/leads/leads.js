@@ -98,12 +98,20 @@
     }).join("");
     sel.value = v;
   }
+  // Source filter (#116): company-wide sources + the sources of the top-bar branch; "All branches" = every source,
+  // branch-specific ones tagged with their branches ("Hoarding · Sec 31"). A source that doesn't apply is cleared.
+  function fillSources() {
+    var m = L.leadSourceBranches || {}, all = !S.branch || S.branch === "all";
+    var list = (all ? L.sources : App.sourcesFor(S.branch)).map(function (s) { return { v: s, t: m[s] && all ? s + " · " + m[s].map(App.branchName).join(", ") : s }; });
+    if (S.source && !list.some(function (x) { return x.v === S.source; })) S.source = "";
+    ["fSource", "mSource"].forEach(function (id) { opts($(id), "All sources", list); $(id).value = S.source; });
+  }
   function fillFilters() {
     opts($("fStage"), "Open leads (all stages)", L.stages.concat(["Lost"]));
     var owners = D.users.filter(function (u) { return D.people.some(function (p) { return p.ownerUserId === u.id && p.kind === "Lead"; }); })
       .map(function (u) { return { v: u.id, t: u.name }; }).concat([{ v: "none", t: "Unassigned" }]);
     ["fOwner", "mOwner"].forEach(function (id) { opts($(id), "All owners", owners); });
-    ["fSource", "mSource"].forEach(function (id) { opts($(id), "All sources", L.sources); });
+    fillSources();
     ["fBranch", "mBranch"].forEach(function (id) {
       var sel = $(id);
       sel.innerHTML = '<option value="all">All branches</option>' + D.branches.map(function (b) { return '<option value="' + b.id + '">' + esc(b.name) + "</option>"; }).join("");
@@ -315,6 +323,7 @@
     $(id).addEventListener(ev || "change", function () {
       S[key] = this.type === "checkbox" ? this.checked : this.value;
       if (key === "stage") S.attention = false;
+      if (key === "branch") fillSources();   // #116: source list follows the branch
       syncControls(); render();
     });
   }
@@ -341,7 +350,7 @@
     if (e.target.closest("[data-create-number]")) App.QuickLead.open({ mobile: S.search.trim() });
     var ro = e.target.closest("[data-ro-open]"); if (ro) App.openProfile(ro.dataset.roOpen, { list: [ro.dataset.roOpen] });
   });
-  document.addEventListener("mock:context", function (e) { S.branch = e.detail.branchId; syncControls(); render(); });
+  document.addEventListener("mock:context", function (e) { S.branch = e.detail.branchId; fillSources(); syncControls(); render(); });
   App.openLead = openProfile; // used by the command palette
   document.addEventListener("mock:data", function () { if (S.mode === "normal") render(); });
 
