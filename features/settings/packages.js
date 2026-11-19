@@ -38,7 +38,7 @@
   function row(p) {
     var info = App.priceInfo(p), split = App.gstSplit(info.price, p.taxCategoryId), tx = App.tax(p.taxCategoryId);
     return '<tr data-id="' + p.id + '"' + (p.active ? "" : ' class="row-muted"') + ">" +
-      "<td><strong>" + esc(p.name) + '</strong><div class="cell-sub">' + esc(p.subType || "No sub-type") + "</div></td>" +
+      "<td><strong>" + esc(p.name) + "</strong>" + (p.category === "Add-on" && p.subType ? '<div class="cell-sub">' + esc(p.subType) + "</div>" : "") + "</td>" +
       "<td>" + esc(p.category) + "</td><td>" + esc(lengthText(p)) + "</td>" +
       "<td><strong>" + (info.price ? App.fmtMoney(info.price) : "Free") + "</strong>" + (p.category === "Premium PT" && info.refPrice != null ? '<div class="cell-sub">incl. membership ' + App.fmtMoney(info.refPrice) + " · PT " + App.fmtMoney(info.price - info.refPrice) + "</div>" : "") +
         '<div class="cell-sub">' + esc(tx ? tx.name + " · GST " + A.money(split.gst) : "No tax category") + "</div>" +
@@ -136,9 +136,10 @@
       '<div class="form-grid mt-3">' +
         '<div class="field span-2"><label>Category <span class="req">*</span></label>' + A.chipSeg("category", CATS, c, !canEdit() || locked("category")) + lockHint("category") + "</div>" +
         '<div class="field"><label for="pkName">Name <span class="req">*</span></label><input class="input' + (errors.name ? " invalid" : "") + '" id="pkName" data-f="name" value="' + esc(F.name) + '"' + dis("") + ">" + A.err(errors, "name") + "</div>" +
-        '<div class="field"><label for="pkSub">' + (isAdd ? "Add-on kind" : "Sub-type") + (isAdd ? ' <span class="req">*</span>' : "") + '</label><select class="input" id="pkSub" data-f="subType"' + dis("") + ">" +
-          (isAdd ? "" : '<option value="">Not set</option>') + subTypes(c).map(function (s) { return "<option" + (s === F.subType ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select>" +
-          '<span class="hint">' + (isAdd ? "Add-on kinds are fixed in the app. First kind: Transfer." : "Optional. List managed by admin.") + "</span>" + A.err(errors, "subType") + "</div>" +
+        // Sub-type removed for now (#123): no use yet; PT single / couple = People 1 / 2. Add-on kind stays (it drives the add-on).
+        (isAdd ? '<div class="field"><label for="pkSub">Add-on kind <span class="req">*</span></label><select class="input" id="pkSub" data-f="subType"' + dis("") + ">" +
+          subTypes(c).map(function (s) { return "<option" + (s === F.subType ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("") + "</select>" +
+          '<span class="hint">Add-on kinds are fixed in the app. First kind: Transfer.</span>' + A.err(errors, "subType") + "</div>" : "") +
         (isAdd || prem ? "" : '<div class="field"><label>Trial <span class="req">*</span></label>' + A.chipSeg("isTrial", [["false", "No"], ["true", "Yes"]], String(F.isTrial), !canEdit() || locked("isTrial")) + lockHint("isTrial") + "</div>") +
         (prem ? '<div class="field"><label>Trial</label><div class="input input-static">No <span class="muted">· Premium PT has no trial</span></div></div>' : "") +
         (isPT ? '<div class="field"><label>People <span class="req">*</span></label>' + A.chipSeg("people", [["1", "Single"], ["2", "Couple"]], String(F.people), !canEdit() || locked("people")) +
@@ -159,7 +160,8 @@
           var on = F.branchIds.indexOf(b.id) > -1;
           return '<button type="button" class="chip' + (on ? " selected" : "") + '" aria-pressed="' + on + '" data-pkbranch="' + b.id + '"' + dis("") + ">" + (on ? App.icon("check", "ico-xs") : "") + esc(b.name) + "</button>";
         }).join("") + "</div>" + A.err(errors, "branchIds") + "</div>" +
-        (prem ? "" : '<div class="field span-2"><label class="check"><input type="checkbox" data-f="requiresMembership"' + (F.requiresMembership ? " checked" : "") + (isPT && !F.isTrial ? " disabled checked" : dis("")) + "> Requires an active membership</label>" +
+        // "Requires an active membership" (#123): hidden for Membership; PT checked + disabled (PT trial: editable, #94); Premium PT not shown; Add-on editable.
+        (prem || c === "Membership" ? "" : '<div class="field span-2"><label class="check"><input type="checkbox" data-f="requiresMembership"' + (F.requiresMembership ? " checked" : "") + (isPT && !F.isTrial ? " disabled checked" : dis("")) + "> Requires an active membership</label>" +
           '<span class="hint">' + (isPT && F.isTrial ? "PT trial: ON = clients only; OFF = leads and clients." : isPT ? "PT always needs an active paid membership." : "The client must have an active membership to buy this.") + "</span></div>") +
         '<div class="field span-2">' + freeItemsHtml() + "</div>" +
         '<div class="field span-2"><label class="check"><input type="checkbox" data-f="active"' + (F.active ? " checked" : "") + dis("") + "> Active (can be sold)</label></div>" +
@@ -214,9 +216,9 @@
     var oldPrice = isNew ? null : App.priceInfo(p).price, changed = [], newEntry = isNew || priceChanged();
     ["name", "subType", "taxCategoryId", "audience", "requiresMembership", "active"].forEach(function (k) { if (!isNew && String(p[k] || "") !== String(F[k] || "")) changed.push(k); });
     var prem = F.category === "Premium PT", trial = F.category !== "Add-on" && !prem && F.isTrial;
-    Object.assign(p, { name: F.name.trim(), category: F.category, subType: F.subType || null, isTrial: trial,
+    Object.assign(p, { name: F.name.trim(), category: F.category, subType: F.category === "Add-on" ? (F.subType || null) : (p.subType || null), isTrial: trial,
       people: F.category === "PT" ? Number(F.people) : (p.people || 1), days: F.category === "Add-on" ? null : Number(F.days),
-      sessions: hasSessions(F.category) ? Number(F.sessions) : null, taxCategoryId: F.taxCategoryId, requiresMembership: F.category === "PT" ? (trial ? !!F.requiresMembership : true) : prem ? false : F.requiresMembership,
+      sessions: hasSessions(F.category) ? Number(F.sessions) : null, taxCategoryId: F.taxCategoryId, requiresMembership: F.category === "PT" ? (trial ? !!F.requiresMembership : true) : prem || F.category === "Membership" ? false : F.requiresMembership,
       branchIds: F.branchIds.slice(), audience: F.audience, active: F.active,
       freeItems: F.category === "Add-on" || trial ? [] : F.freeItems.map(function (f) { return { itemId: f.itemId, qty: Number(f.qty), rule: f.rule }; }) });
     if (newEntry) {

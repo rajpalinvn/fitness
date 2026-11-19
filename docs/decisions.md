@@ -791,3 +791,9 @@
     filter: leads inside the release-warning window (setting "Warn the owner before release"). The section is renamed
     "Releasing soon"; each row shows the release badge ("Releases tomorrow" / "Releases in N days") and "Add follow-up".
     Managers see their branch's releasing leads with the owner shown.
+123. Packages + releasing test data (19 Nov 2026, c20; real build). (a) Sub-type is removed from the package form,
+    list, filters and tags for now (no use yet; PT single / couple = People 1 / 2). The Add-on kind stays. (b) "Requires an
+    active membership": hidden for Membership; PT checked and disabled; Premium PT not shown (membership included);
+    Add-on editable. PT TRIAL packages keep the #94 rule (editable, default OFF = leads may book them). (c) Dummies: Sec 31
+    lead Ishita Rao (p44) inside the release-warning window; Club Manager Ritu Saxena (u18) at Sec 65 (she now also gets
+    Sec 65's CM notifications, e.g. cross-branch work).

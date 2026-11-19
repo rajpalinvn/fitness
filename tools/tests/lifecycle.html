@@ -76,7 +76,7 @@ queue.push(function (nx) { start("CEO", null, function () {
     ok("setting default 'On sale', options On sale / On first follow-up / Never", A().setting("crossBranchOwnerChange") === "On sale" && D().settingDefs.filter(function (d) { return d.key === "crossBranchOwnerChange"; })[0].options.join() === "On sale,On first follow-up,Never");
     var R = A().Notify.rules();
     ok("notification defaults: CM only", ["transferIn", "released", "crossBranch"].every(function (k) { return R[k].CM && !R[k].RM && !R[k].SM; }));
-    ok("b2 cross-branch: only the owner (no CM in Sec 65)", A().Notify.recipients("crossBranch", "b2", ["u7"]).join() === "u7");
+    ok("b2 cross-branch: owner + Sec 65's CM Ritu (c20)", A().Notify.recipients("crossBranch", "b2", ["u7"]).sort().join() === "u18,u7");
     ok("b1 transfer in: CM Sunita + owner", A().Notify.recipients("transferIn", "b1", ["u7"]).sort().join() === "u4,u7");
     ok("Duplicate payment reference rule: default CEO only; any role can be ticked", R.dupRef.CEO === true && !R.dupRef.FIN && A().Notify.recipients("dupRef", "b2", []).join() === "u2");
     A().Notify.save("dupRef", "FIN", true); ok("tick Finance -> Nisha (Sec 65) gets it", A().Notify.recipients("dupRef", "b2", []).indexOf("u12") > -1); A().Notify.save("dupRef", "FIN", false);

@@ -71,6 +71,8 @@
     // c9: every real branch has an MXM and a trainer (PT quotes, #110).
     { id: "u14", name: "Rakesh Yadav",  role: "MXM",              roleKey: "MXM",              branches: ["b2"],             branchIds: ["b2"], mobile: "+919000009013" },
     { id: "u15", name: "Imran Khan",    role: "Trainer",          roleKey: "TRAINER",          branches: ["b2"],             branchIds: ["b2"], trainerTypeId: "tt2", mobile: "+919000009014" },
+    // c20 (#123): a Club Manager at Sec 65 (tests that a CM of another branch doesn't see Sec 31's releasing leads).
+    { id: "u18", name: "Ritu Saxena",   role: "Club Manager",     roleKey: "CLUB_MANAGER",     branches: ["b2"],             branchIds: ["b2"], mobile: "+919000009018" },
     // c11 (#114): Marketing + HR demo staff.
     { id: "u16", name: "Kavya Menon",   role: "Marketing",        roleKey: "MARKETING",        branches: ["b1", "b2"],       branchIds: ["b1", "b2"], mobile: "+919000009015" },
     { id: "u17", name: "Farhan Ali",    role: "HR",               roleKey: "HR",               branches: ["b1", "b3"],       branchIds: ["b1", "b3"], mobile: "+919000009016" }
@@ -370,6 +372,8 @@
       note: "EDGE (#97): Priya's follow-up on this lead is DONE -> the lead left Priya's list (stays in her follow-up history)" }),
     L("p30", "Gaurav Sethi", "90000 01263", "b1", "u6", "Contacted", { createdAt: day(-20), lastActivityAt: day(-6),
       note: "EDGE (#100): follow-up overdue 6 days -> 'Releases tomorrow' + one notification to Priya" }),
+    L("p44", "Ishita Rao", "90000 01277", "b1", "u6", "Contacted", { createdAt: day(-6), lastActivityAt: day(-6),
+      note: "EDGE (#123): created 6 days ago, no follow-up -> inside the release-warning window (Releasing soon) · Sec 31, owner Priya" }),
     L("p31", "Meghna Pillai", "90000 01264", "b1", "u6", "New", { createdAt: day(-25), lastActivityAt: day(-8),
       note: "EDGE (#100): follow-up overdue 8 days -> RELEASED on page load (Unassigned · Released), follow-up + task closed by system" }),
     L("p32", "Rohan Das", "90000 01265", "b1", "u6", "Trial", { createdAt: day(-15), lastActivityAt: day(-1),

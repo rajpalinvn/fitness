@@ -84,7 +84,11 @@ load(SV, function () {
         var wide = A().visibleLeads("all").filter(function (p) { var i = A().Release.info(p); return i && i.inactive && i.warn; });
         ok("longer warning window: section follows the same rule", qa("#sec-releasing .today-row").length === Math.min(wide.length, 5) && +text("#sec-releasing .tab-count") === wide.length, wide.length);
         A().Perm.resetSettings(); A().dataChanged();
-        role("Club Manager"); ok("manager sees branch leads releasing soon with the owner", !q("#sec-releasing") || /Priya|Arjun|Rahul|Pooja|Unassigned/.test(text("#sec-releasing")) || /No lead is releasing soon/.test(text("#sec-releasing"))); role("Sales Executive");
+        role("Club Manager");
+        ok("CM of Sec 31 (Sunita) sees Sec 31's Ishita (releasing soon) with owner Priya", /Ishita Rao/.test(text("#sec-releasing")) && /Priya/.test(text("#sec-releasing")), text("#sec-releasing"));
+        var keepCm = D().roleDemoUser["Club Manager"]; D().roleDemoUser["Club Manager"] = "u18"; role("Club Manager");
+        ok("CM of Sec 65 (Ritu) doesn't see Sec 31's Ishita", !/Ishita Rao/.test(text("#sections")));
+        D().roleDemoUser["Club Manager"] = keepCm; role("Sales Executive");
         var badge = +text('.nav-item[data-tip="Today"] .nav-badge');
         ok("sidebar Today badge = Overdue or not set count", badge === A().counts().attention && badge === A().visibleLeads("all").filter(A().needsAttention).length, badge);
       });

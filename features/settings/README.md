@@ -79,7 +79,7 @@ Ready for review
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Category | Membership / PT / Premium PT / Add-on | Yes | No | current tab (Membership) | Locked after the first sale. Premium PT (#92) = membership + PT in one package, 2 lines at sale. |
-| Sub-type / Add-on kind | select | Add-on only | No | Not set (Add-on: Transfer) | Membership: Regular, Student, Corporate; PT and Premium PT: One-on-one, Group (admin lists). Add-on kinds fixed in code. |
+| Add-on kind | select | Add-on only | No | Transfer | Add-on kinds fixed in code. **Sub-type removed for now (#123)** from the form, list, filters and tags (no use yet); PT single / couple = People 1 / 2. Saved data keeps any old value untouched. |
 | Name | text | Yes | Yes | — | "A package with this name already exists." |
 | Trial | Yes / No | Yes (Membership, PT) | No | No | Locked after the first sale. Not shown for Premium PT (no trial, #92) or Add-on. PT trial: "Requires an active membership" becomes editable, default OFF ("ON = clients only; OFF = leads and clients", #94). Trial = Yes hides Free items ("Trials give nothing extra", #93) and the result reads "Free trial · stays a Lead" / "Paid trial · stays a Lead · paid in full". |
 | People | Single / Couple | PT | No | Single | Couple PT: both must be clients with an active membership (#43). Locked after the first sale. |
@@ -91,7 +91,7 @@ Ready for review
 | Price effective from | date | Yes | No | today | A new price can't start in the past. Price history table (Current / Upcoming / Past; Premium PT also shows the reference price per entry). |
 | Audience | New / Renewal / Both | Yes | No | Both (default, can change) | Renewal-only packages are not offered when converting a lead. |
 | Branches | multi-select chips | Yes (≥ 1) | No | all branches | |
-| Requires active membership | checkbox | — | — | on for PT | Always on for PT. |
+| Requires an active membership | checkbox | — | — | PT: on | #123: **Membership** hidden (saved off); **PT** checked + disabled (PT trial: editable, default OFF, #94); **Premium PT** not shown (membership included); **Add-on** editable. Tag "Needs membership" in the list. |
 | Free items | rows: accessory + qty + rule | No | item once per package | — | Rule "Once per client" (default) / "Every sale" (default, can change). Not for Add-ons. |
 | Active | checkbox | — | — | on | Inactive packages can't be sold. |
 | Result | derived box | — | — | — | Free trial · stays a Lead (amber) / Paid trial · becomes a Client / Paid · becomes a Client (green) / "Not allowed · A price of 0 is only allowed for a trial." (red). |

@@ -36,6 +36,7 @@ load(PK, function () {
       ok("Monthly current price ₹3,000 + Gym services GST", /₹3,000/.test(text('#rows tr[data-id="pk4"]')) && /Gym services · GST ₹142\.86/.test(text('#rows tr[data-id="pk4"]')), text('#rows tr[data-id="pk4"]'));
       ok("inactive package shows Inactive", /Inactive/.test(text('#rows tr[data-id="pk15"]')));
       ok("couple PT tags", /Couple/.test(text('#rows tr[data-id="pk12"]')) && /Needs membership/.test(text('#rows tr[data-id="pk12"]')));
+      ok("list: no sub-type line (#123); Add-on keeps its kind", !/No sub-type|Regular|One-on-one/.test(text("#rows")) && /Transfer/.test(text('#rows tr[data-id="pk13"]')));
       ok("max 3 row actions", Math.max.apply(null, Array.prototype.map.call(qa(".row-actions"), function (r) { return r.children.length; })) <= 3);
       type("#fSearch", "zzz"); ok("no results state", /No packages match/.test(text("#rows")));
       click(q('[data-act="clear"]')); ok("clear filters", rows() === 20, rows());
@@ -83,7 +84,13 @@ load(PK, function () {
     });
     step("PT form + future price", function () {
       click(q("#btnNew")); seg("category", "PT");
-      ok("PT shows sessions + people, requires membership checked", !!q("#pkSess") && !!q('[data-seg="people"]') && q('[data-f="requiresMembership"]').checked);
+      ok("PT shows sessions + people, requires membership checked + disabled", !!q("#pkSess") && !!q('[data-seg="people"]') && q('[data-f="requiresMembership"]').checked && q('[data-f="requiresMembership"]').disabled);
+      ok("no Sub-type field (#123): PT", !q("#pkSub") && !/Sub-type/.test(text("#pkgDrawer")));
+      seg("category", "Membership");
+      ok("Membership: no Sub-type, no 'Requires an active membership' (#123)", !q("#pkSub") && !q('[data-f="requiresMembership"]'));
+      seg("category", "Add-on");
+      ok("Add-on: requires membership editable; Add-on kind kept", !!q('[data-f="requiresMembership"]') && !q('[data-f="requiresMembership"]').disabled && !!q("#pkSub"));
+      seg("category", "PT");
       seg("category", "Premium PT");
       ok("Premium PT: membership days + PT sessions + reference price, no Trial chip, no requires-membership", !!q("#pkDays") && !!q("#pkSess") && !!q("#pkRef") && !q('[data-seg="isTrial"]') && !q('[data-f="requiresMembership"]') && /Premium PT has no trial/.test(text("#pkgDrawer")));
       type("#pkName", "Half-year + 24 PT"); type("#pkDays", "180"); type("#pkSess", "24"); type("#pkPrice", "60000"); type("#pkRef", "-5"); click(q("#pkgDrawer [data-save]"));
