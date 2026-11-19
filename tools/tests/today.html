@@ -105,6 +105,18 @@ load(TODAY, function () {
       W().App.setBranch("all"); role("CEO");
       ok("CEO: Flagged payments section with p22 (client, amount, ref, used before, staff, reason)", !!sec("flagged") && /Ananya|.+/.test(text("#sec-flagged")) &&
         /UPI-40012001/.test(text("#sec-flagged")) && /₹500/.test(text("#sec-flagged")) && /Divya Nair's payment \(S31-000101\)/.test(text("#sec-flagged")) && /Priya Sharma/.test(text("#sec-flagged")) && /Same UPI paid two bills/.test(text("#sec-flagged")), text("#sec-flagged"));
+      // Mark reviewed (#118): leaves Today, receipt keeps "Reviewed by"
+      click(rowOf("flagged", "UPI-40012001").querySelector('[data-act="payrev"]'));
+      ok("Mark reviewed modal (optional note)", q("#payReviewModal").classList.contains("open") && !!q("#prNote"));
+      type("#prNote", "Checked with bank"); click(q("#payReviewModal [data-save]"));
+      var rr = person("p22").membership.payment.receipts[1].rows[0];
+      ok("reviewed: leaves Today, saved with name + date + note, event", !/UPI-40012001/.test(text("#sections")) && rr.dup.reviewed && rr.dup.reviewed.by === "u2" && rr.dup.reviewed.note === "Checked with bank" &&
+        W().App.Event.of("p22", "FlaggedPaymentReviewed").length === 1);
+      W().App.openProfile("p22", { state: "normal" }); click(q('[data-tab-k="membership"]'));
+      ok("receipt keeps 'Reviewed by Anita Kapoor · <date>'", /Reviewed by Anita Kapoor · \d/.test(text("[data-pay-sec]")) && !q('[data-pd="payReview"]'), text("[data-pay-sec]"));
+      W().App.closeProfile();
+      delete rr.dup.reviewed;
+      role("Club Manager"); ok("not ticked (CM): no Mark reviewed on the receipt", !W().App.PayRef.canReview(person("p22"))); role("CEO");
       role("Finance"); ok("Finance: no section by default", !sec("flagged"));
       W().App.Notify.save("dupRef", "FIN", true); role("Finance");
       ok("Finance ticked but p22 is Sec 31 (Nisha = Sec 65): nothing flagged for her, note names the work", !/UPI-40012001/.test(text("#sections")) && /Your work here: Flagged payments/.test(text("#sections")), text("#sections"));

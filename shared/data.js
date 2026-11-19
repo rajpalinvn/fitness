@@ -56,27 +56,28 @@
   var users = [
     // Platform user (SuperAdmin): no tenant, no branches. Kept only as "who created the tenant / opening stock".
     { id: "u1", name: "Rohan Mehta",    role: "SuperAdmin",       roleKey: "SUPER_ADMIN",      branches: [], branchIds: [], tenantId: null, platform: true },
-    { id: "u2", name: "Anita Kapoor",   role: "CEO",              roleKey: "CEO",              branches: ["b1", "b2", "b3"], branchIds: ["b1", "b2", "b3"] },
-    { id: "u3", name: "Vikram Rao",     role: "Regional Manager", roleKey: "REGIONAL_MANAGER", branches: ["b1", "b2"],       branchIds: ["b1", "b2"] },
-    { id: "u4", name: "Sunita Iyer",    role: "Club Manager",     roleKey: "CLUB_MANAGER",     branches: ["b1"],             branchIds: ["b1"] },
-    { id: "u5", name: "Karan Malhotra", role: "Sales Manager",    roleKey: "SALES_MANAGER",    branches: ["b1"],             branchIds: ["b1"] },
-    { id: "u6", name: "Priya Sharma",   role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b1"],             branchIds: ["b1"] },
-    { id: "u7", name: "Arjun Nair",     role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b2"],             branchIds: ["b2"] },
-    { id: "u8", name: "Deepak Verma",   role: "Trainer",          roleKey: "TRAINER",          branches: ["b1"],             branchIds: ["b1"], trainerTypeId: "tt2" },
-    { id: "u9", name: "Meera Joshi",    role: "MXM",              roleKey: "MXM",              branches: ["b3"],             branchIds: ["b3"] },
-    { id: "u10", name: "Rahul Gupta",   role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"] },
-    { id: "u11", name: "Pooja Khanna",  role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"] },
-    { id: "u12", name: "Nisha Bhatia",  role: "Finance",          roleKey: "FINANCE",          branches: ["b2"],             branchIds: ["b2"] },
-    { id: "u13", name: "Sanjay Pillai", role: "Trainer",          roleKey: "TRAINER",          branches: ["b3"],             branchIds: ["b3"], trainerTypeId: "tt3" },
+    { id: "u2", name: "Anita Kapoor",   role: "CEO",              roleKey: "CEO",              branches: ["b1", "b2", "b3"], branchIds: ["b1", "b2", "b3"], mobile: "+919000009001" },
+    { id: "u3", name: "Vikram Rao",     role: "Regional Manager", roleKey: "REGIONAL_MANAGER", branches: ["b1", "b2"],       branchIds: ["b1", "b2"], mobile: "+919000009002" },
+    { id: "u4", name: "Sunita Iyer",    role: "Club Manager",     roleKey: "CLUB_MANAGER",     branches: ["b1"],             branchIds: ["b1"], mobile: "+919000009003" },
+    { id: "u5", name: "Karan Malhotra", role: "Sales Manager",    roleKey: "SALES_MANAGER",    branches: ["b1"],             branchIds: ["b1"], mobile: "+919000009004" },
+    { id: "u6", name: "Priya Sharma",   role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b1"],             branchIds: ["b1"], mobile: "+919000009005" },
+    { id: "u7", name: "Arjun Nair",     role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b2"],             branchIds: ["b2"], mobile: "+919000009006" },
+    { id: "u8", name: "Deepak Verma",   role: "Trainer",          roleKey: "TRAINER",          branches: ["b1"],             branchIds: ["b1"], trainerTypeId: "tt2", mobile: "+919000009007" },
+    { id: "u9", name: "Meera Joshi",    role: "MXM",              roleKey: "MXM",              branches: ["b3"],             branchIds: ["b3"], mobile: "+919000009008" },
+    { id: "u10", name: "Rahul Gupta",   role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"], mobile: "+919000009009" },
+    { id: "u11", name: "Pooja Khanna",  role: "Sales Executive",  roleKey: "SALES_EXECUTIVE",  branches: ["b3"],             branchIds: ["b3"], mobile: "+919000009010" },
+    { id: "u12", name: "Nisha Bhatia",  role: "Finance",          roleKey: "FINANCE",          branches: ["b2"],             branchIds: ["b2"], mobile: "+919000009011" },
+    { id: "u13", name: "Sanjay Pillai", role: "Trainer",          roleKey: "TRAINER",          branches: ["b3"],             branchIds: ["b3"], trainerTypeId: "tt3", mobile: "+919000009012" },
     // c9: every real branch has an MXM and a trainer (PT quotes, #110).
-    { id: "u14", name: "Rakesh Yadav",  role: "MXM",              roleKey: "MXM",              branches: ["b2"],             branchIds: ["b2"] },
-    { id: "u15", name: "Imran Khan",    role: "Trainer",          roleKey: "TRAINER",          branches: ["b2"],             branchIds: ["b2"], trainerTypeId: "tt2" },
+    { id: "u14", name: "Rakesh Yadav",  role: "MXM",              roleKey: "MXM",              branches: ["b2"],             branchIds: ["b2"], mobile: "+919000009013" },
+    { id: "u15", name: "Imran Khan",    role: "Trainer",          roleKey: "TRAINER",          branches: ["b2"],             branchIds: ["b2"], trainerTypeId: "tt2", mobile: "+919000009014" },
     // c11 (#114): Marketing + HR demo staff.
-    { id: "u16", name: "Kavya Menon",   role: "Marketing",        roleKey: "MARKETING",        branches: ["b1", "b2"],       branchIds: ["b1", "b2"] },
-    { id: "u17", name: "Farhan Ali",    role: "HR",               roleKey: "HR",               branches: ["b1", "b3"],       branchIds: ["b1", "b3"] }
+    { id: "u16", name: "Kavya Menon",   role: "Marketing",        roleKey: "MARKETING",        branches: ["b1", "b2"],       branchIds: ["b1", "b2"], mobile: "+919000009015" },
+    { id: "u17", name: "Farhan Ali",    role: "HR",               roleKey: "HR",               branches: ["b1", "b3"],       branchIds: ["b1", "b3"], mobile: "+919000009016" }
   ];
 
   users.forEach(function (u) { if (u.tenantId === undefined) u.tenantId = "t1"; });
+  // Staff mobiles are stored E.164 (#118) so the lead duplicate check can say "This number belongs to a staff member".
 
   // ---------- Roles & permissions grid (decisions #96, #102, notes v3 §2). Same list as docs/permissions.md. ----------
   // type: "scope" (None / Own / Branch / All), "tick" (true / false), "number" (0–100 %).

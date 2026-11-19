@@ -33,9 +33,18 @@ load(LEADS, function () {
       click(q('[data-ql="save"]'));
       ok("required: name, mobile, source", /Name is required/.test(text("#quickLeadDrawer")) && /10-digit/.test(text("#quickLeadDrawer")) && /Choose a source/.test(text("#quickLeadDrawer")));
       type("#qlMobile", "90000 01234");
-      ok("live duplicate (same branch): name + Open profile", /Already exists: Aarav Patel/.test(text("[data-qldup]")) && !!q('[data-ql="openDup"]'));
+      ok("live duplicate (lead I can see): what + owner + branch + Open profile", /Already a lead · Owner Priya · Sec 31/.test(text("[data-qldup]")) && !!q('[data-ql="openDup"]'), text("[data-qldup]"));
       type("#qlMobile", "90000 01244");
-      ok("live duplicate (other branch): branch + owner + Request access", /Already exists in Golf Course · Owner: Pooja/.test(text("[data-qldup]")) && /Request access/.test(text("[data-qldup]")));
+      ok("live duplicate (lead I can't see): only exists + owner + branch, no Open profile", /Already a lead · Owner Pooja · Golf Course/.test(text("[data-qldup]")) && !q('[data-ql="openDup"]') && !/Pooja Khanna|Request access/.test(text("[data-qldup]")), text("[data-qldup]"));
+      (function () {
+        var A = W().App, c = A.byId(D().people, "p12");
+        type("#qlMobile", c.mobile);
+        ok("duplicate client: Already a client · CL no · branch", new RegExp("Already a client · " + c.clientNo + " · Sec 31").test(text("[data-qldup]")), text("[data-qldup]"));
+        type("#qlMobile", "90000 09003");
+        ok("staff number: This number belongs to a staff member", /This number belongs to a staff member/.test(text("[data-qldup]")) && !/Sunita|Vikram/.test(text("[data-qldup]")), text("[data-qldup]"));
+        ok("E.164: input normalized (+91 / 0 / spaces) before the check", A.toE164("+91", "090000 01234") === "+919000001234" && A.toE164("+91", "+91 90000-01234") === "+919000001234" && A.toE164("+91", "919000001234") === "+919000001234" &&
+          !!A.findByPhone(A.toE164("+91", "9000001234")) && A.phoneOf(c) === "+91" + A.mobileDigits(c.mobile));
+      })();
       type("#qlMobile", "90000 07777");
       ok("unique number clears the message", q("[data-qldup]").hidden);
       click(q('[data-ql="more"]'));
@@ -75,6 +84,42 @@ load(LEADS, function () {
       click(q("[data-sr-create]"));
       ok("search: Create lead with this number prefills cc + number", qOpen() && q("#qlMobile").value === "90000 06666" && q("#qlCc").value === "+91");
       click(QD().querySelector("[data-close]"));
+    });
+    step("Quick lead owner rules + leads.create + saved without a profile (#118)", function () {
+      var A = W().App, P = A.Perm;
+      A.setRole("Sales Executive"); click(q(".topbar [data-new-lead]"));
+      var opts = function () { return Array.prototype.map.call(qa("#qlOwner option"), function (o) { return o.value + ":" + o.textContent; }); };
+      ok("SE (leads.own, no leads.assign): owner = me only, no Unassigned", opts().length === 1 && /^u6:/.test(opts()[0]), opts().join());
+      key("Escape");
+      A.setRole("Sales Manager"); click(q(".topbar [data-new-lead]"));
+      ok("SM (leads.assign): me first + others + Unassigned", /^u5:.*\(me\)/.test(opts()[0]) && opts().some(function (o) { return /^u6:/.test(o); }) && /^:Unassigned$/.test(opts()[opts().length - 1]), opts().join());
+      key("Escape");
+      // SE without leads.own -> Unassigned (New); can't see Unassigned -> confirmation only, no profile
+      P.save([{ short: "SE", key: "leads.own", value: false }]); A.setRole("Sales Executive"); click(q(".topbar [data-new-lead]"));
+      ok("no leads.own: Unassigned only + hint", opts().join() === ":Unassigned" && /saved Unassigned \(New\)/.test(text("#quickLeadDrawer")), opts().join());
+      var n = D().people.length;
+      type("#qlMobile", "90000 07111"); type("#qlName", "Kiran Bedi"); pickSel("qlSource", "Walk-in"); click(q('[data-ql="save"]'));
+      var np = D().people[D().people.length - 1];
+      ok("saved Unassigned · New, no profile (SE can't see Unassigned), confirmation", D().people.length === n + 1 && np.ownerUserId === null && np.unassignedReason === "New" && np.phone === "+919000007111" &&
+        !q("#profileDrawer.open") && !qOpen() && /Unassigned \(New\)/.test(text(".toast-wrap, .toasts, body")));
+      P.save([{ short: "SE", key: "leads.own", value: true }, { short: "SE", key: "leads.create", value: false }]); A.setRole("Sales Executive");
+      click(q(".topbar [data-new-lead]")); ok("leads.create = No: quick lead doesn't open", !qOpen());
+      P.save([{ short: "SE", key: "leads.create", value: true }]);
+    });
+    step("Lead events: StageChanged, MarkedLost, Reopened; leads.markLost checked", function () {
+      var A = W().App, ev = function (t) { return A.Event.of("p2", t); };
+      A.setRole("CEO");
+      A.openProfile("p2", { state: "normal" }); click(q('[data-tab-k="details"]')); click(q('[data-pd="edit"]'));
+      var f = q("[data-details]"), st = f.elements.stage; var old = st.value; st.value = old === "Negotiation" ? "Contacted" : "Negotiation"; click(q('[data-pd="saveEdit"]'));
+      ok("stage change -> StageChanged event + timeline", ev("StageChanged").length === 1 && ev("StageChanged")[0].from === old && D().timeline.some(function (t) { return t.personId === "p2" && /Stage changed/.test(t.text); }));
+      A.closeProfile();
+      A.Lead.markLost("p2"); click(q('#lostModal [data-chip]')); click(q("#lostModal [data-save]"));
+      ok("Mark lost -> MarkedLost event", ev("MarkedLost").length === 1 && ev("MarkedLost")[0].to === "Lost");
+      A.Lead.reopen("p2"); click(q("#reopenModal [data-save]")); Array.prototype.forEach.call(qa(".modal.open [data-close]"), function (c) { click(c); });
+      ok("Re-open -> Reopened event", ev("Reopened").length === 1 && ev("Reopened")[0].from === "Lost");
+      A.Perm.save([{ short: "SE", key: "leads.markLost", value: "None" }]); A.setRole("Sales Executive");
+      A.Lead.markLost("p1"); ok("leads.markLost None: Mark lost refused", !q("#lostModal.open") && A.byId(D().people, "p1").stage !== "Lost");
+      A.Perm.save([{ short: "SE", key: "leads.markLost", value: "Own" }]); A.setRole("CEO");
     });
     step("Leads Source filter follows the branch", function () {
       var A = W().App, so = function () { return Array.prototype.map.call(qa("#fSource option"), function (o) { return o.textContent; }); };

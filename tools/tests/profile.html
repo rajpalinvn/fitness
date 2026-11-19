@@ -122,9 +122,11 @@ load(LEADS, function () {
         openP("p2"); click(q('[data-tab-k="details"]')); click(q('[data-pd="edit"]'));
         var f = q("[data-details]");
         f.elements.mobile.value = "90000 01244"; click(q('[data-pd="saveEdit"]'));
-        ok("other-branch duplicate message", /Already exists in Golf Course · Owner: Pooja/.test(text("[data-derr]")) && !!q('[data-pd="reqAccess"]'), text("[data-derr]"));
+        ok("other-branch duplicate message", /Already a lead · Owner Pooja · Golf Course/.test(text("[data-derr]")), text("[data-derr]"));
         f.elements.mobile.value = "+91 90000 01234"; click(q('[data-pd="saveEdit"]'));
-        ok("same-branch duplicate: name + Open profile", /Already exists: Aarav Patel/.test(text("[data-derr]")) && !!q('[data-pd="openDup"]'), text("[data-derr]"));
+        ok("same-branch duplicate: lead + owner + branch + Open profile", /Already a lead · Owner Priya · Sec 31/.test(text("[data-derr]")) && !!q('[data-pd="openDup"]'), text("[data-derr]"));
+        f.elements.mobile.value = "+91 90000 09002"; click(q('[data-pd="saveEdit"]'));
+        ok("edit lead: staff number refused", /This number belongs to a staff member/.test(text("[data-derr]")), text("[data-derr]"));
         f.elements.mobile.value = "90000 01235"; f.elements.email.value = "aarav.patel@example.com"; click(q('[data-pd="saveEdit"]'));
         ok("email unique", /already used/.test(text("[data-derr]")));
         f.elements.email.value = "sneha@example.com"; click(q('[data-pd="saveEdit"]'));

@@ -739,3 +739,19 @@
     (d) One method "Bank transfer (NEFT / IMPS / Net banking)" (reference = UTR). Cheque stays disabled by default.
     (e) The duplicate check covers the whole company with no time limit (it's only a warning). When the branch changes,
     the Leads Source filter clears a source that doesn't apply (confirmed).
+118. Flagged payment review; mockup aligned with the real build (19 Nov 2026, c15). Changes #19, #76.
+    (a) "Mark reviewed" on a flagged payment (Today row + profile receipt), for the people the "Duplicate payment
+    reference" rule notifies (role ticked + the payment's branch is theirs; CEO all). Optional note. It leaves Today; the
+    receipt keeps "Reviewed by <name> · <date>" (+ note). Event FlaggedPaymentReviewed. No bell for the dummy p22.
+    (b) Events: a stage change writes StageChanged (details edit; automatic Trial on booking); Mark lost writes
+    MarkedLost; Re-open writes Reopened.
+    (c) Duplicate mobile check (quick lead + edit lead) also covers STAFF numbers ("This number belongs to a staff
+    member") and says what it found: "Already a lead · Owner Priya · Sec 65" / "Already a client · CL-1000 · Sec 31".
+    "Open profile" only if the user can see that person; otherwise only that it exists + owner + branch (replaces the
+    #19 "Request access" link). Save stays blocked while it's a duplicate.
+    (d) Quick lead owner: default = me if I hold `leads.own`; picking another owner or "Unassigned" needs `leads.assign`
+    (replaces #76 "any creator can pick any owner"); a user without `leads.own` creates the lead Unassigned (reason New).
+    (e) Creating a lead checks `leads.create` (quick lead doesn't open without it); Mark lost checks `leads.markLost`.
+    (f) A creator who can't see Unassigned leads gets no profile after saving one, only a confirmation.
+    (g) Phone numbers are stored as E.164 (+91XXXXXXXXXX: `person.phone`, staff `user.mobile`); the duplicate check
+    normalizes the typed number (spaces, leading 0, +91 / 91) to E.164 first. The screen still shows "+91 90000 01234".

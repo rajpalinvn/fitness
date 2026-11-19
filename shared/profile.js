@@ -549,23 +549,20 @@
     function fail(name, msg) { var el = f.elements[name]; if (el) { el.classList.add("invalid"); el.focus(); } err.innerHTML = msg; err.hidden = false; }
     if (!v.name) return fail("name", "Name is required.");
     if (App.mobileDigits(v.mobile).length < 10) return fail("mobile", "Enter a 10-digit mobile number.");
-    var dup = D.people.filter(function (o) { return o.id !== p.id && App.mobileDigits(o.cc + o.mobile) === App.mobileDigits(v.mobile); })[0];
-    if (dup) {
-      // Decision #19: same branch -> name + Open profile; other branch -> branch + owner + Request access
-      return fail("mobile", dup.branchId === p.branchId
-        ? "Already exists: <strong>" + esc(dup.name) + '</strong> <button type="button" class="link-btn" data-pd="openDup" data-id="' + dup.id + '">Open profile</button>'
-        : "Already exists in " + esc(App.branchName(dup.branchId)) + " · Owner: " + esc(App.firstName(App.byId(D.users, dup.ownerUserId))) +
-          ' <button type="button" class="link-btn" data-pd="reqAccess">Request access</button>');
-    }
+    var e164 = App.toE164(v.cc || p.cc, v.mobile), hit = App.findByPhone(e164, p.id);   // #118: E.164, staff numbers too
+    if (hit) return fail("mobile", App.dupPhoneHtml(hit, 'data-pd="openDup"'));
     if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) return fail("email", "Enter a valid email.");
     if (v.email && D.people.some(function (o) { return o.id !== p.id && (o.email || "").toLowerCase() === v.email.toLowerCase(); })) return fail("email", "This email is already used by another person.");
     if (v.ffId && D.people.some(function (o) { return o.id !== p.id && o.ffId === v.ffId; })) return fail("ffId", "This FF ID is already used by another person.");
+    p.phone = e164;   // stored E.164 (#118)
+    var oldStage = p.stage;
     var labels = { name: "Name", cc: "Mobile", mobile: "Mobile", email: "Email", gender: "Gender", birthDate: "Birth date", ffId: "FF ID", source: "Source",
       temperature: "Temperature", stage: "Stage", inquiryType: "Inquiry type", campaign: "Campaign", remarks: "Remarks" }, changed = [];
     Object.keys(v).forEach(function (k) {
       var nv = v[k] || null; if ((p[k] || null) !== nv) { p[k] = nv; if (changed.indexOf(labels[k]) < 0) changed.push(labels[k]); }
     });
     S.editing = false;
+    if (p.stage !== oldStage) App.Event.log(p.id, { type: "StageChanged", from: oldStage, to: p.stage, text: "Stage changed · " + oldStage + " → " + p.stage + " (" + App.firstName(App.me()) + ")" });   // #118
     if (changed.length) { App.addTimeline(p.id, "note", App.firstName(App.me()) + " updated " + changed.join(", ").toLowerCase()); App.toast("Details saved", "success"); App.dataChanged(); }
     else { App.toast("No changes", ""); render(); }
   }
@@ -628,7 +625,10 @@
         "<dt>Receipts</dt><dd>" + pay.receipts.map(function (r) {
           return '<div><span class="mono">' + esc(r.no) + "</span> · " + esc(App.fmtDate(r.at)) + " · " + r.rows.map(function (x) {
             return esc(x.method) + " " + App.fmtMoney(x.amount) + (x.ref ? " (" + (x.bank ? esc(x.bank) + " " : "") + esc(x.ref) + ")" : "") +
-              (x.dup ? ' <span class="badge badge-warning" data-pay-flag title="' + esc("Reference also used on " + x.dup.usedOn + " · reason: " + x.dup.reason) + '">Duplicate reference · flagged for Finance / CEO</span>' : ""); }).join(" + ") + "</div>";
+              (x.dup ? (x.dup.reviewed
+                ? ' <span class="badge" data-pay-reviewed>Duplicate reference · Reviewed by ' + esc(App.userName(x.dup.reviewed.by)) + " · " + esc(App.fmtDate(x.dup.reviewed.at)) + "</span>" + (x.dup.reviewed.note ? ' <span class="cell-sub">“' + esc(x.dup.reviewed.note) + "”</span>" : "")
+                : ' <span class="badge badge-warning" data-pay-flag title="' + esc("Reference also used on " + x.dup.usedOn + " · reason: " + x.dup.reason) + '">Duplicate reference · flagged for Finance / CEO</span>' +
+                  (App.PayRef.canReview(p) ? ' <button class="link-btn" data-pd="payReview" data-no="' + esc(r.no) + '">Mark reviewed</button>' : "")) : ""); }).join(" + ") + "</div>";
         }).join("") + "</dd></dl></section>";
   }
   function ptSection(p) {
@@ -761,6 +761,7 @@
       case "saveEdit": saveDetails(p); break;
       case "openDup": App.openProfile(t.dataset.id, { state: "normal" }); break;
       case "reqAccess": App.toast("Access request sent (mockup)", ""); break;
+      case "payReview": App.PayRef.review(p.id, t.dataset.no); break;
       case "saveNote": case "sendWa":
         var txt = drawer.querySelector("[data-ctext]").value.trim();
         if (!txt) { drawer.querySelector("[data-ctext]").classList.add("invalid"); drawer.querySelector("[data-ctext]").focus(); return; }
@@ -796,24 +797,24 @@
     d.addEventListener("input", qlInput); d.addEventListener("change", qlInput); d.addEventListener("click", qlClick);
     return d;
   }
+  // Owner (#118): default = me if I hold leads.own; another owner or "Unassigned" needs leads.assign; without leads.own
+  // and without leads.assign the lead is created Unassigned (reason New). Value "" = Unassigned.
+  function qlCanOwn() { return App.can("leads.own") === true; }
+  function qlCanAssign() { return App.can("leads.assign") !== "None"; }
   function qlOwners(branchId) {
-    var me = App.me(), list = App.usersWith("leads.own", branchId).filter(function (u) { return u.id !== me.id; });   // #104
-    return [me].concat(list);
+    var me = App.me(), out = qlCanOwn() ? [{ id: me.id, name: me.name + " (me)" }] : [];
+    if (qlCanAssign()) {
+      App.usersWith("leads.own", branchId).filter(function (u) { return u.id !== me.id; }).forEach(function (u) { out.push({ id: u.id, name: u.name }); });   // #104
+      out.push({ id: "", name: "Unassigned" });
+    }
+    if (!out.length) out.push({ id: "", name: "Unassigned" });
+    return out;
   }
+  function qlDefaultOwner() { return qlCanOwn() ? App.me().id : ""; }
   function qlBranches() { var me = App.me(); return D.branches.filter(function (b) { return me.branches.indexOf(b.id) > -1; }); }
   function fmtMobile(s) { var d = App.mobileDigits(s); return d.length === 10 ? d.slice(0, 5) + " " + d.slice(5) : String(s || "").trim(); }
-  function qlDup() {
-    var d = App.mobileDigits(QL.mobile); if (d.length < 10) return null;
-    return D.people.filter(function (o) { return App.mobileDigits(o.cc + o.mobile) === d; })[0] || null;
-  }
-  // Decision #19: same branch -> name + Open profile; other branch -> branch + owner + Request access.
-  function qlDupHtml(o) {
-    if (!o) return "";
-    return o.branchId === QL.branchId
-      ? "Already exists: <strong>" + esc(o.name) + '</strong> <button type="button" class="link-btn" data-ql="openDup" data-id="' + o.id + '">Open profile</button>'
-      : "Already exists in " + esc(App.branchName(o.branchId)) + " · Owner: " + esc(o.ownerUserId ? App.firstName(App.byId(D.users, o.ownerUserId)) : "Unassigned") +
-        ' <button type="button" class="link-btn" data-toast="Access request sent (mockup)" data-toast-kind="">Request access</button>';
-  }
+  function qlDup() { return App.findByPhone(App.toE164(QL.cc, QL.mobile)); }   // #118: E.164 + staff numbers
+  function qlDupHtml(hit) { return App.dupPhoneHtml(hit, 'data-ql="openDup"'); }   // #118 wording
   function qlRender() {
     var b = ql.querySelector("[data-ql-body]"), e = QL.errors;
     function opt(list, v, empty) { return (empty ? '<option value="">' + empty + "</option>" : "") + list.map(function (o) { return "<option" + (o === v ? " selected" : "") + ">" + esc(o) + "</option>"; }).join(""); }
@@ -830,8 +831,9 @@
         '<div class="field"><label for="qlSource">Source <span class="req">*</span></label><select class="input' + inv("source") + '" id="qlSource" data-q="source">' + opt(App.sourcesFor(QL.branchId), QL.source, "Choose…") + "</select>" + er("source") + "</div>" +
         '<div class="field"><label>Temperature</label><div class="seg" role="radiogroup" aria-label="Temperature">' + L.temperatures.map(function (t) {
           return '<button type="button" class="seg-btn' + (QL.temperature === t ? " active" : "") + '" role="radio" aria-checked="' + (QL.temperature === t) + '" data-qltemp="' + t + '">' + t + "</button>"; }).join("") + "</div></div>" +
-        '<div class="field"><label for="qlOwner">Owner <span class="req">*</span></label><select class="input" id="qlOwner" data-q="ownerUserId">' + qlOwners(QL.branchId).map(function (u, i) {
-          return '<option value="' + u.id + '"' + (u.id === QL.ownerUserId ? " selected" : "") + ">" + esc(u.name) + (i === 0 ? " (me)" : "") + "</option>"; }).join("") + "</select></div>" +
+        '<div class="field"><label for="qlOwner">Owner <span class="req">*</span></label><select class="input" id="qlOwner" data-q="ownerUserId">' + qlOwners(QL.branchId).map(function (u) {
+          return '<option value="' + u.id + '"' + (u.id === QL.ownerUserId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") + "</select>" +
+          (qlOwners(QL.branchId).length === 1 && !QL.ownerUserId ? '<span class="hint">You can\'t own leads: it is saved Unassigned (New).</span>' : "") + "</div>" +
         '<div class="field"><label for="qlBranch">Branch <span class="req">*</span></label><select class="input" id="qlBranch" data-q="branchId">' + qlBranches().map(function (x) {
           return '<option value="' + x.id + '"' + (x.id === QL.branchId ? " selected" : "") + ">" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
       "</div>" +
@@ -845,7 +847,7 @@
         '<div class="field"><label for="qlCamp">Campaign</label><input class="input" id="qlCamp" data-q="campaign" value="' + esc(QL.campaign) + '"></div>' +
         '<div class="field"><label for="qlRem">Remarks</label><textarea class="input" id="qlRem" rows="2" data-q="remarks">' + esc(QL.remarks) + "</textarea></div>" +
       "</div>" : "") +
-      '<p class="hint mt-3">After saving, the profile opens and asks for the first follow-up.</p>';
+      '<p class="hint mt-3">' + (QL.ownerUserId || App.can("leads.viewUnassigned") !== "None" ? "After saving, the profile opens and asks for the first follow-up." : "After saving, you get a confirmation; the lead goes to the Unassigned list.") + "</p>";
     b.querySelectorAll("select").forEach(function (s) { App.enhanceSelect(s); });
     b.querySelectorAll('input[type="date"]').forEach(App.enhanceDate);
   }
@@ -853,7 +855,7 @@
     var k = e.target.dataset && e.target.dataset.q; if (!k) return;
     QL[k] = e.target.value;
     if (k === "branchId" && e.type === "change") {   // owner list follows the branch
-      if (!qlOwners(QL.branchId).some(function (u) { return u.id === QL.ownerUserId; })) QL.ownerUserId = App.me().id;
+      if (!qlOwners(QL.branchId).some(function (u) { return u.id === QL.ownerUserId; })) QL.ownerUserId = qlDefaultOwner();
       if (QL.source && App.sourcesFor(QL.branchId).indexOf(QL.source) < 0) QL.source = "";   // #115: source must apply to the branch
       qlRender(); return;
     }
@@ -885,14 +887,18 @@
     if (Object.keys(e).length || qlDup()) { qlRender(); var f = ql.querySelector(".invalid"); if (f) f.focus(); return; }
     var now = new Date().toISOString(), me = App.me(), id = "p" + (D.people.length + 1);
     while (App.byId(D.people, id)) id += "x";
-    var p = { id: id, kind: "Lead", name: QL.name.trim(), cc: QL.cc, mobile: fmtMobile(QL.mobile), email: em || null, gender: QL.gender || null,
+    if (!qlOwners(QL.branchId).some(function (u) { return u.id === QL.ownerUserId; })) QL.ownerUserId = qlDefaultOwner();   // never trust the select
+    var owner = QL.ownerUserId || null;
+    var p = { id: id, kind: "Lead", name: QL.name.trim(), cc: QL.cc, mobile: fmtMobile(QL.mobile), phone: App.toE164(QL.cc, QL.mobile), email: em || null, gender: QL.gender || null,
       birthDate: QL.birthDate || null, ffId: QL.ffId.trim() || null, source: QL.source, temperature: QL.temperature, stage: "New", lostReason: null,
-      inquiryType: QL.inquiryType || null, campaign: QL.campaign.trim() || null, ownerUserId: QL.ownerUserId, branchId: QL.branchId,
+      inquiryType: QL.inquiryType || null, campaign: QL.campaign.trim() || null, ownerUserId: owner, unassignedReason: owner ? undefined : "New", branchId: QL.branchId,
       remarks: QL.remarks.trim() || null, externalId: null, createdAt: now, lastActivityAt: now, createdByUserId: me.id, ownerHistory: [], freeTrialCount: 0 };
     D.people.push(p);
     App.close(ql);
-    App.toast("Lead created · " + p.name, "success");
     App.dataChanged();
+    // #118: a creator who can't see the (Unassigned) lead gets only a confirmation, no profile.
+    if (!App.canSee(p)) { App.toast("Lead created · " + p.name + " · Unassigned (New) at " + App.branchName(p.branchId), "success"); return; }
+    App.toast("Lead created · " + p.name, "success");
     App.openProfile(p.id, { state: "normal" });
     // Decision #5: a new lead asks for its first follow-up right away.
     App.Followup.openAdd(p.id, { title: "Set first follow-up", intro: "Lead saved. When will you follow up with " + p.name.split(" ")[0] + "?", cancelText: "Later" });
@@ -901,11 +907,12 @@
     open: function (o) {
       o = o || {};
       if (drawer && drawer.classList.contains("open")) { App.close(drawer); if (drawer.classList.contains("open")) App.close(drawer); }
+      if (App.can("leads.create") !== true) { App.toast("Creating leads isn't part of your role", ""); return; }   // #118: leads.create
       if (!ql) ql = qlBuild();
       var me = App.me(), br = App.state.branchId !== "all" && me.branches.indexOf(App.state.branchId) > -1 ? App.state.branchId : me.branches[0];
       var num = String(o.mobile || "").trim(), cc = "+91";
       var m1 = /^(\+\d{1,3})\s+(.*)$/.exec(num); if (m1 && L.countryCodes.indexOf(m1[1]) > -1) { cc = m1[1]; num = m1[2]; }
-      QL = { name: "", cc: cc, mobile: num, source: "", temperature: "Warm", ownerUserId: me.id, branchId: br, more: false,
+      QL = { name: "", cc: cc, mobile: num, source: "", temperature: "Warm", ownerUserId: qlDefaultOwner(), branchId: br, more: false,
         email: "", gender: "", birthDate: "", ffId: "", inquiryType: "", campaign: "", remarks: "", errors: {} };
       qlRender();
       App.openDrawer("quickLeadDrawer");

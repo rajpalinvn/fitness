@@ -140,7 +140,7 @@
         return row({ open: x.p.id, tab: "membership", title: esc(x.p.name) + ' <span class="muted">· ' + App.fmtMoney(x.r.amount) + "</span>",
           sub: esc(x.r.method) + " " + esc(x.r.ref) + " · receipt " + esc(x.no) + '<div class="cell-sub">Used before: ' + esc(d.usedAt ? App.fmtDay(d.usedAt) + " in " : "") + esc(other ? other.name : "—") + "'s payment (" + esc(d.usedOn) + ")</div>" +
             '<div class="cell-sub">' + esc(App.userName(d.by)) + " · reason: “" + esc(d.reason) + "”</div>",
-          status: '<span class="badge badge-danger">Duplicate reference</span>', action: "" });
+          status: '<span class="badge badge-danger">Duplicate reference</span>', action: btn("payrev", "Mark reviewed", { p: x.p.id, no: x.no }) });
       } },
     { k: "approvals", area: "v", t: "Trial approvals pending", ic: "clock", tone: "amber", get: approvals, words: "trials asked from you", show: approvalsRole,
       empty: "No trial approvals waiting", allToast: "All pending approvals are listed here",
@@ -240,6 +240,7 @@
       if (d.act === "fob") App.assignFob(d.p);
       if (d.act === "issue") App.issueItem(d.p, d.item);
       if (d.act === "pay") App.collectPayment(d.p, d.item);
+      if (d.act === "payrev") App.PayRef.review(d.p, d.no);
       if (d.act === "review") App.Trial.review(d.tr);
       if (d.act === "done") {
         var t = App.byId(D.workTasks, d.t); t.status = "Done"; t.doneAt = new Date().toISOString();

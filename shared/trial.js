@@ -200,7 +200,7 @@
     if (paid) { t.receiptNo = App.nextReceiptNo(p.branchId, true); t.payment = App.PayRef.save(C.pay, t.receiptNo, p, k.price); }
     p.trials = T.list(p).concat(t);
     k.soldCount = (k.soldCount || 0) + 1;
-    if (p.kind === "Lead") p.stage = "Trial";   // automatic (#94)
+    if (p.kind === "Lead" && p.stage !== "Trial") { var st0 = p.stage; p.stage = "Trial"; App.Event.log(p.id, { type: "StageChanged", from: st0, to: "Trial", reason: "TrialBooked" }); }   // automatic (#94); event (#118)
     var n = T.countOfType(p, type);
     var txt = (paid ? "Paid " : "Free ") + App.Trial.label(type) + " trial booked · " + k.name + " · " + k.days + (k.days === 1 ? " day" : " days") + " from " + App.fmtShortWhen(startIso) +
       (paid ? " · " + App.fmtMoney(k.price) + " paid in full (" + C.pay.method + ", receipt " + t.receiptNo + ")" : "") + (n > 1 ? " · " + ordinal(n) + " " + App.Trial.label(type) + " trial" : "") +

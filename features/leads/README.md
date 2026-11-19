@@ -81,11 +81,11 @@ List, sidebar badges and Today update.
 
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Country code + Mobile (first field, #74) | select + tel | Yes | Yes, company-wide | +91 | 10 digits. Live check while typing: same branch "Already exists: <name>" + Open profile; other branch "Already exists in <branch> · Owner: <first name>" + Request access (#19). Save blocked while duplicate. Saved as "90000 01234". |
+| Country code + Mobile (first field, #74) | select + tel | Yes | Yes, company-wide | +91 | 10 digits; stored E.164 `+919000001234` (#118). Live check while typing (input normalized to E.164): "Already a lead · Owner Priya · Sec 65" / "Already a client · CL-1000 · Sec 31" / "This number belongs to a staff member". "Open profile" only if you can see that person. Save blocked while duplicate. |
 | Name (second field) | text | Yes | No | — | "Name is required." |
 | Source | select (lead sources) | Yes | No | — (Choose…) | "Choose a source." Only sources that apply to the chosen branch (#115); changing the branch clears a source that no longer applies. |
 | Temperature | chips Hot / Warm / Cold | Yes | No | Warm | |
-| Owner | select | Yes | No | me | Me + sales staff of the chosen branch. Any creator can pick any owner here; reassigning later is managers only (#76). |
+| Owner | select | Yes | No | me (if I hold `leads.own`) | #118: other owners (`leads.own` in the chosen branch) and "Unassigned" only with `leads.assign`. Without `leads.own` (and no `leads.assign`): Unassigned only, hint "saved Unassigned (New)". Saved Unassigned → reason New; if I can't see Unassigned leads: confirmation toast only, no profile. "+ Lead" needs `leads.create`. |
 | Branch | select | Yes | No | top-bar branch (or my first branch when "All") | Only my branches. Changing it refreshes the owner list. |
 | More details (collapsed) | link | — | — | closed | Email (unique if given), Gender, Birth date (not future), FF ID (optional, unique company-wide; same branch "Already used by <name>", other branch "Already exists in <branch> · Owner: <first name>"), Inquiry type, Campaign, Remarks. |
 | Stage / Created by / Created | system | — | — | New / me / now | |

@@ -152,6 +152,32 @@
     if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
     return d;
   };
+  // Phone numbers are STORED as E.164 (#118): "+91" + 10 digits (person.phone; staff user.mobile). The display keeps
+  // "+91 90000 01234". Every duplicate check normalizes the typed number to E.164 first.
+  App.toE164 = function (cc, input) {
+    var raw = String(input || "").trim(), c = cc || "+91";
+    var m = /^\+(\d{1,3})[\s-]*(.*)$/.exec(raw); if (m && c === "+91" && m[1] !== "91" && raw.replace(/\D/g, "").length > 10) { c = "+" + m[1]; raw = m[2]; }
+    var d = c === "+91" ? App.mobileDigits(raw) : raw.replace(/\D/g, "");
+    return d ? c + d : "";
+  };
+  App.phoneOf = function (p) { return p.phone || App.toE164(p.cc, p.mobile); };
+  // What a number already belongs to (#118): { kind: "staff", user } or { kind: "person", p }. exceptId = the person being edited.
+  App.findByPhone = function (e164, exceptId) {
+    if (!e164 || e164.length < 13) return null;
+    var u = DUMMY.users.filter(function (x) { return x.mobile && x.mobile === e164; })[0]; if (u) return { kind: "staff", user: u };
+    var p = DUMMY.people.filter(function (x) { return x.id !== exceptId && App.phoneOf(x) === e164; })[0];
+    return p ? { kind: "person", p: p } : null;
+  };
+  // The message (#118). Staff: "This number belongs to a staff member". Lead: "Already a lead · Owner Priya · Sec 65".
+  // Client: "Already a client · CL-1000 · Sec 31". "Open profile" only when the user can see that person.
+  App.dupPhoneHtml = function (hit, openAttr) {
+    if (!hit) return "";
+    if (hit.kind === "staff") return "This number belongs to a staff member.";
+    var o = hit.p, see = o.kind === "Client" ? App.scopeAllows("clients.view", o) : App.canSee(o);
+    var txt = o.kind === "Client" ? "Already a client · " + App.esc(o.clientNo || "—") + " · " + App.esc(App.branchName(o.branchId))
+      : "Already a lead · Owner " + App.esc(o.ownerUserId ? App.firstName(App.byId(DUMMY.users, o.ownerUserId)) : "Unassigned") + " · " + App.esc(App.branchName(o.branchId));
+    return txt + (see ? ' <button type="button" class="link-btn" ' + openAttr + ' data-id="' + o.id + '">Open profile</button>' : "");
+  };
   // Client membership status: green > 15 days left, amber <= 15 ("Renewal due soon"), red expired (decision #27).
   App.membershipStatus = function (m) {
     if (!m) return null;
@@ -392,7 +418,30 @@
   PayRef.flaggedForMe = function () {
     var u = App.demoUser(), role = u && App.Perm.roleByName(u.role), on = role && (App.Notify.rules().dupRef || {})[role.short];
     if (!on) return [];
-    return App.payRowsAll().filter(function (x) { return x.r.dup && x.r.dup.flagged && u.branchIds.indexOf(x.p.branchId) > -1; });
+    return App.payRowsAll().filter(function (x) { return x.r.dup && x.r.dup.flagged && !x.r.dup.reviewed && u.branchIds.indexOf(x.p.branchId) > -1; });
+  };
+  // Mark reviewed (#118): the people the rule notifies for that branch; optional note. Leaves Today; the receipt keeps
+  // "Reviewed by <name> · <date>". Event FlaggedPaymentReviewed.
+  PayRef.canReview = function (p) {
+    var u = App.demoUser(), role = u && App.Perm.roleByName(u.role);
+    return !!(role && (App.Notify.rules().dupRef || {})[role.short] && u.branchIds.indexOf(p.branchId) > -1);
+  };
+  PayRef.find = function (pid, no) { return App.payRowsAll().filter(function (x) { return x.p.id === pid && x.no === no && x.r.dup; })[0] || null; };
+  PayRef.review = function (pid, no) {
+    var x = PayRef.find(pid, no); if (!x || x.r.dup.reviewed || !PayRef.canReview(x.p)) return;
+    var m = App.makeModal("payReviewModal");
+    m.title.textContent = "Mark flagged payment reviewed";
+    m.body.innerHTML = '<dl class="kv kv-wide"><dt>Client</dt><dd>' + App.esc(x.p.name) + "</dd><dt>Payment</dt><dd>" + App.fmtMoney(x.r.amount) + " · " + App.esc(x.r.method + " " + x.r.ref) + " · receipt " + App.esc(x.no) + "</dd>" +
+      "<dt>Reason given</dt><dd>" + App.esc(x.r.dup.reason) + '</dd></dl><div class="field mt-3"><label for="prNote">Note</label><textarea class="input" id="prNote" rows="2" placeholder="Optional"></textarea></div>';
+    m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Mark reviewed</button>';
+    m.foot.querySelector("[data-save]").onclick = function () {
+      var me = App.me(), note = m.body.querySelector("#prNote").value.trim();
+      x.r.dup.reviewed = { by: me.id, at: new Date().toISOString(), note: note || null };
+      App.Event.log(x.p.id, { type: "FlaggedPaymentReviewed", to: x.no, remark: note || null,
+        text: "Flagged payment reviewed by " + App.firstName(me) + " · " + x.r.method + " " + x.r.ref + " · receipt " + x.no + (note ? " · “" + note + "”" : "") });
+      App.close(m.el); App.toast("Marked reviewed · receipt " + x.no, "success"); App.dataChanged();
+    };
+    App.openModal("payReviewModal");
   };
   App.PayRef = PayRef;
   // Receipt no. per branch, e.g. S31-000124. take=true uses the number.

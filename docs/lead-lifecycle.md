@@ -27,7 +27,7 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 | Type | from → to | reason (examples) | Timeline example |
 |---|---|---|---|
 | Created | — → New | source | "Lead created by Priya · Walk-in" |
-| StageChanged | stage → stage | — | "Stage New → Contacted" |
+| StageChanged | stage → stage | TrialBooked (automatic) | "Stage changed · New → Contacted (Priya)" — every stage change except Lost / Re-open / Converted, which have their own events (#118) |
 | OwnerChanged | user / null → user / null | Assigned, Taken, Released, Reopened, TransferPick, CrossBranch, BulkChange | "Owner changed from Arjun to Priya by Sunita" |
 | BranchMoved | branch → branch | Moved (remark), CrossBranch | "Moved Sec 65 → Sec 31 by Arjun · lives near Sec 31" |
 | FollowUpAssigned | — → user | CrossBranch, TransferPick, Owner | "Follow-up person: Priya (Sec 31) · picked by Sunita" |
@@ -46,6 +46,8 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 - New actions write events: owner change, take, release, branch move, transfer pick, cross-branch follow-up / takeover, Sell here, sales rep change, convert.
 - The old dummy timelines stay as text (they were written before this rule).
 - The build team writes events for every type in the table.
+
+- Other events: FlaggedPaymentReviewed (#118, a flagged duplicate payment reference was reviewed).
 
 ## 3. Assignment strategy (setting `newLeadAssignment`)
 | Option | Status |
@@ -92,6 +94,7 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 - Logic never checks a role name; it checks grid rows only:
   - Owner lists, follow-up person, release and pick lists → `leads.own`.
   - Sales rep list → `sales.rep`.
+  - Quick lead owner (#118): default me if I hold `leads.own`; another owner or "Unassigned" needs `leads.assign`; without `leads.own` the lead is saved Unassigned (New). Creating needs `leads.create`; Mark lost needs `leads.markLost`.
   - Trial approver list → `trials.approve` at **Branch** scope in the lead's branch. All-scope users (e.g. CEO) are never listed, but they can approve any trial.
 - A trainer is a user with a trainer type, not a role name.
 - We add new roles as needed (Marketing and HR added, #114); tenants don't create roles.

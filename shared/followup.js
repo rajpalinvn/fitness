@@ -249,7 +249,9 @@
       if (r === "Other" && !other) { err.textContent = "Please describe the reason."; err.hidden = false; m.body.querySelector("#lostOther").classList.add("invalid"); return; }
       if (beforeSave) beforeSave();
       var reason = r === "Other" ? "Other: " + other : r;
+      var from = p.stage;
       p.stageBeforeLost = p.stage; p.stage = "Lost"; p.lostReason = reason; p.lostAt = new Date().toISOString();
+      App.Event.log(p.id, { type: "MarkedLost", from: from, to: "Lost", reason: reason });   // #118
       closeBySystem(p.id, "Lead lost");
       App.addTimeline(p.id, "milestone", "Marked as Lost · " + reason);
       App.close(m.el); App.toast(p.name + " marked as Lost", ""); App.dataChanged();
@@ -257,6 +259,7 @@
   }
   function markLost(personId) {
     var p = person(personId); if (!isOpenLead(p)) return;
+    if (!App.scopeAllows("leads.markLost", p)) { App.toast("Marking this lead lost isn't allowed for your role", ""); return; }   // #118
     var m = App.makeModal("lostModal"); lostForm(m, p, "", null); App.openModal("lostModal");
   }
   function reopen(personId) {
@@ -270,6 +273,7 @@
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Re-open lead</button>';
     m.foot.querySelector("[data-save]").onclick = function () {
       p.stage = backTo; p.lostReason = null; p.lostAt = null; p.reopenedAt = new Date().toISOString();
+      App.Event.log(p.id, { type: "Reopened", from: "Lost", to: backTo });   // #118
       App.addTimeline(p.id, "milestone", "Re-opened by " + App.me().name);
       App.close(m.el); App.dataChanged();
       function askFollowUp() { openAdd(p.id, { title: "Set next follow-up", intro: p.name + " is open again. Set the next follow-up.", cancelText: "Later" }); }
