@@ -332,18 +332,69 @@
   // Duplicate payment reference (#116): same method + same reference anywhere in the company (cheque: same bank + number).
   // Not a block: a warning with where it was used; staff confirm with a reason; the row is flagged for Finance / CEO.
   App.payRefKey = function (ref) { return String(ref || "").replace(/\s+/g, "").toUpperCase(); };
+  // Every saved payment row in the company: membership / PT receipts + paid trial payments.
+  App.payRowsAll = function () {
+    var out = [], seen = [];   // a Premium PT receipt is shared by the membership and PT lines: count it once
+    DUMMY.people.forEach(function (p) {
+      [p.membership, p.pt].forEach(function (line) { var pay = line && line.payment; if (pay) pay.receipts.forEach(function (rc) { if (seen.indexOf(rc) > -1) return; seen.push(rc); rc.rows.forEach(function (r) { out.push({ p: p, no: rc.no, at: rc.at, by: rc.by, r: r, what: line.package }); }); }); });
+      (p.trials || []).forEach(function (t) { if (t.payment) out.push({ p: p, no: t.receiptNo, at: t.bookedAt, by: t.bookedByUserId, r: Object.assign({ amount: t.paid }, t.payment), what: t.package }); });
+    });
+    return out;
+  };
   App.payRefDup = function (method, ref, bank) {
-    var k = App.payRefKey(ref), bk = App.payRefKey(bank), hit = null; if (!k || method === "Cash") return null;
-    DUMMY.people.forEach(function (p) { [p.membership, p.pt].forEach(function (line) {
-      var pay = line && line.payment; if (!pay || hit) return;
-      pay.receipts.forEach(function (rc) { rc.rows.forEach(function (r) {
-        if (!hit && r.method === method && App.payRefKey(r.ref) === k && (method !== "Cheque" || App.payRefKey(r.bank) === bk)) hit = { no: rc.no, at: rc.at, personId: p.id, personName: p.name };
-      }); });
-    }); });
-    return hit;
+    var k = App.payRefKey(ref), bk = App.payRefKey(bank); if (!k || method === "Cash") return null;
+    var x = App.payRowsAll().filter(function (x) { var r = x.r; return r.method === method && App.payRefKey(r.ref) === k && (method !== "Cheque" || App.payRefKey(r.bank) === bk); })[0];
+    return x ? { no: x.no, at: x.at, personId: x.p.id, personName: x.p.name } : null;
   };
   App.payDupText = function (h) { return "Used on " + App.fmtDay(h.at) + " in " + h.personName + "'s payment (" + h.no + ")"; };
   App.payMethod = function (name) { return DUMMY.paymentMethods.filter(function (m) { return m.name === name; })[0] || null; };
+
+  // ---------- ONE shared payment-reference part (#116, #117): Convert, Collect payment, paid trial ----------
+  // Row state: { method, ref, bank, dupOk, dupWhy }. o = { attr, id, i, receipt, e: { ref, bank, dup } }.
+  var PayRef = {};
+  PayRef.fields = function (r, o) {
+    var pm = App.payMethod(r.method), i = o.i || 0, e = o.e || {}, a = ' data-' + o.attr + '="', di = '" data-i="' + i + '"';
+    var er = function (m) { return m ? '<span class="error">' + m + "</span>" : ""; };
+    if (r.method === "Cash") return '<div class="field"><label for="' + o.id + "R" + i + '">Reference</label><input class="input" id="' + o.id + "R" + i + '" value="' + App.esc(o.receipt) + '" readonly data-pay-cashref><span class="hint">Receipt no., filled automatically.</span></div>';
+    var needs = !pm || pm.needsRef, h = App.payRefDup(r.method, r.ref, r.bank);
+    return '<div class="field"><label for="' + o.id + "R" + i + '">' + App.esc((pm && pm.refLabel) || "Reference no.") + (needs ? ' <span class="req">*</span>' : "") + '</label><input class="input' + (e.ref ? " invalid" : "") + '" id="' + o.id + "R" + i + '"' + a + 'ref' + di + ' value="' + App.esc(r.ref || "") + '">' + er(e.ref) + "</div>" +
+      (pm && pm.needsBank ? '<div class="field"><label for="' + o.id + "B" + i + '">Bank name <span class="req">*</span></label><input class="input' + (e.bank ? " invalid" : "") + '" id="' + o.id + "B" + i + '"' + a + 'bank' + di + ' value="' + App.esc(r.bank || "") + '">' + er(e.bank) + "</div>" : "") +
+      (h ? '<div class="callout callout-warn pay-dup" data-pay-dup="' + i + '">' + App.icon("alert") + "<span><strong>This reference was used before.</strong> " + App.esc(App.payDupText(h)) +
+        ". You can still save: confirm with a reason. The payment is flagged for Finance / CEO." +
+        '<label class="check mt-2"><input type="checkbox"' + a + 'dupOk' + di + (r.dupOk ? " checked" : "") + "> I checked: this is a different payment</label>" +
+        '<input class="input mt-2' + (e.dup ? " invalid" : "") + '"' + a + 'dupWhy' + di + ' aria-label="Reason" placeholder="Reason (required)" value="' + App.esc(r.dupWhy || "") + '">' + er(e.dup) + "</span></div>" : "");
+  };
+  PayRef.check = function (r) {
+    var e = {}, pm = App.payMethod(r.method); if (!pm || r.method === "Cash") return e;
+    if (pm.needsRef && !String(r.ref || "").trim()) e.ref = App.esc(pm.refLabel || "Reference no.") + " is needed for " + App.esc(r.method) + ".";
+    if (pm.needsBank && !String(r.bank || "").trim()) e.bank = "Enter the bank name.";
+    if (App.payRefDup(r.method, r.ref, r.bank)) { if (!r.dupOk) e.dup = "Tick the box to confirm this is a different payment."; else if (!String(r.dupWhy || "").trim()) e.dup = "Enter a reason."; }
+    return e;
+  };
+  // Input handler: returns true when the host should re-render (method / ref / bank left, confirm ticked).
+  PayRef.input = function (r, key, el, type) {
+    if (key === "dupOk") { r.dupOk = el.checked; return type === "change"; }
+    r[key] = el.value; return type === "change" && (key === "method" || key === "ref" || key === "bank");
+  };
+  // Saved row: Cash ref = receipt no.; a duplicate is flagged + "Duplicate payment reference" notification (rule, #117).
+  PayRef.save = function (r, receiptNo, p, amount) {
+    var cash = r.method === "Cash", h = cash ? null : App.payRefDup(r.method, r.ref, r.bank);
+    var row = { method: r.method, ref: cash ? receiptNo : (String(r.ref || "").trim() || null) };
+    if (r.bank) row.bank = String(r.bank).trim();
+    if (h) {
+      row.dup = { usedOn: h.no, usedAt: h.at, personId: h.personId, reason: String(r.dupWhy).trim(), by: App.me().id, flagged: true };
+      App.Notify.send("dupRef", p.branchId, "Duplicate payment reference: " + p.name + " · " + App.fmtMoney(amount) + " · " + row.method + " " + row.ref + " · " +
+        App.payDupText(h) + " · " + App.firstName(App.me()) + ": " + row.dup.reason);
+    }
+    return row;
+  };
+  // Flagged payments for the Today section: only for people the "Duplicate payment reference" rule notifies (role ticked + branch).
+  PayRef.flaggedForMe = function () {
+    var u = App.demoUser(), role = u && App.Perm.roleByName(u.role), on = role && (App.Notify.rules().dupRef || {})[role.short];
+    if (!on) return [];
+    return App.payRowsAll().filter(function (x) { return x.r.dup && x.r.dup.flagged && u.branchIds.indexOf(x.p.branchId) > -1; });
+  };
+  App.PayRef = PayRef;
   // Receipt no. per branch, e.g. S31-000124. take=true uses the number.
   App.nextReceiptNo = function (branchId, take) {
     var n = (DUMMY.receiptSeq[branchId] || 0) + 1; if (take) DUMMY.receiptSeq[branchId] = n;

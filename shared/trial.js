@@ -31,7 +31,7 @@
     if (!cb.show || cb.disabled) { if (cb.why) App.toast(cb.why, "error"); return; }
     var apr = T.approvers(p);
     C = { pid: pid, step: 1, pkgId: null, trainerId: o.trainerId || "", start: isoDay(new Date()), comment: "", approverId: apr.length === 1 ? apr[0].id : "", errors: {}, done: false,
-      pay: { method: (App.activePayMethods()[0] || {}).name || "", ref: "", slip: "" } };
+      pay: { method: (App.activePayMethods()[0] || {}).name || "", ref: "", bank: "", dupOk: false, dupWhy: "", slip: "" } };
     m = App.DrawerMode.open(pid, { key: "trial", id: "trialMode", title: "Book trial", onExit: function () { if (C && !C.done) App.toast("Trial not booked", ""); C = null; } });
     m.body.onclick = onClick; m.body.oninput = onInput; m.body.onchange = onInput;
     render();
@@ -163,10 +163,10 @@
       '<dl class="kv"><dt>Receipt no.</dt><dd><span class="mono">' + esc(App.nextReceiptNo(p.branchId)) + '</span> <span class="cell-sub">auto, per branch</span></dd><dt>Amount</dt><dd><strong>' + App.fmtMoney(k.price) + "</strong> · paid in full, at once</dd></dl>" +
       '<div class="form-grid"><div class="field"><label for="trMethod">Method <span class="req">*</span></label><select class="input" id="trMethod" data-k="method">' +
         methods.map(function (x) { return "<option" + (x.name === C.pay.method ? " selected" : "") + ">" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
-      '<div class="field"><label for="trRef">Reference / transaction no.' + (needs ? ' <span class="req">*</span>' : "") + '</label><input class="input' + inv("ref") + '" id="trRef" data-k="ref" value="' + esc(C.pay.ref) + '" placeholder="' + (needs ? "e.g. UPI-55821934" : "Not needed for cash") + '">' + err("ref") + "</div></div>" +
+      "</div>" + App.PayRef.fields(C.pay, { attr: "trp", id: "tr", i: 0, receipt: App.nextReceiptNo(person().branchId), e: { ref: C.errors.ref, bank: C.errors.bank, dup: C.errors.dup } }) +   // shared part (#117)
       '<p class="hint">No discount, no accessories, no partial payment or balance on a trial.</p>');
   }
-  function check4() { var e = {}, pm = App.payMethod(C.pay.method); if (pm && pm.needsRef && !C.pay.ref.trim()) e.ref = "Reference no. is needed for " + esc(C.pay.method) + "."; return e; }
+  function check4() { return App.PayRef.check(C.pay); }   // shared payment rules (#117)
 
   // ---------- navigation ----------
   function go(dir) {
@@ -180,8 +180,9 @@
     C.pkgId = t.dataset.tpkg; delete C.errors.pkg; render();
   }
   function onInput(e) {
+    var tp = e.target.dataset && e.target.dataset.trp; if (tp) { if (App.PayRef.input(C.pay, tp, e.target, e.type)) render(); return; }   // shared payment part
     var k = e.target.dataset && e.target.dataset.k; if (!k) return;
-    if (k === "method" || k === "ref") { C.pay[k] = e.target.value; if (k === "method" && e.type === "change") render(); return; }
+    if (k === "method") { C.pay.method = e.target.value; if (e.type === "change") render(); return; }
     C[k] = e.target.value;
     if ((k === "approverId" || k === "trainerId") && e.type === "change") { render(); return; }
     if (k === "start") { var b = m.body.querySelector("[data-bill]"); if (b) b.innerHTML = bill(person()); var en = m.body.querySelector("[data-end]"), ed = endDate(); if (en && ed) en.innerHTML = esc(App.fmtDate(ed.toISOString())) + ' <span class="muted">· ' + pkg().days + " days, start day included</span>"; }
@@ -196,7 +197,7 @@
     var t = { id: "tr" + Date.now(), type: type, kind: paid ? "paid" : "free", packageId: k.id, package: k.name, from: startIso, to: endIso, price: k.price, paid: paid ? k.price : 0,
       branchId: p.branchId, bookedByUserId: me.id, bookedAt: now, comment: C.comment.trim(), approverUserId: type === "PT" ? null : (C.approverId || null),
       approval: type === "PT" ? "Not needed" : apr.length ? "Pending" : "No approver available", trainerUserId: type === "PT" ? C.trainerId : undefined };
-    if (paid) { t.receiptNo = App.nextReceiptNo(p.branchId, true); t.payment = { method: C.pay.method, ref: C.pay.ref.trim() || null }; }
+    if (paid) { t.receiptNo = App.nextReceiptNo(p.branchId, true); t.payment = App.PayRef.save(C.pay, t.receiptNo, p, k.price); }
     p.trials = T.list(p).concat(t);
     k.soldCount = (k.soldCount || 0) + 1;
     if (p.kind === "Lead") p.stage = "Trial";   // automatic (#94)

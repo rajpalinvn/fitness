@@ -40,7 +40,7 @@ load(SALES, function () {
       type("#pmName", "Wallet"); click(q('[data-sr="save"]'));
       ok("method added", D().paymentMethods.some(function (m) { return m.name === "Wallet" && m.active; }));
       change('[data-pm="pm3"]', false);
-      ok("disable a method", !W().App.payMethod("Bank transfer").active && W().App.activePayMethods().every(function (m) { return m.name !== "Bank transfer"; }));
+      ok("disable a method", !W().App.payMethod("Bank transfer (NEFT / IMPS / Net banking)").active && W().App.activePayMethods().every(function (m) { return m.name !== "Bank transfer (NEFT / IMPS / Net banking)"; }));
       ok("no bad text", !badText(), badText());
     });
     step("View only / no access", function () {
@@ -72,9 +72,26 @@ load(SALES, function () {
         ok("Collect payment modal: receipt no. + balance", q("#payModal").classList.contains("open") && /S31-000124/.test(text("#payModal")) && q("#cpAmt").value === "6500");
         ok("Collect payment: no minimum rule (any amount up to the balance)", !/Minimum/.test(text("#payModal")));
         q("#cpAmt").value = "1000"; pickSel("cpMethod", "UPI"); click(q("#payModal [data-save]"));
-        ok("UPI needs a reference", /Reference no. is needed for UPI/.test(text("#payModal")));
-        q("#cpRef").value = "UPI-1111"; click(q("#payModal [data-save]"));
-        ok("paid: 6 of 12 unlocked, balance ₹5,500", /Sessions unlocked 6 of 12/.test(text("[data-pt-unlocked]")) && /₹5,500/.test(text(".next-step")) && W().App.nextReceiptNo("b1") === "S31-000125");
+        ok("UPI needs a reference (shared part, method label)", /UTR \/ transaction ID is needed for UPI/.test(text("#payModal")));
+        // #117 duplicate on Collect payment: warning + confirm + reason, then flagged
+        type("#cpR0", "UPI-60012877"); change("#cpR0", "UPI-60012877");
+        ok("Collect payment: duplicate warning shows where it was used", /This reference was used before/.test(text("#payModal")) && /\(S31-000119\)/.test(text("#payModal")));
+        click(q("#payModal [data-save]")); ok("Collect payment: must confirm", /Tick the box to confirm/.test(text("#payModal")) && person("p18").pt.payment.receipts.length === 1);
+        change('[data-cp="dupOk"]', true); click(q("#payModal [data-save]")); ok("Collect payment: reason required", /Enter a reason/.test(text("#payModal")));
+        type('[data-cp="dupWhy"]', "Client paid two lines with one UPI");
+        var nBefore = D().notifications.length; click(q("#payModal [data-save]"));
+        var lastRow = person("p18").pt.payment.receipts[1].rows[0];
+        ok("Collect payment: saved + flagged + notification (rule: CEO)", lastRow.dup && lastRow.dup.flagged && lastRow.dup.usedOn === "S31-000119" && D().notifications.length === nBefore + 1 &&
+          D().notifications[0].event === "dupRef" && D().notifications[0].toUserIds.indexOf("u2") > -1 && D().notifications[0].toUserIds.indexOf("u12") < 0);
+        // undo for the next checks (balance flow below expects the 6 / 12 state from ₹1,000)
+        person("p18").pt.payment.receipts.pop(); person("p18").pt.payment.paid -= 1000;
+        W().App.openProfile("p18", { state: "normal" }); click(q('[data-tab-k="membership"]'));
+        click(Array.prototype.filter.call(qa('[data-pd="pay"][data-item="pt"]'), function (b) { return b.closest("[data-pay-sec]"); })[0]);
+        q("#cpAmt").value = "1000"; pickSel("cpMethod", "Cash");
+        ok("Collect payment: Cash reference = receipt no., read-only", q("#cpR0").readOnly && /^S31-/.test(q("#cpR0").value));
+        pickSel("cpMethod", "UPI");
+        type("#cpR0", "UPI-1111"); click(q("#payModal [data-save]"));
+        ok("paid: 6 of 12 unlocked, balance ₹5,500", /Sessions unlocked 6 of 12/.test(text("[data-pt-unlocked]")) && /₹5,500/.test(text(".next-step")) && /^S31-0001\d\d$/.test(W().App.nextReceiptNo("b1")));
         ok("helper example: 12 sessions, ₹12,000, paid ₹5,500 -> 5", W().App.ptUnlocked(12000, 0, 12, 5500) === 5 && W().App.ptUnlocked(12000, 1200, 12, 5500) === 6);
         ok("2-decimal money", W().App.fmtMoney2(1196.1) === "₹1,196.10");
         key("Escape");

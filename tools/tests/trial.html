@@ -87,9 +87,18 @@ load(LEADS, function () {
       ok("bill: total ₹800 in full, no discount / items", /₹800/.test(text("#trialMode [data-total]")) && /No discount, no items, no partial payment/.test(mtext()) && !q("#cvDisc") && !q("[data-x-add]"));
       next(); next(); type("#trComment", "Try before Annual"); pickSel("trApprover", "u4"); next();
       ok("payment step: full amount, method + reference", /Payment · full amount/.test(mtext()) && /₹800/.test(mtext()) && !!q("#trMethod"));
-      pickSel("trMethod", "UPI"); finish(); ok("reference required for UPI", /Reference no. is needed/.test(mtext()));
-      type("#trRef", "UPI-1"); finish();
+      pickSel("trMethod", "UPI"); finish(); ok("reference required for UPI (shared part)", /UTR \/ transaction ID is needed for UPI/.test(mtext()));
+      // #117 duplicate on the paid trial payment
+      type("#trR0", "UPI-77120345");
+      ok("paid trial: duplicate warning", /This reference was used before/.test(mtext()) && /\(S65-000056\)/.test(mtext()));
+      finish(); ok("paid trial: must confirm", /Tick the box to confirm/.test(mtext()));
+      click(q('[data-trp="dupOk"]')); finish(); ok("paid trial: reason required", /Enter a reason/.test(mtext()));
+      type('[data-trp="dupWhy"]', "Family member paid both");
+      type("#trR0", "UPI-1");
+      ok("paid trial: new ref clears the warning", !/This reference was used before/.test(mtext()));
+      finish();
       var p = person("p1"), t = p.trials[p.trials.length - 1];
+      ok("paid trial payment saved via the shared part", t.payment.method === "UPI" && t.payment.ref === "UPI-1" && !t.payment.dup);
       ok("paid trial saved: paid in full with a receipt, approval Pending (Sunita)", t.kind === "paid" && t.paid === 800 && /^S31-/.test(t.receiptNo) && t.approval === "Pending" && t.approverUserId === "u4" && p.stage === "Trial");
       click(q('#trialMode [data-tr="done"]'));
       openP("p1"); click(q('[data-pd="trial"]'));

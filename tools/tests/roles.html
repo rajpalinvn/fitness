@@ -58,6 +58,8 @@ var DOC = {
   "settings.editInactivity": [true, true, true, false, false, false, false, false],
   "settings.rolesPermissions": [true, false, false, false, false, false, false, false]
 };
+
+
 var SHORTS = ["CEO", "RM", "CM", "SM", "SE", "MXM", "TR", "FIN", "MKT", "HR"];
 // c11 (#114): MKT / HR columns default to None / No / 0 unless a row lists them (MKT: Lead sources view + edit).
 Object.keys(DOC).forEach(function (k) { var a = DOC[k], z = typeof a[1] === "string" ? "None" : typeof a[1] === "boolean" ? false : { pct: 0, cap: 0 }; while (a.length < 10) a.push(z); });

@@ -24,7 +24,7 @@
 - Membership tab: **Payments** section (Total, Paid, Balance due + due date or "Paid in full", receipts with method rows
   and references) and, when the client has PT, **Personal training** (valid, per-session price, "Sessions unlocked 5 of 12").
   Balance due → NEXT STEP "Payment due · ₹6,600 by Mon 17 Nov" + **Collect payment** (shared modal `App.collectPayment`:
-  method, amount ≤ balance, reference except Cash, auto receipt no.). Fully paid → Payment expected follow-ups close by system
+  method, amount ≤ balance, auto receipt no.; reference = the shared payment part (#117): Cash = receipt no. auto, per-method label, duplicate warning + confirm + reason → flagged + "Duplicate payment reference" notification). Fully paid → Payment expected follow-ups close by system
   ("Payment received"). Decisions #82, #83.
 - Esc / outside click / X close. Esc closes the top layer first (menu → modal → drawer).
 - **Work modes** (decision #64): `App.DrawerMode.open(personId, { key, title, onExit })` turns the drawer into a wide mode (the larger of the drawer width setting and 80%; tablet 92%) with header "<Name> › <title>" and **Back**. The profile is hidden, not closed; Back, Esc or outside click return to it. Used by Convert to Client; Renewal, Upgrade and Transfer will reuse it.

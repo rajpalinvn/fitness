@@ -20,7 +20,7 @@
     ["key", "Key fobs", "Fob numbers per branch, deposits and refunds.", "items.html?tab=fobs"],
     ["percent", "Tax categories", "GST rates used by packages and items.", "items.html?tab=tax"],
     ["flag", "Sales rules · Discount limits", "Highest discount % each role can give on a package.", "sales.html?tab=limits"],
-    ["card", "Payment methods", "Cash, UPI, Bank transfer, Card. Add or disable methods.", "sales.html?tab=methods"],
+    ["card", "Payment methods", "Cash, UPI, Bank transfer (NEFT / IMPS / Net banking), Card. Add or disable methods.", "sales.html?tab=methods"],
     ["shield", "Roles & permissions", "Fixed roles × actions grid, settings values, trainer types, audit log. CEO only.", "roles.html"]
   ];
   var SOON = [

@@ -194,7 +194,7 @@ Methods: **+ Payment method** opens an inline form (name, reference required); t
 |---|---|---|---|---|---|
 | Minimum first payment on packages | number % | Yes | — | 30 | 0–100. At conversion: accessories + fob deposit in full + this % of the package after discount (#85). Not used for later installments. |
 | Max discount (per role) | read-only (grid row `sales.discountMax`) | — | — | SE 10, SM 20, CM 30, RM 50, CEO 100 (Q31), Trainer / MXM / Finance / Marketing / HR 0 | Edited only in Roles & permissions (0–100, whole number). "Changed" badge when it differs from the default. Package only. |
-| Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Bank transfer, Card | "Enter a name." / "This method already exists." |
+| Payment method name | text | Yes | Yes (case-insensitive) | Cash, UPI, Bank transfer (NEFT / IMPS / Net banking), Card | "Enter a name." / "This method already exists." |
 | Reference no. required | switch | — | — | On (Cash: off) | Payment step asks for a reference when on. |
 | Active | switch | — | — | On (Cheque: off, dummy) | At least one method stays active. Online payment (gateway) later. |
 
@@ -297,7 +297,7 @@ Ready for review
 ### Notification rules + lifecycle settings (c8, #104–#108)
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Notification rules (tab) | checkbox per event × role (RM, CM, SM) | No | — | CM only | Events: Lead transferred in, Lead released (inactive), Cross-branch work on a lead. CEO edits; saves at once, audited ("Notification rules"). Each role only for its own branch(es). Locked note: owner, old owner, approver are always notified. |
+| Notification rules (tab) | checkbox per event × role (RM, CM, SM; any role for "Duplicate payment reference") | No | — | CM only; Duplicate payment reference: CEO only | Events: Lead transferred in, Lead released (inactive), Cross-branch work on a lead, PT quote requested, Duplicate payment reference (#117; "—" where a role can't be ticked). CEO edits; saves at once, audited ("Notification rules"). Each role only for its own branch(es). Locked note: owner, old owner, approver are always notified. |
 | When another branch's staff works on a lead, owner changes | On sale / On first follow-up / Never | Yes | — | On sale | CEO (Settings values). |
 | New-lead assignment | Manual / Round-robin / Round-robin among on-shift staff | Yes | — | Manual | Round-robin options disabled ("Later"). |
 - New grid rows: `leads.own`, `leads.crossBranchFollowUp` (Leads), `sales.rep`, `sales.sellCrossBranch` (Sales). See docs/permissions.md.

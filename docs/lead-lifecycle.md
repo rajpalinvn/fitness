@@ -75,13 +75,14 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 - Every change from the default writes a SalesRepChanged event. There is no separate permission for changing the rep.
 
 ## 6. Notification rules (#108)
-- Settings › Roles & permissions › **Notification rules**: a table of events × roles (RM, CM, SM) with a checkbox per cell. Only the CEO edits it, and each change is audited.
+- Settings › Roles & permissions › **Notification rules**: a table of events × roles (RM, CM, SM; "Duplicate payment reference" may be ticked for any role, #117) with a checkbox per cell ("—" where a role can't be ticked). Only the CEO edits it, and each change is audited.
 
 | Event | Default |
 |---|---|
 | Lead transferred in | CM |
 | Lead released (inactive) | CM |
 | Cross-branch work on a lead (follow-up / sale) | CM |
+| Duplicate payment reference (#117; also drives the Today section "Flagged payments") | CEO |
 
 - A ticked role is notified only for its own branch(es), i.e. the lead's branch.
 - **Directly involved people are ALWAYS notified (locked):** the owner, the old owner and the approver.

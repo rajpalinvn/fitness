@@ -101,6 +101,16 @@ load(TODAY, function () {
       ok("waived, Rohit has no pending left", person("p12").membership.freeItems[0].status === "Waived" && !rowOf("pending", "Rohit"));
       scan("ceo");
     });
+    step("Flagged payments (duplicate reference rule, default CEO)", function () {
+      W().App.setBranch("all"); role("CEO");
+      ok("CEO: Flagged payments section with p22 (client, amount, ref, used before, staff, reason)", !!sec("flagged") && /Ananya|.+/.test(text("#sec-flagged")) &&
+        /UPI-40012001/.test(text("#sec-flagged")) && /₹500/.test(text("#sec-flagged")) && /Divya Nair's payment \(S31-000101\)/.test(text("#sec-flagged")) && /Priya Sharma/.test(text("#sec-flagged")) && /Same UPI paid two bills/.test(text("#sec-flagged")), text("#sec-flagged"));
+      role("Finance"); ok("Finance: no section by default", !sec("flagged"));
+      W().App.Notify.save("dupRef", "FIN", true); role("Finance");
+      ok("Finance ticked but p22 is Sec 31 (Nisha = Sec 65): nothing flagged for her, note names the work", !/UPI-40012001/.test(text("#sections")) && /Your work here: Flagged payments/.test(text("#sections")), text("#sections"));
+      W().App.Notify.save("dupRef", "CM", true); role("Club Manager"); ok("CM ticked (Sec 31): sees p22", /UPI-40012001/.test(text("#sec-flagged")));
+      W().App.Notify.save("dupRef", "FIN", false); W().App.Notify.save("dupRef", "CM", false); role("CEO");
+    });
     step("Club Manager (Sec 31 only)", function () {
       W().App.setBranch("all"); role("Club Manager");
       ok("pending: Harsh (Sec 65) not shown", !rowOf("pending", "Harsh"));

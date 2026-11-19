@@ -183,12 +183,14 @@
 
   // ----- Notification rules (#108) -----
   function notifyTab() {
-    var rules = App.Notify.rules(), ed = App.state.role === "CEO";   // CEO edits (same as the CEO-only settings values)
+    var rules = App.Notify.rules(), ed = App.state.role === "CEO";
+    var cols = D.roles.map(function (r) { return r.short; }).filter(function (s) { return D.notifyEvents.some(function (e) { return (e[2] || D.notifyRoles).indexOf(s) > -1; }); });   // CEO edits (same as the CEO-only settings values)
     return '<div class="callout">' + App.icon("info") + "<span>Who gets a notification in the bell, per event and role. Each role gets it only for <strong>its own branch(es)</strong>. " +
       (ed ? "Changes save at once and are logged in the Audit log." : "Only CEO can change these.") + "</span></div>" +
-      '<div class="table-wrap"><table class="table table-admin" id="notifyTable"><thead><tr><th>Event</th>' + D.notifyRoles.map(function (s) { return "<th>" + esc(P.roleByShort(s).name) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      '<div class="table-wrap"><table class="table table-admin" id="notifyTable"><thead><tr><th>Event</th>' + cols.map(function (s) { return "<th>" + esc(P.roleByShort(s).name) + "</th>"; }).join("") + "</tr></thead><tbody>" +
       D.notifyEvents.map(function (e) {
-        return "<tr><td>" + esc(e[1]) + "</td>" + D.notifyRoles.map(function (s) {
+        return "<tr><td>" + esc(e[1]) + "</td>" + cols.map(function (s) {
+          if ((e[2] || D.notifyRoles).indexOf(s) < 0) return '<td class="muted">—</td>';
           return '<td><input type="checkbox" data-notify="' + e[0] + "|" + s + '"' + (rules[e[0]][s] ? " checked" : "") + (ed ? "" : " disabled") + ' aria-label="' + esc(e[1] + " · " + P.roleByShort(s).name) + '"></td>';
         }).join("") + "</tr>";
       }).join("") + "</tbody></table></div>" +

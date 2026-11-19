@@ -642,26 +642,35 @@
   // Collect a balance (decision #82). Same rules as the Payment step: method, amount (≤ balance), reference except Cash.
   App.collectPayment = function (pid, what) {
     var p = App.byId(D.people, pid), line = what === "pt" ? p.pt : p.membership, pay = line && line.payment; if (!pay) return;
-    var bal = App.payBalance(pay), m = App.makeModal("payModal"), methods = App.activePayMethods();
+    var bal = App.payBalance(pay), m = App.makeModal("payModal"), methods = App.activePayMethods(), receiptNo = App.nextReceiptNo(p.branchId);
+    var R = { method: (methods[0] || {}).name || "", ref: "", bank: "", dupOk: false, dupWhy: "" }, E = {};
     m.title.textContent = "Collect payment · " + p.name;
     m.body.innerHTML = '<dl class="kv kv-wide"><dt>For</dt><dd>' + esc(line.package) + "</dd><dt>Balance due</dt><dd>" + App.fmtMoney(bal) + "</dd>" +
-        "<dt>Receipt no.</dt><dd class=\"mono\">" + esc(App.nextReceiptNo(p.branchId)) + ' <span class="cell-sub">auto</span></dd></dl>' +
+        "<dt>Receipt no.</dt><dd class=\"mono\">" + esc(receiptNo) + ' <span class="cell-sub">auto</span></dd></dl>' +
       '<div class="form-grid mt-3"><div class="field"><label for="cpMethod">Method <span class="req">*</span></label><select class="input" id="cpMethod">' +
         methods.map(function (x) { return "<option>" + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
-      '<div class="field"><label for="cpAmt">Amount <span class="req">*</span></label><input class="input" id="cpAmt" type="number" min="1" max="' + bal + '" value="' + bal + '"></div>' +
-      '<div class="field"><label for="cpRef">Reference / transaction no.</label><input class="input" id="cpRef" placeholder="Required except Cash"></div></div>' +
-      '<span class="error" data-cperr hidden></span>';
+      '<div class="field"><label for="cpAmt">Amount <span class="req">*</span></label><input class="input" id="cpAmt" type="number" min="1" max="' + bal + '" value="' + bal + '"></div></div>' +
+      '<div data-cp-ref></div><span class="error" data-cperr hidden></span>';
+    // Reference part = the shared payment part (#116, #117): Cash = receipt no., per-method label, duplicate warning + confirm + reason.
+    function refPart() { m.body.querySelector("[data-cp-ref]").innerHTML = App.PayRef.fields(R, { attr: "cp", id: "cp", i: 0, receipt: receiptNo, e: E }); }
+    refPart();
     App.enhanceSelect(m.body.querySelector("#cpMethod"));
+    m.body.querySelector("#cpMethod").addEventListener("change", function () { R.method = this.value; E = {}; refPart(); });
+    var onRef = function (e) { var k = e.target.dataset && e.target.dataset.cp; if (k && App.PayRef.input(R, k, e.target, e.type)) refPart(); };
+    m.body.addEventListener("input", onRef); m.body.addEventListener("change", onRef);
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save payment</button>';
     m.foot.querySelector("[data-save]").onclick = function () {
-      var meth = m.body.querySelector("#cpMethod").value, amt = Number(m.body.querySelector("#cpAmt").value), ref = m.body.querySelector("#cpRef").value.trim(), er = m.body.querySelector("[data-cperr]");
-      var bad = !(amt > 0) ? "Enter an amount." : amt > bal ? "More than the balance (" + App.fmtMoney(bal) + ")." : App.payMethod(meth).needsRef && !ref ? "Reference no. is needed for " + meth + "." : "";
-      if (bad) { er.textContent = bad; er.hidden = false; return; }
+      var amt = Number(m.body.querySelector("#cpAmt").value), er = m.body.querySelector("[data-cperr]");
+      R.method = m.body.querySelector("#cpMethod").value;
+      var bad = !(amt > 0) ? "Enter an amount." : amt > bal ? "More than the balance (" + App.fmtMoney(bal) + ")." : "";
+      E = App.PayRef.check(R); refPart();
+      if (bad || Object.keys(E).length) { er.textContent = bad || "Check the reference."; er.hidden = false; return; }
       var no = App.nextReceiptNo(p.branchId, true), now = new Date().toISOString();
-      pay.receipts.push({ no: no, at: now, by: App.me().id, rows: [{ method: meth, amount: amt, ref: ref || null, slip: null }] });
+      var row = Object.assign(App.PayRef.save(R, no, p, amt), { amount: amt, slip: null });
+      pay.receipts.push({ no: no, at: now, by: App.me().id, rows: [row] });
       pay.paid += amt; if (!App.payBalance(pay)) pay.dueDate = null;
       if (!App.payBalance(pay)) D.followUps.forEach(function (f) { if (f.personId === p.id && f.status === "Open" && f.type === "Payment expected") { f.status = "Closed by system"; f.closedAt = now; f.closeReason = "Payment received"; } });
-      App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(amt) + " received · " + meth + " · receipt " + no + (App.payBalance(pay) ? " · balance " + App.fmtMoney(App.payBalance(pay)) : " · paid in full"));
+      App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(amt) + " received · " + R.method + " · receipt " + no + (App.payBalance(pay) ? " · balance " + App.fmtMoney(App.payBalance(pay)) : " · paid in full") + (row.dup ? " · duplicate reference, flagged" : ""));
       App.close(m.el); App.toast("Payment saved · receipt " + no, "success"); App.dataChanged();
     };
     App.openModal("payModal");

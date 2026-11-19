@@ -132,6 +132,16 @@
           sub: "From " + esc(App.firstName(App.byId(D.users, r.byUserId))) + " · " + esc(App.fmtShortWhen(r.at)) + " · " + esc(App.branchName(p.branchId)) + '<div class="cell-sub">“' + esc(r.note) + "”</div>",
           status: '<span class="badge badge-warning">Quote requested</span>', action: App.Quote.canCreate(p) ? btn("quote", "Create quote", { p: p.id }) : "" });
       } },
+    // Flagged payments (#117): duplicate payment references, for the people the "Duplicate payment reference" rule notifies.
+    { k: "flagged", area: "f", t: "Flagged payments", ic: "alert", tone: "red", get: function () { return App.PayRef.flaggedForMe(); }, words: "duplicate references", show: function () { return ruleOn(); },
+      empty: "No flagged payments", allToast: "All flagged payments are listed here",
+      row: function (x) {
+        var d = x.r.dup, other = App.byId(D.people, d.personId);
+        return row({ open: x.p.id, tab: "membership", title: esc(x.p.name) + ' <span class="muted">· ' + App.fmtMoney(x.r.amount) + "</span>",
+          sub: esc(x.r.method) + " " + esc(x.r.ref) + " · receipt " + esc(x.no) + '<div class="cell-sub">Used before: ' + esc(d.usedAt ? App.fmtDay(d.usedAt) + " in " : "") + esc(other ? other.name : "—") + "'s payment (" + esc(d.usedOn) + ")</div>" +
+            '<div class="cell-sub">' + esc(App.userName(d.by)) + " · reason: “" + esc(d.reason) + "”</div>",
+          status: '<span class="badge badge-danger">Duplicate reference</span>', action: "" });
+      } },
     { k: "approvals", area: "v", t: "Trial approvals pending", ic: "clock", tone: "amber", get: approvals, words: "trials asked from you", show: approvalsRole,
       empty: "No trial approvals waiting", allToast: "All pending approvals are listed here",
       row: function (x) {
@@ -160,7 +170,8 @@
     var corp = items.filter(function (i) { return i.k === "addFf" || i.k === "goFob"; }), rest = items.filter(function (i) { return i.k !== "addFf" && i.k !== "goFob"; });
     return (corp.length ? '<span class="corp-label">' + esc(App.CORP_LABEL) + "</span>" + corp.map(b).join("") : "") + rest.map(b).join("");
   }
-  function visible() { return SECTIONS.filter(function (s) { return (s.show ? s.show() : true) && (leadsRole() || s.k === "tasks" || s.k === "quotes"); }); }
+  function ruleOn() { var u = me(), r = u && App.Perm.roleByName(u.role); return !!(r && (App.Notify.rules().dupRef || {})[r.short]); }
+  function visible() { return SECTIONS.filter(function (s) { return (s.show ? s.show() : true) && (leadsRole() || s.k === "tasks" || s.k === "quotes" || s.k === "flagged"); }); }
 
   // ---------- render ----------
   function greeting() {
@@ -193,7 +204,7 @@
         '<span class="cell-sub">' + (n ? esc(s.words) : icon("check", "ico-xs") + " All clear") + "</span></button>";
     }).join("");
     // No leads role: name the work this user does have here (PT quote requests); the old line only when nothing else shows.
-    var extra = secs.filter(function (s) { return s.k === "quotes"; });
+    var extra = secs.filter(function (s) { return s.k === "quotes" || s.k === "flagged"; });
     var note = leadsRole() ? "" : '<div class="callout" data-role-note>' + icon("info") + "<span>" +
       (extra.length ? "Your work here: " + extra.map(function (s) { return s.t; }).join(", ") + " and your tasks." : "Leads and follow-ups aren't part of your role. Your tasks are below.") + "</span></div>";
     if (!total) {

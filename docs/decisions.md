@@ -727,4 +727,15 @@
     last 4, Cheque = cheque number + bank name, Bank transfer = UTR. Duplicate = same method + same reference anywhere in
     the company (cheque: same bank + number; spaces / case ignored). NOT a block: a warning showing where it was used
     ("Used on 12 Nov in Rahul Verma's payment"); staff must tick a confirm box and give a reason; the payment row is
-    flagged for Finance / CEO (badge on the profile receipt). "Net banking" is renamed "Bank transfer".
+    flagged for Finance / CEO (badge on the profile receipt). "Net banking" is renamed "Bank transfer" (label changed by #117).
+117. Payment reference everywhere; duplicate notification + Today (19 Nov 2026, c14). Changes #116 (e).
+    (a) The SAME payment-reference rules apply everywhere money is taken: Convert payment step, Collect payment (balance)
+    and the paid-trial payment, through ONE shared payment part (`App.PayRef`): Cash = the receipt no. (auto, read-only);
+    other methods = the method's reference label (+ bank name for Cheque); duplicate = warning + confirm + reason + flag.
+    (b) Notification-rules event "Duplicate payment reference": any role can be ticked, default CEO only; the CEO can tick
+    Finance and others. Each ticked role gets it for its own branch(es).
+    (c) Today section "Flagged payments" for the people that rule notifies (role ticked + the payment's branch is theirs).
+    Row: client, amount, method + reference, where it was used before, staff, reason. No separate list screen.
+    (d) One method "Bank transfer (NEFT / IMPS / Net banking)" (reference = UTR). Cheque stays disabled by default.
+    (e) The duplicate check covers the whole company with no time limit (it's only a warning). When the branch changes,
+    the Leads Source filter clears a source that doesn't apply (confirmed).

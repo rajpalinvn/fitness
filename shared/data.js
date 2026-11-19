@@ -446,7 +446,7 @@
   P("p40").membership.payment = pay(4200, null, [rc("S31-000090", day(-35), "u6", [["UPI", 4200, "UPI-40012010"]])]);
   // EDGE (#116): duplicate reference — p22's UPI ref was already used on p19's payment; staff confirmed with a reason -> flagged for Finance / CEO.
   P("p22").membership.payment.receipts.push(rc("S31-000102", day(-26), "u6", [["UPI", 0.01, "UPI-40012001"]]));
-  (function (r) { r.amount = 500; r.dup = { usedOn: "S31-000101", personId: "p19", reason: "Same UPI paid two bills (family)", by: "u6", flagged: true }; })(P("p22").membership.payment.receipts[1].rows[0]);
+  (function (r) { r.amount = 500; r.dup = { usedOn: "S31-000101", usedAt: day(-27), personId: "p19", reason: "Same UPI paid two bills (family)", by: "u6", flagged: true }; })(P("p22").membership.payment.receipts[1].rows[0]);
   P("p22").membership.payment.total += 500; P("p22").membership.payment.paid += 500;
   P("p40").pt = { packageId: "pk9", package: "PT 12 Sessions", price: 12000, discount: 0, finalPrice: 12000, sessions: 12, start: day(-50), end: day(40),
     salesRepUserId: "u6", payment: pay(12000, null, [rc("S31-000091", day(-50), "u6", [["Card", 12000, "CARD-7710"]])]) };
@@ -687,9 +687,11 @@
         validTill: dd(-3), note: "Annual option", status: "Expired", createdByUserId: "u4", createdAt: day(-10), requestId: null }
     ],
     // Notification rules (#108): event -> roles (short) that get it, for their own branch(es). Directly involved people always get it.
-    notifyEvents: [["transferIn", "Lead transferred in"], ["released", "Lead released (inactive)"], ["crossBranch", "Cross-branch work on a lead (follow-up / sale)"], ["quoteRequested", "PT quote requested"]],
+    // 3rd element = the roles that can be ticked for that event (default RM / CM / SM). "Duplicate payment reference" (#117): any role, default CEO.
+    notifyEvents: [["transferIn", "Lead transferred in"], ["released", "Lead released (inactive)"], ["crossBranch", "Cross-branch work on a lead (follow-up / sale)"], ["quoteRequested", "PT quote requested"],
+      ["dupRef", "Duplicate payment reference", ["CEO", "RM", "CM", "SM", "SE", "MXM", "TR", "FIN", "MKT", "HR"]]],
     notifyRoles: ["RM", "CM", "SM"],
-    notifyDefaults: { transferIn: { CM: true }, released: { CM: true }, crossBranch: { CM: true } },
+    notifyDefaults: { transferIn: { CM: true }, released: { CM: true }, crossBranch: { CM: true }, dupRef: { CEO: true } },
     tenants: tenants, branches: branches, roles: roles, platformRoles: platformRoles, users: users, lists: lists, people: people,
     trainerTypes: trainerTypes, permissionDefs: permissionDefs, settingDefs: settingDefs,
     followUps: followUps, workTasks: workTasks, timeline: timeline, packages: packages,
@@ -704,7 +706,7 @@
       // #116: Cash reference = the receipt number (auto, read-only). refLabel = what staff type; Cheque also needs the bank name.
       { id: "pm1", name: "Cash", needsRef: false, active: true, isDefault: true, refLabel: "Receipt no. (auto)" },
       { id: "pm2", name: "UPI", needsRef: true, active: true, isDefault: true, refLabel: "UTR / transaction ID" },
-      { id: "pm3", name: "Bank transfer", needsRef: true, active: true, isDefault: true, refLabel: "UTR" },
+      { id: "pm3", name: "Bank transfer (NEFT / IMPS / Net banking)", needsRef: true, active: true, isDefault: true, refLabel: "UTR" },
       { id: "pm4", name: "Card", needsRef: true, active: true, isDefault: true, refLabel: "Approval code or last 4" },
       { id: "pm5", name: "Cheque", needsRef: true, active: false, isDefault: false, refLabel: "Cheque number", needsBank: true }   // EDGE: disabled method (hidden in Sell mode)
     ],
