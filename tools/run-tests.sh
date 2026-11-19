@@ -30,7 +30,7 @@ run_chrome() { "$CHROME" --headless=new --disable-gpu --hide-scrollbars --allow-
 
 TOTAL_PASS=0; TOTAL_FAIL=0; STATUS=0
 echo "Mockup tests  $(date '+%Y-%m-%d %H:%M')"
-for suite in shell profile features convert masters today quicklead payments clients roles access trial ownership answers renewal lifecycle ptquote nodecision; do
+for suite in shell profile features convert masters today quicklead payments clients roles access trial ownership answers renewal lifecycle ptquote nodecision values; do
   RES="$OUT/$suite.txt"
   run_chrome --window-size=1400,1000 --virtual-time-budget=30000 --dump-dom "$BASE/tools/tests/$suite.html" \
     | sed -n '/<pre id="out">/,/<\/pre>/p' | sed 's/<[^>]*>//g; s/&gt;/>/g; s/&lt;/</g; s/&amp;/\&/g' > "$RES"
@@ -59,6 +59,8 @@ shot clients-1280      1280,800 "$BASE/tools/tests/shot.html#page,features%2Fcli
 shot clients-900       900,800  "$BASE/tools/tests/shot.html#page,features%2Fclients%2Findex.html,900,Sales%20Executive"
 shot today-mxm-1280     1280,900 "$BASE/tools/tests/shot.html#page,features%2Ftoday%2Findex.html,1280,MXM"
 shot today-mxm-900      900,900  "$BASE/tools/tests/shot.html#page,features%2Ftoday%2Findex.html,900,MXM"
+shot values-cm-1280     1280,900 "$BASE/tools/tests/shot.html#page,features%2Fsettings%2Fvalues.html,1280,Club%20Manager"
+shot values-cm-900      900,900  "$BASE/tools/tests/shot.html#page,features%2Fsettings%2Fvalues.html,900,Club%20Manager"
 shot quote-request-1280 1280,800 "$BASE/tools/tests/shot.html#p1,1280,qreq,Sales%20Executive"
 shot quote-request-900  900,800  "$BASE/tools/tests/shot.html#p1,900,qreq,Sales%20Executive"
 shot quote-create-1280  1280,800 "$BASE/tools/tests/shot.html#p1,1280,qnew,Club%20Manager"

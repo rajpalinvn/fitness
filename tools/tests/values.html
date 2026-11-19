@@ -1,0 +1,82 @@
+<!doctype html>
+<html><head><meta charset="utf-8"></head><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c17 (#120): Settings values page (anyone who can edit at least one key; edit only theirs; reset only theirs),
+// bell (Mark all read, 60 s refresh + focus, 90-day purge of read items), Today Take / Assign on unassigned overdue rows.
+var ROOT = "../../", SV = ROOT + "features/settings/values.html", TODAY = ROOT + "features/today/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; } function D() { return W().DUMMY; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function setNum(k, v) { var e = q("#sv-" + k); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function role(r) { A().setRole(r); }
+
+load(SV, function () {
+  ["mock.perms", "mock.settings", "mock.audit", "mock.notifyRules"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  W().sessionStorage.setItem("mock.role", "Club Manager"); W().sessionStorage.setItem("mock.branch", "all");
+  load(SV, function () {
+    step("CM: sees all values, edits only theirs", function () {
+      var P = A().Perm, mine = P.editableSettings().map(function (d) { return d.key; });
+      ok("CM can edit trial limits + inactivity (grid rows), not CEO-only values", mine.indexOf("freeTrialsPerPerson") > -1 && mine.indexOf("inactivityReleaseDays") > -1 && mine.indexOf("ptQuoteValidDays") < 0 && mine.indexOf("exClientAfterDays") < 0, mine.join());
+      ok("all values shown", qa("[data-sv-row]").length === D().settingDefs.length);
+      ok("own keys editable, others read-only", !!q("#sv-inactivityReleaseDays") && !q("#sv-ptQuoteValidDays") && !!q('[data-sv-ro="ptQuoteValidDays"]') && /You can edit/.test(text('[data-sv-row="inactivityReleaseDays"]')));
+      setNum("inactivityReleaseDays", "10");
+      ok("save bar after a change", !q("#svBar").hidden && /1 unsaved change/.test(text("#svBar")));
+      click(q('[data-sv="save"]'));
+      ok("saved + audited", P.settings().inactivityReleaseDays === 10 && P.auditLog()[0].tab === "Settings values");
+      setNum("releaseWarnDaysBefore", "12");
+      ok("cross-field rule: warn < inactivity", /Must be less than the inactivity days/.test(text("#panel")) && q('[data-sv="save"]').disabled);
+      click(q('[data-sv="discard"]'));
+      ok("no bad text", !badText(), badText());
+    });
+    step("Reset only my keys", function () {
+      var P = A().Perm;
+      role("CEO"); P.saveSettings({ ptQuoteValidDays: 14 }); role("Club Manager");
+      click(q('[data-sv="reset"]'));
+      ok("confirm lists only my values", q("#svConfirm").classList.contains("open") && /Release inactive leads after/.test(text("#svConfirm")) && !/PT quote valid for/.test(text("#svConfirm")));
+      click(q("#svConfirm [data-save]"));
+      ok("my key reset, CEO-only key kept", P.settings().inactivityReleaseDays === 7 && P.settings().ptQuoteValidDays === 14);
+      P.resetSettings();
+    });
+    step("No editable key: no access; CEO edits everything", function () {
+      role("Sales Executive"); ok("SE: no access", !!q("[data-sv-noaccess]") && !qa("[data-sv-row]").length);
+      role("CEO"); ok("CEO: every value editable", A().Perm.editableSettings().length === D().settingDefs.length && !q("[data-sv-ro]"));
+    });
+    step("Bell: Mark all read, refresh, 90-day purge", function () {
+      var N = D().notifications, old = new Date(Date.now() - 100 * 864e5).toISOString();
+      N.push({ id: "nOldRead", text: "old read", at: old, unread: false }, { id: "nOldUnread", text: "old unread", at: old, unread: true });
+      var removed = A().Bell.purge();
+      ok("purge: read > 90 days deleted, unread kept", removed >= 1 && !A().byId(D().notifications, "nOldRead") && !!A().byId(D().notifications, "nOldUnread"));
+      ok("refresh every 60 s + on focus", A().Bell.REFRESH_MS === 60000 && A().Bell.KEEP_READ_DAYS === 90);
+      D().notifications.unshift({ id: "nNew", text: "new one", at: new Date().toISOString(), unread: true });
+      W().dispatchEvent(new (W().Event)("focus"));
+      ok("focus refreshes the unread count", /\d/.test(text('.topbar [data-dd="bell"] .dot')));
+      click(q('.topbar [data-dd="bell"]')); click(q("[data-mark-read]"));
+      ok("Mark all read", A().Notify.mine().every(function (n) { return !n.unread; }) && !q('.topbar [data-dd="bell"] .dot'));
+    });
+    load(TODAY, function () {
+      step("Today: unassigned overdue / not set rows offer Take / Assign", function () {
+        A().setBranch("all"); role("CEO");
+        // keep only unassigned leads in "Overdue or not set" so their rows are within the 5 shown
+        var keep = D().followUps.filter(function (f) { return f.status === "Open"; }); keep.forEach(function (f) { f._st = f.status; f.status = "Done"; });
+        D().people.forEach(function (x) { if (x.kind === "Lead" && x.ownerUserId) x.stage = "Lost"; });   // test data only: leave the unassigned ones
+        A().dataChanged();
+        var rows = Array.prototype.filter.call(qa("#sec-attention .today-row"), function (r) { return /Neha Kulkarni|Fatima Shaikh/.test(r.textContent); });
+        var p = D().people.filter(function (x) { return x.kind === "Lead" && !x.ownerUserId && x.stage !== "Lost"; })[0];
+        ok("helper: attention row for an unassigned lead has Assign (CEO), never a disabled Add follow-up", !Dc().querySelector('#sec-attention button[disabled]') &&
+          (rows.length > 0 && rows.every(function (r) { return !!r.querySelector('[data-act="assign"],[data-act="take"]'); })), rows.length);
+        role("Sales Executive");
+        ok("SE: no disabled Add follow-up in attention", !Dc().querySelector('#sec-attention button[disabled]'));
+        role("CEO");
+      });
+      document.getElementById("out").textContent = out.join("\n");
+    });
+  });
+});
+</script></body></html>

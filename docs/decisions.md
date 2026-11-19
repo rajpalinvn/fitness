@@ -766,3 +766,15 @@
     (f) Unassigned leads can't get follow-ups: take or assign first. Every "Add follow-up" button is disabled with the
     reason ("Take or assign this lead first"); a quick lead saved Unassigned doesn't ask for a first follow-up.
     (g) Inactivity release runs daily at 02:00 India time (IST).
+120. Settings values page, bell, Today unassigned rows (19 Nov 2026, c17; real build). Confirms #119 for clients.
+    (a) A client with no owner CAN get follow-ups; "take or assign first" is for leads only.
+    (b) Today "Overdue or not set" rows for an Unassigned lead show Take / Assign (as the Unassigned section does), not a
+    disabled "Add follow-up".
+    (c) Settings values: besides the CEO's Roles & permissions tab, a separate page "Settings values" (Settings › General
+    settings card, `features/settings/values.html`) opens for anyone who can edit at least one key; they see ALL values
+    but edit only theirs (the key's grid row; values with no row = CEO). "Reset to defaults" there resets only the keys
+    the user may edit. No editable key → "You don't have access to settings values".
+    (d) Bell: the unread count refreshes every 60 s and when the tab gets focus; "Mark all read"; read notifications older
+    than 90 days are deleted nightly at 02:00 India time (unread ones are kept).
+    (e) Until the real app has the notification-rules screen, recipients are chosen by permission key; the mockup's rules
+    screen stays the target (lifecycle doc).

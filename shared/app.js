@@ -535,11 +535,22 @@
     });
     jset("settings", o); Perm.audit(log); return log;
   };
-  Perm.resetSettings = function () {
-    var cur = Perm.settings(), log = [];
-    DUMMY.settingDefs.forEach(function (d) { if (cur[d.key] !== d.def) log.push({ tab: "Settings values", what: d.label, from: String(cur[d.key]), to: String(d.def) + " (default)" }); });
-    jset("settings", {}); Perm.audit(log); return log;
+  // keys (optional, #120): reset only these keys (the ones the user may edit); no keys = all.
+  Perm.resetSettings = function (keys) {
+    var cur = Perm.settings(), o = jget("settings", {}), log = [];
+    DUMMY.settingDefs.forEach(function (d) {
+      if (keys && keys.indexOf(d.key) < 0) return;
+      if (cur[d.key] !== d.def) log.push({ tab: "Settings values", what: d.label, from: String(cur[d.key]), to: String(d.def) + " (default)" });
+      delete o[d.key];
+    });
+    jset("settings", o); Perm.audit(log); return log;
   };
+  // Can the current user edit this settings value (#120)? Its grid row, or the CEO for values with no row.
+  Perm.canEditSetting = function (d) {
+    if (d.by === "CEO") return App.state.role === "CEO";
+    var v = App.can(d.by); return v === true || (typeof v === "string" && v !== "None");
+  };
+  Perm.editableSettings = function () { return DUMMY.settingDefs.filter(Perm.canEditSetting); };
   // Roles (names) that may change a setting: the roles with its grid row, or "CEO" when the notes say so.
   Perm.settingEditors = function (d) {
     if (d.by === "CEO") return ["CEO"];

@@ -58,7 +58,7 @@ load(LEADS, function () {
           step("settings page", function () {
             ok("settings is a real page (sidebar link active)", !!q('.nav-item.active[data-tip="Settings"]'));
             ok("5 display rows", qa(".pref-row").length === 5);
-            ok("7 live admin cards + 4 coming soon", qa("a.soon-card").length === 7 && qa(".soon-card").length === 11 && /Coming soon/.test(txt("#soon")));
+            ok("8 live admin cards (incl. General settings) + 4 coming soon", qa("a.soon-card").length === 8 && qa(".soon-card").length === 12 && !!q('a.soon-card[href="values.html"]') && /Coming soon/.test(txt("#soon")));
             ok("defaults applied as attributes", Dc().documentElement.getAttribute("data-drawer") === "70" && Dc().documentElement.getAttribute("data-density") === "comfortable");
             var sp = tok("--space-4"), fs = tok("--font-size-md");
             click(q('[data-pref="density"][data-val="compact"]'));

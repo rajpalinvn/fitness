@@ -21,6 +21,7 @@
     ["percent", "Tax categories", "GST rates used by packages and items.", "items.html?tab=tax"],
     ["flag", "Sales rules · Discount limits", "Highest discount % each role can give on a package.", "sales.html?tab=limits"],
     ["card", "Payment methods", "Cash, UPI, Bank transfer (NEFT / IMPS / Net banking), Card. Add or disable methods.", "sales.html?tab=methods"],
+    ["settings", "General settings", "Settings values: free-trial limits, inactivity release, quote validity and more. Opens if you can change at least one.", "values.html"],
     ["shield", "Roles & permissions", "Fixed roles × actions grid, settings values, trainer types, audit log. CEO only.", "roles.html"]
   ];
   var SOON = [

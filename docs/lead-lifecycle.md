@@ -78,6 +78,7 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 - Every change from the default writes a SalesRepChanged event. There is no separate permission for changing the rep.
 
 ## 6. Notification rules (#108)
+- **Build note (#120):** until the notification-rules screen exists in the real app, recipients are chosen by permission key. The mockup keeps its rules screen as the TARGET behaviour.
 - Settings › Roles & permissions › **Notification rules**: a table of events × roles (RM, CM, SM; "Duplicate payment reference" may be ticked for any role, #117) with a checkbox per cell ("—" where a role can't be ticked). Only the CEO edits it, and each change is audited.
 
 | Event | Default |

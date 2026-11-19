@@ -366,7 +366,7 @@
     }
     if ((t = e.target.closest("[data-branch]"))) { closeDD(true); App.setBranch(t.dataset.branch); return; }
     if ((t = e.target.closest("[data-role]"))) { closeDD(true); App.setRole(t.dataset.role); return; }
-    if ((t = e.target.closest("[data-mark-read]"))) {
+    if ((t = e.target.closest("[data-mark-read]"))) {   // "Mark all read" (#120)
       DUMMY.notifications.forEach(function (n) { n.unread = false; });
       closeDD(false); renderTopbar(); App.toast("All notifications marked as read", ""); return;
     }
@@ -442,4 +442,18 @@
     var onMQ = function () { setPh(); app.classList.remove("sb-overlay-open"); if (isTablet.matches) app.classList.add("sb-collapsed"); renderSidebar(); };
     if (isTablet.addEventListener) isTablet.addEventListener("change", onMQ); else isTablet.addListener(onMQ);
   });
+  // Bell (#120): the unread count refreshes every 60 s and when the tab gets focus (the real app polls the API).
+  // Read notifications older than 90 days are deleted by a nightly job at 02:00 India time (mockup: once on load).
+  App.Bell = {
+    REFRESH_MS: 60000, KEEP_READ_DAYS: 90,
+    refresh: function () { if (typeof renderTopbar === "function" && !document.querySelector(".dd-menu:not([hidden])")) renderTopbar(); },
+    purge: function () {
+      var cut = Date.now() - App.Bell.KEEP_READ_DAYS * 864e5, n = DUMMY.notifications.length;
+      DUMMY.notifications = DUMMY.notifications.filter(function (x) { return x.unread || new Date(x.at).getTime() >= cut; });
+      return n - DUMMY.notifications.length;
+    }
+  };
+  App.Bell.purge();
+  setInterval(App.Bell.refresh, App.Bell.REFRESH_MS);
+  window.addEventListener("focus", App.Bell.refresh);
 })();

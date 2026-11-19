@@ -37,6 +37,28 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 
 ---
 
+# Settings values (`values.html`, #120)
+
+## 1. Screens
+| Screen | File | Purpose |
+|---|---|---|
+| Settings values | `features/settings/values.html` + `values.js` | Opened from Settings › **General settings** card. For anyone who can edit at least one value. Shows ALL values; edits only the user's own (badge "You can edit"); the rest read-only with "Changed by: …". |
+
+## 2. Flow
+Settings › General settings → page. Change a number / option → save bar "N unsaved changes" → Save (only my keys, audited "Settings values") or Discard. "Reset my values to defaults" → confirm modal listing only my values → reset (others untouched). Same store as the CEO's Roles & permissions › Settings values tab.
+
+## 3. Field table
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Each settings value | number / option chips | Yes | — | see docs/permissions.md | Editable only if `App.Perm.canEditSetting(d)`: the value's grid row (e.g. `trials.editLimits`, `settings.editInactivity`), or CEO for values with no row. Whole number in range; cross-field rules: per-branch trials ≤ per-person; warn days < release days. |
+| Reset my values to defaults | button + confirm | — | — | — | Resets only the keys the user may edit. |
+
+## 4. States
+- Normal; no editable key: "You don't have access to settings values"; loading / error with `?debug`. Unsaved / Changed badges.
+
+## 5. Status
+Ready for review
+
 # Packages (decisions #20, #45–#47, #49–#52, #56)
 
 ## 1. Screens
