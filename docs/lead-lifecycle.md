@@ -101,10 +101,7 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 - A trainer is a user with a trainer type, not a role name.
 - We add new roles as needed (Marketing and HR added, #114); tenants don't create roles.
 
-**Debt (demo-only role-name checks, left as they are):**
-- The View-as demo user map (`roleDemoUser`).
-- "CEO only" settings values and the Notification rules editor check `App.state.role === "CEO"`.
-The build team maps these to grid rows or to the top tenant role.
+- Top-role-only things (settings values marked CEO, the Notification rules editor, the locked CEO grid column) use ONE helper `App.isTopRole()` = the "top role" flag of the real app (#121). No role-name checks remain (the View-as demo user map is mockup-only).
 
 ## 7b. PT quotes (#110–#113)
 - SE sells membership only. PT / Premium PT: SE "Request PT quote" → CM / MXM "Create PT quote" (trainer, price, discount within the creator's limit, valid N days) → SE bills it locked.

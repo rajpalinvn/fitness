@@ -77,6 +77,7 @@ Roles with no `leads.view` (Trainer / MXM / Finance by default) see the note "Le
 
 - Q36 (#103): Unassigned row action = "Assign" for users with `leads.assign` (CM / RM / CEO by default); "Take this lead" only for users with `leads.take` but not `leads.assign`.
 
+- Releases tomorrow (#121): my visible leads whose inactivity release is tomorrow (owner + follow-up shown to managers); row action "Add follow-up" (resets the clock); View all → Leads `?view=releasing`. Sidebar Today badge = the "Overdue or not set" count.
 - Overdue or not set: a row for an **Unassigned** lead shows **Assign** (`leads.assign`) or **Take this lead** (`leads.take`), as the Unassigned section does — never a disabled "Add follow-up" (#120).
 - Flagged payments (c14, #117): payments saved with a duplicate reference, for the people the notification rule "Duplicate payment reference" notifies (default CEO; role ticked + the payment's branch is theirs). Row: client · amount, method + reference · receipt, "Used before: <date> in <name>'s payment (<receipt>)", staff · reason; badge "Duplicate reference" (red); row action "Mark reviewed" (optional note; the row leaves Today, #118). Opens the profile (Membership). No separate list screen. Shown even when leads aren't part of the role (e.g. Finance: "Your work here: Flagged payments …").
 - PT quote requests (c9, #111): for `pt.quote` users, the open requests asked from me; row action "Create quote". Shown even when leads aren't part of the role (MXM).

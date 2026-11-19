@@ -9,7 +9,7 @@
   var nextFollowUp = App.nextFollowUp, needsAttention = App.needsAttention;
 
   var S = { stage: "", attention: false, search: "", owner: "", source: "", branch: App.state.branchId,
-    temp: "", follow: "", from: "", to: "", synced: false, reason: "", transferred: false, sel: {}, mode: "loading" };
+    temp: "", follow: "", from: "", to: "", synced: false, reason: "", transferred: false, releasing: false, sel: {}, mode: "loading" };
   // Links from Today "View all": ?view=attention, ?follow=Due%20today, ?owner=none (unassigned), &reason=Released, ?view=transferred
   (function () {
     var q = location.search;
@@ -18,6 +18,7 @@
     var o = /[?&]owner=([^&#]+)/.exec(q); if (o) S.owner = decodeURIComponent(o[1]);
     var r = /[?&]reason=([^&#]+)/.exec(q); if (r) S.reason = decodeURIComponent(r[1]);
     if (/[?&]view=transferred\b/.test(q)) S.transferred = true;
+    if (/[?&]view=releasing\b/.test(q)) S.releasing = true;   // Today "Releases tomorrow" View all (#121)
   })();
   var current = { personId: null };
 
@@ -62,7 +63,8 @@
       if (S.temp && p.temperature !== S.temp) return false;
       if (S.synced && !p.synced) return false;
       if (S.reason && (p.ownerUserId || (p.unassignedReason || "New") !== S.reason)) return false;   // Unassigned reason (#100)
-      if (S.transferred && !p.transferredIn) return false;                                           // Transferred in (#98)
+      if (S.transferred && !p.transferredIn) return false;
+      if (S.releasing) { var ri = App.Release.info(p); if (!(ri && ri.inactive && ri.warn)) return false; }   // Releasing (warning window)                                           // Transferred in (#98)
       if (S.from && new Date(p.createdAt) < new Date(S.from)) return false;
       if (S.to && new Date(p.createdAt) > new Date(S.to + "T23:59:59")) return false;
       if (S.follow) {
@@ -129,7 +131,7 @@
     $("fBranch").value = $("mBranch").value = S.branch;
     $("fTemp").value = S.temp; $("fFollow").value = S.follow;
     $("fFrom").value = S.from; $("fTo").value = S.to; $("fSynced").checked = S.synced;
-    $("fReason").value = S.reason; $("fTransferred").checked = S.transferred;
+    $("fReason").value = S.reason; $("fTransferred").checked = S.transferred; $("fReleasing").checked = S.releasing;
     App.syncAllSelects(document.querySelector(".main"));
   }
 
@@ -160,6 +162,7 @@
     if (S.synced) tags.push(["synced", "Synced only"]);
     if (S.reason) tags.push(["reason", "Unassigned · " + S.reason]);
     if (S.transferred) tags.push(["transferred", "Transferred in · needs follow-up person"]);
+    if (S.releasing) tags.push(["releasing", "Releasing"]);
     $("activeFilters").innerHTML = tags.length ? '<span class="muted">Filtered by:</span>' + tags.map(function (t) {
       return '<button class="filter-tag" data-clear="' + t[0] + '" aria-label="Remove filter ' + esc(t[1]) + '">' + esc(t[1]) + App.icon("x", "ico-sm") + "</button>";
     }).join("") : "";
@@ -316,7 +319,7 @@
   $("activeFilters").addEventListener("click", function (e) {
     var t = e.target.closest("[data-clear]"); if (!t) return;
     var k = t.dataset.clear;
-    if (k === "attention" || k === "synced" || k === "transferred") S[k] = false; else S[k] = "";
+    if (k === "attention" || k === "synced" || k === "transferred" || k === "releasing") S[k] = false; else S[k] = "";
     syncControls(); render();
   });
   function bind(id, key, ev) {
@@ -330,7 +333,7 @@
   bind("fSearch", "search", "input"); bind("fStage", "stage");
   bind("fOwner", "owner"); bind("mOwner", "owner"); bind("fSource", "source"); bind("mSource", "source");
   bind("fBranch", "branch"); bind("mBranch", "branch");
-  bind("fReason", "reason"); bind("fTransferred", "transferred");
+  bind("fReason", "reason"); bind("fTransferred", "transferred"); bind("fReleasing", "releasing");
   $("bulkBar").addEventListener("click", function (e) {
     var b = e.target.closest("[data-bulk]"); if (!b) return;
     if (b.dataset.bulk === "clear") { S.sel = {}; render(); return; }
@@ -341,7 +344,7 @@
   $("btnMore").addEventListener("click", function () { $("moreFilters").classList.toggle("open"); });
   function clearAll() {
     S.stage = ""; S.attention = false; S.search = ""; S.owner = ""; S.source = ""; S.temp = ""; S.follow = "";
-    S.from = ""; S.to = ""; S.synced = false; S.reason = ""; S.transferred = false; S.sel = {}; S.branch = App.state.branchId; syncControls(); render();
+    S.from = ""; S.to = ""; S.synced = false; S.reason = ""; S.transferred = false; S.releasing = false; S.sel = {}; S.branch = App.state.branchId; syncControls(); render();
   }
   $("btnClear").addEventListener("click", clearAll);
   $("btnRetry").addEventListener("click", load);

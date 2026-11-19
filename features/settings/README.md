@@ -42,7 +42,7 @@ Display: Ready for review. Packages, Items & stock: Ready for review. Other club
 ## 1. Screens
 | Screen | File | Purpose |
 |---|---|---|
-| Settings values | `features/settings/values.html` + `values.js` | Opened from Settings › **General settings** card. For anyone who can edit at least one value. Shows ALL values; edits only the user's own (badge "You can edit"); the rest read-only with "Changed by: …". |
+| Settings values | `features/settings/values.html` + `values.js` | Opened from Settings › **General settings** card (shown only when the user can edit at least one value, #121; top-role values = `App.isTopRole()`). For anyone who can edit at least one value. Shows ALL values; edits only the user's own (badge "You can edit"); the rest read-only with "Changed by: …". |
 
 ## 2. Flow
 Settings › General settings → page. Change a number / option → save bar "N unsaved changes" → Save (only my keys, audited "Settings values") or Discard. "Reset my values to defaults" → confirm modal listing only my values → reset (others untouched). Same store as the CEO's Roles & permissions › Settings values tab.

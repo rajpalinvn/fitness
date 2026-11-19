@@ -60,6 +60,34 @@ load(SV, function () {
       click(q('.topbar [data-dd="bell"]')); click(q("[data-mark-read]"));
       ok("Mark all read", A().Notify.mine().every(function (n) { return !n.unread; }) && !q('.topbar [data-dd="bell"] .dot'));
     });
+    step("isTopRole helper (#121)", function () {
+      var A_ = A();
+      ok("top role = the role reporting to nobody (CEO), not a name check", A_.topRole().key === "CEO" && A_.isTopShort("CEO") && !A_.isTopShort("RM"));
+      role("CEO"); ok("CEO: isTopRole + top-role values editable", A_.isTopRole() && A_.Perm.canEditSetting(D().settingDefs.filter(function (d) { return d.by === "CEO"; })[0]));
+      role("Regional Manager"); ok("RM: not top role, can't edit top-role values", !A_.isTopRole() && !A_.Perm.canEditSetting(D().settingDefs.filter(function (d) { return d.by === "CEO"; })[0]));
+      role("CEO");
+    });
+    load(ROOT + "features/settings/index.html", function () {
+      step("General settings card only with an editable value", function () {
+        role("CEO"); ok("CEO: card shown", !!q('a.soon-card[href="values.html"]'));
+        role("Club Manager"); ok("CM (can edit 4): card shown", !!q('a.soon-card[href="values.html"]'));
+        role("Sales Executive"); ok("SE (nothing editable): card hidden", !q('a.soon-card[href="values.html"]') && !A().canEditSettingsValues());
+        role("CEO");
+      });
+    load(TODAY, function () {
+      step("Today: Releases tomorrow section + sidebar badge", function () {
+        A().setBranch("all"); role("Sales Executive");
+        var exp = A().visibleLeads("all").filter(function (p) { var i = A().Release.info(p); return i && i.inactive && i.warn && i.left === 1; });
+        ok("section lists leads releasing tomorrow (Gaurav)", !!q("#sec-releasing") && exp.length > 0 && exp.every(function (p) { return text("#sec-releasing").indexOf(p.name) > -1; }) && /Gaurav/.test(text("#sec-releasing")), text("#sec-releasing"));
+        ok("row action Add follow-up; View all -> Leads ?view=releasing", !!q('#sec-releasing [data-act="addfu"]') && /view=releasing/.test(q("#sec-releasing .today-all").getAttribute("href")));
+        var badge = +text('.nav-item[data-tip="Today"] .nav-badge');
+        ok("sidebar Today badge = Overdue or not set count", badge === A().counts().attention && badge === A().visibleLeads("all").filter(A().needsAttention).length, badge);
+      });
+      load(ROOT + "features/leads/index.html?view=releasing", function () {
+        step("Leads ?view=releasing filter", function () {
+          var rows = Array.prototype.map.call(qa("tbody tr[data-id]"), function (r) { return r.getAttribute("data-id"); });
+          ok("filter tag + only releasing leads", /Releasing/.test(text("body")) && q("#fReleasing").checked && rows.length > 0 && rows.every(function (id) { var i = A().Release.info(A().byId(D().people, id)); return i && i.warn; }), rows.join());
+        });
     load(TODAY, function () {
       step("Today: unassigned overdue / not set rows offer Take / Assign", function () {
         A().setBranch("all"); role("CEO");
@@ -76,6 +104,9 @@ load(SV, function () {
         role("CEO");
       });
       document.getElementById("out").textContent = out.join("\n");
+    });
+      });
+    });
     });
   });
 });

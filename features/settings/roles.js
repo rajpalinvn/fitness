@@ -32,7 +32,7 @@
   }
   // Validation: at least one role besides CEO keeps Assign / reassign (locked rule, #96; CEO is locked to All, #102).
   function assignError() {
-    var ok = D.roles.some(function (r) { return r.short !== "CEO" && val(r.short, "leads.assign") !== "None"; });
+    var ok = D.roles.some(function (r) { return !App.isTopShort(r.short) && val(r.short, "leads.assign") !== "None"; });
     return ok ? "" : "At least one role (besides CEO) must keep \"Assign / reassign\".";
   }
 
@@ -183,7 +183,7 @@
 
   // ----- Notification rules (#108) -----
   function notifyTab() {
-    var rules = App.Notify.rules(), ed = App.state.role === "CEO";
+    var rules = App.Notify.rules(), ed = App.isTopRole();   // top role edits (#121)
     var cols = D.roles.map(function (r) { return r.short; }).filter(function (s) { return D.notifyEvents.some(function (e) { return (e[2] || D.notifyRoles).indexOf(s) > -1; }); });   // CEO edits (same as the CEO-only settings values)
     return '<div class="callout">' + App.icon("info") + "<span>Who gets a notification in the bell, per event and role. Each role gets it only for <strong>its own branch(es)</strong>. " +
       (ed ? "Changes save at once and are logged in the Audit log." : "Only CEO can change these.") + "</span></div>" +

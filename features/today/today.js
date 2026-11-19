@@ -16,6 +16,10 @@
   function daysAgo(iso) { var d = -App.daysFromToday(iso); return d === 1 ? "1 day" : d + " days"; }
 
   // ---------- data per section (same helpers as the sidebar badges, so numbers always match) ----------
+  function releasing() {
+    if (!leadsRole()) return [];
+    return App.visibleLeads(App.state.branchId).filter(function (p) { var i = App.Release.info(p); return i && i.inactive && i.warn && i.left === 1; });
+  }
   function attention() {
     if (!leadsRole()) return [];
     return App.visibleLeads(App.state.branchId).filter(App.needsAttention).map(function (p) { return { p: p, f: App.nextFollowUp(p.id) }; })
@@ -117,6 +121,14 @@
         return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : ""),
           sub: esc(p.source) + " · " + esc(App.branchName(p.branchId)) + (rel ? " · released " + esc(App.fmtShortWhen(p.releasedAt)) : " · received " + esc(App.fmtShortWhen(p.createdAt)) + ", " + esc(App.fmtTime(p.createdAt))),
           status: '<span class="badge badge-warning">Unassigned · ' + esc(p.unassignedReason || "New") + "</span>", action: act });
+      } },
+    // Releases tomorrow (#121): my visible owned leads whose inactivity release is tomorrow. Add follow-up resets the clock.
+    { k: "releasing", area: "r", t: "Releases tomorrow", ic: "clock", tone: "amber", get: releasing, words: "add a follow-up to keep them",
+      empty: "No lead releases tomorrow", all: "../leads/index.html?view=releasing", show: leadsRole,
+      row: function (p) {
+        var f = App.nextFollowUp(p.id);
+        return row({ open: p.id, title: esc(p.name), sub: (f ? esc(f.type) + " · due " + esc(App.fmtDue(f)) : "No follow-up set") + ownerBit(p),
+          status: '<span class="badge badge-warning">Releases tomorrow</span>', action: btn("addfu", "Add follow-up", { p: p.id }) });
       } },
     { k: "transferred", area: "x", t: "Transferred in · needs follow-up person", ic: "swap", tone: "amber", get: transferred, words: "moved to your branch",
       empty: "No transferred leads waiting", all: "../leads/index.html?view=transferred", show: transferRole,

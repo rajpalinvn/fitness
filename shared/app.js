@@ -140,6 +140,11 @@
   App.fmtMoney2 = function (n) { return n == null || isNaN(n) ? "—" : "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   App.firstName = function (u) { return u ? u.name.split(" ")[0] : "Someone"; };
   App.userName = function (id) { var u = App.byId(DUMMY.users, id); return u ? u.name : "Not set yet"; };
+  // Top role (#121): the real app has a "top role" flag on the role, not a role name. The top role = the tenant role that
+  // reports to nobody (CEO in this tenant). isTopRole() = the current View-as user; isTopShort(short) = a grid column.
+  App.topRole = function () { return DUMMY.roles.filter(function (r) { return !r.reportsTo; })[0] || null; };
+  App.isTopShort = function (short) { var t = App.topRole(); return !!t && t.short === short; };
+  App.isTopRole = function (roleName) { var t = App.topRole(); return !!t && t.name === (roleName || App.state.role); };
   App.me = function () { return App.demoUser() || DUMMY.users[0]; };
   App.addTimeline = function (personId, kind, text, extra) {
     DUMMY.timeline.push(Object.assign({ personId: personId, at: new Date().toISOString(), kind: kind, text: text, by: App.me().id }, extra || {}));
@@ -478,7 +483,7 @@
   Perm.roleByKey = function (k) { return DUMMY.roles.filter(function (r) { return r.key === k; })[0] || null; };
   // Default for a role (short) × permission def: CEO = everything (top tenant role, #102); others from defs; else None / false / 0.
   Perm.defaultOf = function (short, d) {
-    if (short === "CEO") return d.type === "scope" ? "All" : d.type === "tick" ? true : d.type === "pctcap" ? pc(d.defaults.CEO || { pct: 100, cap: 0 }) : (d.defaults.CEO != null ? d.defaults.CEO : 100);
+    if (App.isTopShort(short)) return d.type === "scope" ? "All" : d.type === "tick" ? true : d.type === "pctcap" ? pc(d.defaults.CEO || { pct: 100, cap: 0 }) : (d.defaults.CEO != null ? d.defaults.CEO : 100);
     var v = d.defaults[short];
     if (v !== undefined) return d.type === "pctcap" ? pc(v) : v;
     return d.type === "scope" ? "None" : d.type === "tick" ? false : d.type === "pctcap" ? { pct: 0, cap: 0 } : 0;
@@ -497,7 +502,7 @@
   // Locked cells (#96 "locked" rules). Returns the reason text or "".
   Perm.lockReason = function (short, key) {
     var d = pdef(key); if (!d) return "";
-    if (short === "CEO") return "CEO has every permission (top role in the tenant).";
+    if (App.isTopShort(short)) return App.topRole().name + " has every permission (top role in the tenant).";
     if (d.lock === "all") return "Only CEO can edit Roles & permissions.";
     return "";
   };
@@ -547,13 +552,14 @@
   };
   // Can the current user edit this settings value (#120)? Its grid row, or the CEO for values with no row.
   Perm.canEditSetting = function (d) {
-    if (d.by === "CEO") return App.state.role === "CEO";
+    if (d.by === "CEO") return App.isTopRole();   // "CEO" in settingDefs = the top role (#121)
     var v = App.can(d.by); return v === true || (typeof v === "string" && v !== "None");
   };
   Perm.editableSettings = function () { return DUMMY.settingDefs.filter(Perm.canEditSetting); };
+  App.canEditSettingsValues = function () { return Perm.editableSettings().length > 0; };   // #121: General settings card
   // Roles (names) that may change a setting: the roles with its grid row, or "CEO" when the notes say so.
   Perm.settingEditors = function (d) {
-    if (d.by === "CEO") return ["CEO"];
+    if (d.by === "CEO") return [App.topRole().name];
     return DUMMY.roles.filter(function (r) { var v = Perm.get(r.short, d.by); return v === true || (typeof v === "string" && v !== "None"); }).map(function (r) { return r.name; });
   };
   // Trainer types (session copy so edits survive reloads)

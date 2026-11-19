@@ -778,3 +778,12 @@
     than 90 days are deleted nightly at 02:00 India time (unread ones are kept).
     (e) Until the real app has the notification-rules screen, recipients are chosen by permission key; the mockup's rules
     screen stays the target (lifecycle doc).
+121. Top role, General settings card, Releases tomorrow (19 Nov 2026, c18; real build).
+    (a) No new grid rows for the top-role-only settings values. The real app uses a "top role" flag on the role, not a
+    role name: the mockup uses ONE helper `App.isTopRole()` (the tenant role reporting to nobody = CEO here; grid column
+    check `App.isTopShort(short)`) for the top-role-only values, the Notification rules editor, the locked CEO column and
+    the "at least one role besides the top role keeps leads.assign" check. `by: "CEO"` in settingDefs means "top role".
+    (b) The General settings card shows only when the user can edit at least one value (`App.canEditSettingsValues()`).
+    (c) Today section "Releases tomorrow": my visible leads whose inactivity release is tomorrow; row action "Add
+    follow-up"; View all → Leads list filter "Releasing" (`?view=releasing`: leads inside the release-warning window).
+    (d) The sidebar Today badge = the count of "Overdue or not set" (unchanged; now tested).

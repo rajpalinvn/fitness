@@ -41,7 +41,7 @@
             esc(o[1]) + (o[0] === def ? ' <span class="muted">(default)</span>' : "") + "</button>";
         }).join("") + "</div></div>";
     }).join("");
-    document.getElementById("soon").innerHTML = LIVE.map(function (s) {
+    document.getElementById("soon").innerHTML = LIVE.filter(function (s) { return s[3] !== "values.html" || App.canEditSettingsValues(); }).map(function (s) {
       return '<a class="card soon-card" href="' + s[3] + '"><span class="tl-ico">' + App.icon(s[0]) + '</span><strong>' + s[1] +
         '</strong><span class="cell-sub">' + s[2] + '</span><span class="badge badge-success">Open</span></a>';
     }).join("") + SOON.map(function (s) {
@@ -63,5 +63,6 @@
     var n = sibs[(i + sibs.length) % sibs.length]; e.preventDefault(); n.click(); var f = document.querySelector('[data-pref="' + n.dataset.pref + '"][data-val="' + n.dataset.val + '"]'); if (f) f.focus();
   });
   document.addEventListener("mock:prefs", render);
+  document.addEventListener("mock:context", render);   // View-as change: General settings card follows the role (#121)
   document.addEventListener("DOMContentLoaded", render);
 })();
