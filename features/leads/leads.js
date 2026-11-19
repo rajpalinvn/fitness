@@ -18,7 +18,7 @@
     var o = /[?&]owner=([^&#]+)/.exec(q); if (o) S.owner = decodeURIComponent(o[1]);
     var r = /[?&]reason=([^&#]+)/.exec(q); if (r) S.reason = decodeURIComponent(r[1]);
     if (/[?&]view=transferred\b/.test(q)) S.transferred = true;
-    if (/[?&]view=releasing\b/.test(q)) S.releasing = true;   // Today "Releases tomorrow" View all (#121)
+    if (/[?&]view=releasing\b/.test(q)) S.releasing = true;   // Today "Releasing soon" View all (#121, #122)
   })();
   var current = { personId: null };
 
