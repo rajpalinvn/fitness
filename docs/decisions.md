@@ -727,4 +727,4 @@
     last 4, Cheque = cheque number + bank name, Bank transfer = UTR. Duplicate = same method + same reference anywhere in
     the company (cheque: same bank + number; spaces / case ignored). NOT a block: a warning showing where it was used
     ("Used on 12 Nov in Rahul Verma's payment"); staff must tick a confirm box and give a reason; the payment row is
-    flagged for Finance / CEO (badge on the profile receipt). "Bank transfer (was Net banking, #116)" is renamed "Bank transfer".
+    flagged for Finance / CEO (badge on the profile receipt). "Net banking" is renamed "Bank transfer".
