@@ -755,3 +755,14 @@
     (f) A creator who can't see Unassigned leads gets no profile after saving one, only a confirmation.
     (g) Phone numbers are stored as E.164 (+91XXXXXXXXXX: `person.phone`, staff `user.mobile`); the duplicate check
     normalizes the typed number (spaces, leading 0, +91 / 91) to E.164 first. The screen still shows "+91 90000 01234".
+119. Convert event, staff numbers, search, follow-ups (19 Nov 2026, c16; real build stage 3). Changes #118.
+    (a) Converting writes ONLY the Converted event (the stage is kept as history), no StageChanged.
+    (b) Staff numbers BLOCK saving a lead (staff are never leads / clients).
+    (c) Top-bar search (and the Clients search) match numbers with the same E.164 normalization as the duplicate check
+    (+91 / 91 / leading 0 / spaces / dashes ignored).
+    (d) Follow-up types are a FIXED code list (not a master): Call (CALL), WhatsApp (WHATSAPP), Visit planned
+    (VISIT_PLANNED), Free trial planned (FREE_TRIAL_PLANNED), Payment expected (PAYMENT_EXPECTED).
+    (e) "Closed by system" notices go to the lead's owner AND the follow-up's assignee if different.
+    (f) Unassigned leads can't get follow-ups: take or assign first. Every "Add follow-up" button is disabled with the
+    reason ("Take or assign this lead first"); a quick lead saved Unassigned doesn't ask for a first follow-up.
+    (g) Inactivity release runs daily at 02:00 India time (IST).

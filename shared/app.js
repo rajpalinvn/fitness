@@ -160,6 +160,14 @@
     var d = c === "+91" ? App.mobileDigits(raw) : raw.replace(/\D/g, "");
     return d ? c + d : "";
   };
+  // Search by (part of) a number (#119): normalize like E.164 (drop +91 / 91 / leading 0, spaces) and match the stored E.164.
+  App.phoneQuery = function (q) {
+    var s = String(q || "").trim(), d = s.replace(/\D/g, "");
+    if (/^\+\s*91/.test(s) || (d.length === 12 && d.indexOf("91") === 0)) d = d.slice(2);
+    if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
+    return d;
+  };
+  App.phoneMatches = function (p, q) { var d = App.phoneQuery(q); return d.length >= 3 && App.phoneOf(p).indexOf(d) > -1; };
   App.phoneOf = function (p) { return p.phone || App.toE164(p.cc, p.mobile); };
   // What a number already belongs to (#118): { kind: "staff", user } or { kind: "person", p }. exceptId = the person being edited.
   App.findByPhone = function (e164, exceptId) {
@@ -232,7 +240,7 @@
     l.sort(function (a, b) { return new Date(b.to) - new Date(a.to); }); return l[0] || null;
   };
   // Same person = same mobile (#11), across every record and branch.
-  Trial.samePerson = function (p) { var d = App.mobileDigits(p.cc + p.mobile); return DUMMY.people.filter(function (o) { return App.mobileDigits(o.cc + o.mobile) === d; }); };
+  Trial.samePerson = function (p) { var e = App.phoneOf(p); return DUMMY.people.filter(function (o) { return App.phoneOf(o) === e; }); };
   Trial.freeUsed = function (p, type, branchId) {
     var n = 0; Trial.samePerson(p).forEach(function (o) { Trial.list(o).forEach(function (t) { if (t.kind === "free" && t.type === type && (!branchId || t.branchId === branchId)) n++; }); });
     return n;
@@ -851,8 +859,8 @@
   // ---------- Cross-branch work (#105, #106) ----------
   // Find by the FULL mobile number across all branches (like the duplicate check). Normal lists never show other branches' leads.
   App.findByFullMobile = function (q) {
-    var d = App.mobileDigits(q); if (d.length !== 10) return [];
-    return DUMMY.people.filter(function (p) { return App.mobileDigits(p.cc + p.mobile) === d; });
+    var d = App.phoneQuery(q); if (d.length !== 10) return [];
+    return DUMMY.people.filter(function (p) { return App.phoneOf(p) === "+91" + d; });   // E.164 (#119)
   };
   var Cross = {};
   // Read-only = a lead the user can't see by the grid (another branch's lead found by full mobile). Shows everything, no actions.

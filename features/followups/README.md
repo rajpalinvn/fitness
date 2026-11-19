@@ -26,7 +26,7 @@
 ### Add follow-up (shared form)
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Type | chips | Yes | No | Call (next step: same type as the finished one) | Call, WhatsApp, Visit planned, Free trial planned, Payment expected |
+| Type | chips | Yes | No | Call (next step: same type as the finished one) | FIXED code list (#119), not a master: Call (CALL), WhatsApp (WHATSAPP), Visit planned (VISIT_PLANNED), Free trial planned (FREE_TRIAL_PLANNED), Payment expected (PAYMENT_EXPECTED) |
 | When (`dueDate`) | chips | Yes | No | Tomorrow | Tomorrow, In 3 days, In 1 week, Custom (date picker, not in the past). Stored as "YYYY-MM-DD". |
 | Time (`dueTime`) | time | No | No | 11:00 | Clear it for "any time" (stored null). Status is by date only (decision #24). |
 | Note | text area | No | No | — | |
@@ -52,7 +52,8 @@
 ## 4. States
 - **Validation**: "Choose an outcome.", "Pick a date.", "The date can't be in the past.", "Choose a reason.", "Please describe the reason."
 - **Success**: toasts ("Outcome saved · Interested", "Follow-up set for … · <date>", "… marked as Lost").
-- **Blocked**: add follow-up on a Lost lead → toast "Re-open the lead first to add a follow-up".
+- **Blocked**: add follow-up on a Lost lead → toast "Re-open the lead first to add a follow-up". On an Unassigned lead (#119) → every "Add follow-up" button is disabled with the reason "Take or assign this lead first".
+- **Closed by system** notice (#119): to the lead's owner AND the follow-up's assignee if different.
 
 ## Ownership flows (c4, decisions #97–#100) — all in shared/followup.js
 

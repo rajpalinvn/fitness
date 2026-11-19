@@ -12,7 +12,8 @@ A lead has two independent states:
 
 - Stage and ownership change independently: a Lost lead keeps its owner, and an Unassigned lead can be in any open stage.
 - Clients will use the same ownership model for renewals later (owner = who renews them, the same reasons).
-- The ownership clock starts when the current owner got the lead (assigned / taken / changed / re-opened / cross-branch takeover). This clock drives inactivity release (#100).
+- The ownership clock starts when the current owner got the lead (assigned / taken / changed / re-opened / cross-branch takeover). This clock drives inactivity release (#100), which runs daily at 02:00 India time (#119).
+- Unassigned leads can't get follow-ups: take or assign first (#119). "Closed by system" notices go to the owner and the follow-up's assignee if different (#119).
 
 ## 2. Events (rule)
 **Every state change is an EVENT**, and the timeline is built from events in human language ("Priya (Sec 31) added a follow-up for themselves · walked in").
@@ -34,7 +35,7 @@ Event { id, personId, type, from, to, reason, remark, byUserId, at, branchId }
 | FollowUpClosed | user → — | Done, Cancelled, System + remark "<why>" | "Call on Mon closed by system · taken over by Sec 31" |
 | TrialBooked | — → trial | free / paid | "Free membership trial booked · 3 days" |
 | TrialApproval | Pending → Approved / Rejected | — | "Trial approved by Karan" |
-| Converted | stage → Client | package | "Converted to Client · Monthly Membership" |
+| Converted | stage → Client | package | "Converted to Client · Monthly Membership" — the only event on conversion, no StageChanged (#119) |
 | MarkedLost | stage → Lost | lost reason | "Marked lost · Price high" |
 | Reopened | Lost → stage | — | "Re-opened by Priya" |
 | SalesRepChanged | default rep → rep | — | "Sales rep changed from Karan to Priya by Karan" |

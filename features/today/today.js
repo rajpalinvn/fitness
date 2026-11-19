@@ -88,7 +88,9 @@
         return row({ open: p.id, title: esc(p.name) + (p.synced ? ' <span class="badge badge-info">Meta</span>' : "") + " " + App.ownershipBadges(p, { noUnassigned: true }),
           sub: (f ? esc(f.type) + " · due " + esc(App.fmtDue(f)) : "Lead from " + esc(p.source) + " · " + esc(App.branchName(p.branchId))) + ownerBit(p),
           status: f ? '<span class="badge badge-danger">Overdue · ' + daysAgo(App.dueIso(f)) + "</span>" : '<span class="badge badge-danger">No follow-up set</span>',
-          action: f ? btn("outcome", "Log outcome", { f: f.id }) : btn("addfu", "Add follow-up", { p: p.id }) });
+          action: f ? btn("outcome", "Log outcome", { f: f.id }) : App.Followup.blockReason(p)
+            ? '<button class="btn btn-sm" disabled title="' + esc(App.Followup.blockReason(p)) + '">Add follow-up</button>'   // #119: unassigned / lost
+            : btn("addfu", "Add follow-up", { p: p.id }) });
       } },
     { k: "today", area: "t", t: "Due today", ic: "clock", tone: "amber", get: dueToday, words: "follow-ups to do",
       empty: "Nothing due today", all: "../leads/index.html?follow=Due%20today",

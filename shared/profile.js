@@ -182,7 +182,7 @@
       '<div class="pd-actions">' +
         qa("call", "phone", "Call", false) + qa("wa", "message", "WhatsApp", false) +
         qa("email", "mail", "Email", !p.email, "No email yet") +
-        qa("follow", "plus", "Follow-up", lost, "Re-open the lead first") +
+        qa("follow", "plus", "Follow-up", !!App.Followup.blockReason(p), App.Followup.blockReason(p)) +
       "</div>" +
       nextStep(p) + transferBox(p) + App.QuoteUI.box(p) +
       '<dl class="kv pd-kv">' +
@@ -280,7 +280,8 @@
     // Trials (#94): one line per running trial (or the last ended one) in NEXT STEP.
     var trialLine = App.Trial.lines(p).map(function (l) { return '<div class="cell-sub" data-trial-line>' + esc(l.text) + (l.running ? " · " + esc(l.t.package) + (l.t.kind === "paid" ? " · " + App.fmtMoney(l.t.paid) + " paid in full" : "") + " · " + esc(l.t.approval) : "") + "</div>"; }).join("");
     if (!f) body = trialLine + "<strong>No follow-up set</strong><div class=\"cell-sub\">Add one so this lead isn't forgotten.</div>" +
-      '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="follow">' + icon("plus") + "Add follow-up</button></div>";
+      (App.Followup.blockReason(p) ? '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="follow" disabled title="' + esc(App.Followup.blockReason(p)) + '">' + icon("plus") + 'Add follow-up</button><span class="hint" data-fu-block>' + esc(App.Followup.blockReason(p)) + ".</span></div>"
+        : '<div class="ns-actions"><button class="btn btn-sm btn-primary" data-pd="follow">' + icon("plus") + "Add follow-up</button></div>");
     else {
       var head = st.cls === "red" ? "Overdue since " + App.fmtDay(App.dueIso(f)) : st.cls === "amber" ? "Due today · " + App.dueTimeText(f) : "Next: " + App.fmtDue(f);
       body = trialLine + "<strong>" + esc(head) + "</strong>" +
@@ -451,14 +452,14 @@
   // ---------- Composer (Note / Follow-up / WhatsApp) ----------
   function mountComposer(p) {
     var box = drawer.querySelector("[data-composer]"); if (!box) return;
-    var lost = isLost(p);
-    if (lost && S.mode === "follow") S.mode = "note";
+    var lost = isLost(p), fuBlock = App.Followup.blockReason(p);   // #119: lost or unassigned lead
+    if (fuBlock && S.mode === "follow") S.mode = "note";
     var modes = [["note", "Note", "note"], ["follow", "Follow-up", "clock"], ["wa", "WhatsApp", "message"]];
     box.innerHTML = '<div class="seg" role="tablist" aria-label="Add to timeline">' + modes.map(function (m) {
-      var dis = m[0] === "follow" && lost;
+      var dis = m[0] === "follow" && !!fuBlock;
       return '<button class="seg-btn' + (S.mode === m[0] ? " active" : "") + '" role="tab" aria-selected="' + (S.mode === m[0]) + '" data-mode="' + m[0] + '"' +
-        (dis ? ' disabled title="Re-open the lead first"' : "") + ">" + icon(m[2], "ico-sm") + m[1] + "</button>";
-    }).join("") + (lost ? '<span class="hint">Follow-ups need the lead re-opened.</span>' : "") + '</div><div class="composer-body"></div>';
+        (dis ? ' disabled title="' + esc(fuBlock) + '"' : "") + ">" + icon(m[2], "ico-sm") + m[1] + "</button>";
+    }).join("") + (fuBlock ? '<span class="hint">' + (lost ? "Follow-ups need the lead re-opened." : "Follow-ups need an owner: take or assign this lead first.") + "</span>" : "") + '</div><div class="composer-body"></div>';
     var b = box.querySelector(".composer-body");
     form = null;
     if (S.mode === "follow") {
@@ -901,7 +902,7 @@
     App.toast("Lead created · " + p.name, "success");
     App.openProfile(p.id, { state: "normal" });
     // Decision #5: a new lead asks for its first follow-up right away.
-    App.Followup.openAdd(p.id, { title: "Set first follow-up", intro: "Lead saved. When will you follow up with " + p.name.split(" ")[0] + "?", cancelText: "Later" });
+    if (p.ownerUserId) App.Followup.openAdd(p.id, { title: "Set first follow-up", intro: "Lead saved. When will you follow up with " + p.name.split(" ")[0] + "?", cancelText: "Later" });
   }
   App.QuickLead = {
     open: function (o) {

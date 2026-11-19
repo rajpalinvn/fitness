@@ -7,7 +7,7 @@
 | Pipeline cards | (in list) | Counts per group; click = filter the list, click again = clear. Order: **Needs attention** (first), New, Contacted, Trial, Negotiation, Lost. |
 | Profile drawer | `shared/profile.js` | Opens on row click. Spec: `features/profile/README.md`. |
 | Assign owner modal | `shared/followup.js` | Opens from "Assign" in the Owner cell of an unassigned lead. |
-| Add follow-up modal | `shared/followup.js` | Opens from "+ Follow-up" (disabled on Lost rows: "Re-open the lead first"). Spec: `features/followups/README.md`. |
+| Add follow-up modal | `shared/followup.js` | Opens from "+ Follow-up" (disabled on Lost rows: "Re-open the lead first"; on Unassigned rows: "Take or assign this lead first", #119). Spec: `features/followups/README.md`. |
 | Quick lead drawer | `shared/profile.js` → `App.QuickLead.open({ mobile })` | Create a lead (app brief screen 4, decision #68). Opens as a drawer, not a modal. |
 
 App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shared/shell.js` — see decisions #22–23.
@@ -81,7 +81,7 @@ List, sidebar badges and Today update.
 
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
-| Country code + Mobile (first field, #74) | select + tel | Yes | Yes, company-wide | +91 | 10 digits; stored E.164 `+919000001234` (#118). Live check while typing (input normalized to E.164): "Already a lead · Owner Priya · Sec 65" / "Already a client · CL-1000 · Sec 31" / "This number belongs to a staff member". "Open profile" only if you can see that person. Save blocked while duplicate. |
+| Country code + Mobile (first field, #74) | select + tel | Yes | Yes, company-wide | +91 | 10 digits; stored E.164 `+919000001234` (#118). Live check while typing (input normalized to E.164): "Already a lead · Owner Priya · Sec 65" / "Already a client · CL-1000 · Sec 31" / "This number belongs to a staff member" (blocks saving: staff are never leads, #119). "Open profile" only if you can see that person. Save blocked while duplicate. |
 | Name (second field) | text | Yes | No | — | "Name is required." |
 | Source | select (lead sources) | Yes | No | — (Choose…) | "Choose a source." Only sources that apply to the chosen branch (#115); changing the branch clears a source that no longer applies. |
 | Temperature | chips Hot / Warm / Cold | Yes | No | Warm | |

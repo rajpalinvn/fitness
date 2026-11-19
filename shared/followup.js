@@ -116,20 +116,30 @@
 
   // Decision #37: the system never marks a follow-up Done. When a lead is lost, converted or
   // transferred its open follow-ups become "Closed by system" and each owner gets a notification.
+  // "Closed by system" notice (#119): to the lead's owner AND the follow-up's assignee if different.
   function closeBySystem(personId, reason) {
     var p = person(personId), now = new Date().toISOString(), closed = openFollowUps(personId);
     closed.forEach(function (f) {
       f.status = "Closed by system"; f.closedAt = now; f.closeReason = reason;
+      var to = [p.ownerUserId, App.fuAssignee(f)].filter(function (x, i, a) { return x && a.indexOf(x) === i; });
       D.notifications.unshift({ id: "n" + Date.now() + f.id, text: f.type + " with " + p.name + " was closed by system · " + reason.toLowerCase(),
-        at: now, unread: true, userId: App.fuAssignee(f) });
+        at: now, unread: true, toUserIds: to, event: "closedBySystem" });
     });
     return closed.length;
   }
 
   // ---------- Add follow-up modal ----------
+  // Why a follow-up can't be added (#119): lost -> re-open first; unassigned lead -> take or assign first. "" = allowed.
+  function blockReason(p) {
+    if (!p) return "Not found";
+    if (p.kind === "Lead" && p.stage === "Lost") return "Re-open the lead first";
+    if (p.kind === "Lead" && !p.ownerUserId) return "Take or assign this lead first";
+    return "";
+  }
   function openAdd(personId, opts) {
     opts = opts || {};
-    var p = person(personId);
+    var p = person(personId), why = blockReason(p);
+    if (why) { App.toast(why + " to add a follow-up", "error"); return; }
     if (!isOpenLead(p) && !(p && p.kind === "Client")) { App.toast("Re-open the lead first to add a follow-up", "error"); return; }
     var m = App.makeModal("fuAddModal");
     m.title.textContent = opts.title || "Add follow-up";
@@ -600,7 +610,7 @@
   }
 
   App.Followup = { mountForm: mountForm, openAdd: openAdd, openOutcome: openOutcome, cancel: cancel, create: create,
-    describeDone: describeDone, isOpenLead: isOpenLead, closeBySystem: closeBySystem, openFollowUps: openFollowUps };
+    describeDone: describeDone, isOpenLead: isOpenLead, closeBySystem: closeBySystem, blockReason: blockReason, openFollowUps: openFollowUps };
   var Lead = { markLost: markLost, reopen: reopen, assign: assign, assignMany: assignMany, move: move, applyMove: applyMove, pickPerson: pickPerson, take: take,
     canMove: canMove, canPick: canPick, canTake: canTake, canAssignFollowUp: canAssignFollowUp,
     crossFollowUp: crossFollowUp, applyCross: applyCross, crossTakeOver: crossTakeOver, crossSetting: crossSetting };

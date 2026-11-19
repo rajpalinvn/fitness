@@ -29,11 +29,11 @@
   }
   function scope() { return S.mode === "empty" ? [] : App.visibleClients(S.branch).filter(function (p) { return p.membership; }); }
   function base() {
-    var q = S.search.trim().toLowerCase(), qd = App.mobileDigits(q);
+    var q = S.search.trim().toLowerCase();
     return scope().filter(function (p) {
       if (q) {
         var hit = [p.name, p.email, p.clientNo, p.ffId, p.keyFob].some(function (v) { return (v || "").toLowerCase().indexOf(q) > -1; });
-        if (!hit && qd.length >= 3) hit = App.mobileDigits(p.cc + p.mobile).indexOf(qd) > -1;   // mobile rule #11
+        if (!hit) hit = App.phoneMatches(p, q);   // mobile rule #11, E.164 (#119)
         if (!hit) return false;
       }
       if (S.rep && p.membership.salesRepUserId !== S.rep) return false;

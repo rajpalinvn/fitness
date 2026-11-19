@@ -292,9 +292,9 @@
       '<div class="tb-search-results" id="tbSearchResults" role="listbox" hidden></div></div>';
   }
   function sResults() {
-    var q = (sInput().value || "").toLowerCase().trim(), qd = App.mobileDigits(q);
+    var q = (sInput().value || "").toLowerCase().trim();
     var recent = App.visibleLeads("all").slice().sort(function (a, b) { return new Date(b.lastActivityAt) - new Date(a.lastActivityAt); });
-    if (q) recent = recent.filter(function (p) { return p.name.toLowerCase().indexOf(q) > -1 || (qd && App.mobileDigits(p.cc + p.mobile).indexOf(qd) > -1); });
+    if (q) recent = recent.filter(function (p) { return p.name.toLowerCase().indexOf(q) > -1 || App.phoneMatches(p, q)   /* E.164 (#119) */; });
     return recent.slice(0, 5);
   }
   function renderSearch() {

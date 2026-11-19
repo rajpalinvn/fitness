@@ -229,8 +229,8 @@
       '<td><div class="row-actions">' +
         '<button class="btn btn-sm icon-btn" data-act="call" data-id="' + p.id + '" title="Call" aria-label="Call ' + esc(p.name) + '">' + App.icon("phone") + "</button>" +
         '<button class="btn btn-sm icon-btn" data-act="wa" data-id="' + p.id + '" title="WhatsApp" aria-label="WhatsApp ' + esc(p.name) + '">' + App.icon("message") + "</button>" +
-        (p.stage === "Lost"
-          ? '<button class="btn btn-sm" disabled title="Re-open the lead first" aria-label="Follow-up (re-open the lead first)">' + App.icon("plus") + "Follow-up</button>"
+        (App.Followup.blockReason(p)
+          ? '<button class="btn btn-sm" disabled title="' + esc(App.Followup.blockReason(p)) + '" aria-label="Follow-up (' + esc(App.Followup.blockReason(p).toLowerCase()) + ')">' + App.icon("plus") + "Follow-up</button>"
           : '<button class="btn btn-sm" data-act="follow" data-id="' + p.id + '">' + App.icon("plus") + "Follow-up</button>") +
       "</div></td></tr>";
   }

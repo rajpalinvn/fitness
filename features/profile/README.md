@@ -16,6 +16,7 @@
   - Quick actions: Call (toast + timeline "called (no outcome logged)"), WhatsApp (opens composer in WhatsApp mode), Email (disabled "No email yet"), Follow-up (disabled on Lost: "Re-open the lead first").
   - NEXT STEP box → "Log outcome" / "Add follow-up".
   - Owner (Change / Assign), source, campaign, external ID, last activity.
+  - Follow-up buttons (quick action, NEXT STEP, composer) are disabled with the reason on Lost leads ("Re-open the lead first") and Unassigned leads ("Take or assign this lead first", #119).
   - Bottom: open lead → **Convert to Client** (the drawer switches to wide **Sell mode**, see `features/conversion/README.md`) + **Book trial** (work mode, #94; also on an active client; disabled "Re-open the lead first" on a lost lead; hidden on an expired client) + **More** (Mark as lost, Change owner). Lost → **Re-open lead**. Client → none.
 - **Tabs**: Lead = Timeline · Tasks · Details · Docs. Client adds **Membership**. Counts show on Tasks (open) and Docs.
 - **Timeline**: "Open follow-ups" (incl. overdue) pinned on top (Log outcome / Cancel), then history grouped by day, newest first. Filter chips: All, Follow-ups, Notes, WhatsApp, Milestones. Cancelled and "Closed by system" follow-ups are struck through (decision #37).

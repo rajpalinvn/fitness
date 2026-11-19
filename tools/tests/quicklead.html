@@ -1,5 +1,5 @@
 <!doctype html>
-<html><body><pre id="out">running</pre>
+<html><head><meta charset="utf-8"></head><body><pre id="out">running</pre>
 <iframe id="f" style="width:1280px;height:900px"></iframe>
 <script>
 var ROOT = "../../", LEADS = ROOT + "features/leads/index.html", TODAY = ROOT + "features/today/index.html", PKGS = ROOT + "features/settings/packages.html";
@@ -120,6 +120,33 @@ load(LEADS, function () {
       A.Perm.save([{ short: "SE", key: "leads.markLost", value: "None" }]); A.setRole("Sales Executive");
       A.Lead.markLost("p1"); ok("leads.markLost None: Mark lost refused", !q("#lostModal.open") && A.byId(D().people, "p1").stage !== "Lost");
       A.Perm.save([{ short: "SE", key: "leads.markLost", value: "Own" }]); A.setRole("CEO");
+    });
+    step("#119: search E.164, closed-by-system notices, no follow-ups on unassigned leads, fixed follow-up types", function () {
+      var A = W().App; A.setRole("CEO"); A.setBranch("all");
+      ok("phone query normalized like E.164", A.phoneQuery("+91 90000 01234") === "9000001234" && A.phoneQuery("090000 01234") === "9000001234" && A.phoneQuery("91 90000 01234") === "9000001234" && A.phoneQuery("01234") === "01234");
+      var s = q("[data-search-input]"); click(q("[data-tb-search]")); s.value = "+91 90000-01234"; s.dispatchEvent(new (W().Event)("input", { bubbles: true }));
+      ok("top-bar search: +91 / dashes find Aarav", /Aarav Patel/.test(text("#tbSearchResults")), text("#tbSearchResults"));
+      s.value = "090000 01234"; s.dispatchEvent(new (W().Event)("input", { bubbles: true }));
+      ok("top-bar search: leading 0 finds Aarav", /Aarav Patel/.test(text("#tbSearchResults")));
+      s.value = ""; s.dispatchEvent(new (W().Event)("input", { bubbles: true })); key("Escape");
+      // closed-by-system notice to owner AND assignee
+      var p = D().people.filter(function (x) { return x.kind === "Lead" && x.ownerUserId && A.Followup.openFollowUps && A.Followup.openFollowUps(x.id).length; })[0] ||
+        D().people.filter(function (x) { return x.kind === "Lead" && x.ownerUserId && D().followUps.some(function (f) { return f.personId === x.id && f.status === "Open"; }); })[0];
+      var f = D().followUps.filter(function (x) { return x.personId === p.id && x.status === "Open"; })[0], other = p.ownerUserId === "u5" ? "u6" : "u5";
+      f.assignedToUserId = other;
+      A.Followup.closeBySystem(p.id, "Lead lost");
+      var n = D().notifications[0];
+      ok("closed-by-system notice goes to owner + assignee", /closed by system/.test(n.text) && n.toUserIds.indexOf(p.ownerUserId) > -1 && n.toUserIds.indexOf(other) > -1 && n.toUserIds.length === 2, JSON.stringify(n.toUserIds));
+      // unassigned lead: no follow-ups
+      var neha = A.byId(D().people, "p14"), fu0 = D().followUps.length;
+      ok("blockReason: unassigned / lost / owned", A.Followup.blockReason(neha) === "Take or assign this lead first" && A.Followup.blockReason({ kind: "Lead", stage: "Lost", ownerUserId: "u6" }) === "Re-open the lead first" && A.Followup.blockReason(A.byId(D().people, "p1")) === "");
+      A.Followup.openAdd("p14"); ok("openAdd refused on an unassigned lead", !q("#fuAddModal.open") && D().followUps.length === fu0);
+      A.openProfile("p14", { state: "normal" });
+      var b = q('#profileDrawer .pd-actions [data-pd="follow"]');
+      ok("profile: Follow-up disabled with the reason", b.disabled && /Take or assign this lead first/.test(b.title) && /Take or assign this lead first/.test(text("[data-fu-block]")) && q('[data-mode="follow"]').disabled);
+      A.closeProfile();
+      ok("follow-up types: fixed code list", D().lists.followUpTypes.join() === "Call,WhatsApp,Visit planned,Free trial planned,Payment expected" && D().lists.followUpTypeCodes["Free trial planned"] === "FREE_TRIAL_PLANNED");
+      ok("release schedule shown: daily 02:00 India time", /02:00 India time/.test(D().settingDefs.filter(function (d) { return d.key === "inactivityReleaseDays"; })[0].hint));
     });
     step("Leads Source filter follows the branch", function () {
       var A = W().App, so = function () { return Array.prototype.map.call(qa("#fSource option"), function (o) { return o.textContent; }); };

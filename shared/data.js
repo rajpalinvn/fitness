@@ -141,7 +141,7 @@
     { key: "freeTrialsPerPerson",      label: "Free trials per person (each trial type)", def: 2, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Counted by mobile number across all branches, separately for Membership trials and PT trials." },
     { key: "freeTrialsPerBranch",      label: "Free trials per branch (each trial type)", def: 1, min: 0, max: 10, unit: "trials", by: "trials.editLimits", hint: "Must be the same or fewer than per person." },
     { key: "paidTrialAdjustBufferDays", label: "Paid trial adjust buffer after it ends", def: 7, min: 0, max: 30, unit: "days", by: "CEO", hint: "Within this many days after a paid trial ended, the adjust is still offered (to roles with the grid row)." },
-    { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned." },
+    { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned. Checked daily at 02:00 India time." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
     { key: "exClientAfterDays",        label: "Ex-client after (days without an active package)", def: 30, min: 0, max: 365, unit: "days", by: "CEO", hint: "Expired for this many days after the last package ends (membership or PT), then Ex-client." },
     { key: "ptQuoteValidDays",         label: "PT quote valid for",                     def: 7, min: 1, max: 90, unit: "days", by: "CEO", hint: "A PT quote can be billed until this many days after it is made; then it shows Expired." },
@@ -156,7 +156,9 @@
     // Lead sources are branch-assignable (#115): branches null = all branches (default); else the branches it applies to
     // (a region = pick its branches). Quick lead / edit lead show only the sources that apply to the lead's branch.
     leadSourceBranches: { "Hoarding": ["b1"], "Pamphlet": ["b1", "b2"] },
+    // Follow-up types = a FIXED code list (#119), not a configurable master. Labels on screen; codes for the API.
     followUpTypes: ["Call", "WhatsApp", "Visit planned", "Free trial planned", "Payment expected"],
+    followUpTypeCodes: { "Call": "CALL", "WhatsApp": "WHATSAPP", "Visit planned": "VISIT_PLANNED", "Free trial planned": "FREE_TRIAL_PLANNED", "Payment expected": "PAYMENT_EXPECTED" },
     outcomes: ["Interested", "No answer", "Call later", "Will visit", "Not interested"],
     lostReasons: ["Price high", "Joined competitor", "Not interested", "No response",
       "Location issue", "Timing issue", "Health issue", "Already a member elsewhere",
