@@ -70,6 +70,11 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `settings.editLostReasons` | Edit Lost reasons (company-wide; no screen yet) | Settings | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `settings.stock` | Accessory / key fob stock (#56) | Settings | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
 | `settings.editInactivity` | Edit inactivity release days | Settings | tick | Yes | Yes | Yes | No | No | No | No | No | No | No | CEO |
+| `admin.viewBranches` | View branches (Admin screens, #125) | Admin | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `admin.editBranches` | Edit branches (All = also add a branch; the Region field needs `admin.regions`) | Admin | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `admin.viewStaff` | View staff | Admin | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `admin.editStaff` | Edit staff role + branches (Branch = staff whose branches are all mine; picks only my branches; never the top role) | Admin | scope | All | Branch | Branch | None | None | None | None | None | None | None | CEO |
+| `admin.regions` | Regions: add / rename / switch off; set a branch's region | Admin | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `settings.rolesPermissions` | Roles & permissions | Settings | tick | Yes | No | No | No | No | No | No | No | No | No | every cell (CEO only) |
 
 Note on `trials.approve`: this is who CAN approve / reject a pending trial (CEO = All, locked). The "Approval asked from"

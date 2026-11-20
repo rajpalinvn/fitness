@@ -5,7 +5,7 @@
 (function () {
   var D = window.DUMMY, esc = App.esc, A = window.Admin, P = App.Perm;
   var TABS = [["permissions", "Permissions"], ["values", "Settings values"], ["notify", "Notification rules"], ["roles", "Roles"], ["trainers", "Trainer types"], ["audit", "Audit log"]];
-  var MODULES = ["Leads", "Trials", "Sales", "Clients", "Payments", "Settings"];
+  var MODULES = ["Leads", "Trials", "Sales", "Clients", "Payments", "Settings", "Admin"];
   var SCOPES = ["None", "Own", "Branch", "All"];
   var SCOPE_HINT = { None: "No access", Own: "Own leads + leads with my open follow-up", Branch: "The staff's branch (all their branches for multi-branch roles)", All: "Every branch" };
   var S = {

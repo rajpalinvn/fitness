@@ -42,7 +42,7 @@
             esc(o[1]) + (o[0] === def ? ' <span class="muted">(default)</span>' : "") + "</button>";
         }).join("") + "</div></div>";
     }).join("");
-    document.getElementById("soon").innerHTML = LIVE.filter(function (s) { return s[3] !== "values.html" || App.canEditSettingsValues(); }).map(function (s) {
+    document.getElementById("soon").innerHTML = LIVE.filter(function (s) { return (s[3] !== "values.html" || App.canEditSettingsValues()) && (s[3] !== "branches.html" || ["admin.viewBranches", "admin.viewStaff", "admin.regions"].some(function (k) { var v = App.can(k); return !!v && v !== "None"; })); }).map(function (s) {
       return '<a class="card soon-card" href="' + s[3] + '"><span class="tl-ico">' + App.icon(s[0]) + '</span><strong>' + s[1] +
         '</strong><span class="cell-sub">' + s[2] + '</span><span class="badge badge-success">Open</span></a>';
     }).join("") + SOON.map(function (s) {

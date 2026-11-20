@@ -19,7 +19,8 @@ function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|N
 function role(r) { A().setRole(r); }
 
 load(BR, function () {
-  ["mock.newsSeen", "mock.branch"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  ["mock.newsSeen", "mock.branch", "mock.perms"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  Object.keys(W().localStorage).filter(function (k) { return k.indexOf("mock.newsSeen.") === 0; }).forEach(function (k) { W().localStorage.removeItem(k); });
   W().sessionStorage.setItem("mock.role", "CEO");
   load(BR, function () {
     step("Initials: first + last word", function () {
@@ -35,6 +36,11 @@ load(BR, function () {
       ok("modal lists the notes; count clears", q("#newsModal").classList.contains("open") && /Branches & staff/.test(text("#newsModal")) && !q("[data-news-count]"));
       A().closeAll();
       ok("modal closes", !q("#newsModal").classList.contains("open"));
+      ok("seen is stored per user in localStorage (#125)", (W().localStorage.getItem("mock.newsSeen.u2") || "").split(",").length === n && !W().localStorage.getItem("mock.newsSeen.u4"));
+      role("Club Manager");
+      ok("another user (Sunita) still sees the unseen count", text("[data-whats-new] [data-news-count]") === String(n));
+      role("CEO");
+      ok("back to the CEO: still seen", !q("[data-news-count]"));
     });
     step("Multi-branch roles", function () {
       var m = A().roleBranchMode;
@@ -84,7 +90,7 @@ load(BR, function () {
       ok("CEO: All branches, no picker", /All branches/.test(text("#staffDrawer")) && !q("#sfBranch") && !q("[data-sf-branch]"));
       A().closeAll();
       role("Sales Executive");
-      ok("non-CEO: view only, no Add branch", /View only/.test(text("#banner")) && !q('[data-bs="add"]'));
+      ok("SE (Admin rows None): no access, no tabs", !!q("[data-bs-noaccess]") && !qa("#bsTabs .tab").length);
       role("CEO");
     });
     step("Branch switcher: grouped by region; search from 6 branches", function () {
@@ -106,6 +112,42 @@ load(BR, function () {
       ok("no match message", !m.querySelector("[data-branch-none]").hidden);
       click(Dc().body);
       D().branches.length = keep; A().refreshShell();
+    });
+    step("Grid rows (#125): CM / RM own branches, Regions CEO only", function () {
+      var keys = ["admin.viewBranches", "admin.editBranches", "admin.viewStaff", "admin.editStaff", "admin.regions"];
+      ok("5 Admin rows in the grid data", keys.every(function (k) { return D().permissionDefs.some(function (d) { return d.key === k && d.module === "Admin"; }); }));
+      role("Club Manager"); click(q('[data-btab="branches"]'));
+      ok("CM: Branches + Staff tabs, no Regions", !!q('[data-btab="branches"]') && !!q('[data-btab="staff"]') && !q('[data-btab="regions"]'));
+      ok("CM (Sec 31): only Sec 31 listed, Edit; no + Branch", qa("#rows tr[data-id]").length === 1 && /Edit/.test(text('tr[data-id="b1"]')) && !q('[data-bs="add"]'));
+      click(q('[data-bs="edit"][data-id="b1"]'));
+      ok("CM: Region field disabled (CEO only), City editable", q("#brRegion").disabled && !q("#brCity").disabled);
+      A().closeAll();
+      click(q('[data-btab="staff"]'));
+      ok("CM: Sec 31 staff only; Vikram (RM, Sec 31 + 65) is View", /Priya Sharma/.test(text("#rows")) && !/Arjun Nair/.test(text("#rows")) && /View/.test(text('tr[data-id="u3"]')) && /Edit/.test(text('tr[data-id="u6"]')));
+      click(q('[data-bs="staff"][data-id="u6"]'));
+      ok("CM editing Priya: branch picks only Sec 31; no CEO role", Array.prototype.map.call(q("#sfBranch").options, function (o) { return o.value; }).join() === ",b1" && !Array.prototype.some.call(q("#sfRole").options, function (o) { return o.value === "CEO"; }));
+      A().closeAll();
+      role("Regional Manager"); click(q('[data-btab="branches"]'));
+      ok("RM (Sec 31 + 65): two branches, both Edit, no Golf Course", qa("#rows tr[data-id]").length === 2 && !q('tr[data-id="b3"]'));
+      role("CEO");
+    });
+    step("Regions screen (CEO): add / rename / switch off", function () {
+      click(q('[data-btab="regions"]'));
+      ok("2 regions with branch counts", qa("#rows tr[data-id]").length === 2 && /Gurugram South\s*2/.test(text("#rows")));
+      click(q('[data-bs="addRegion"]')); click(q('[data-bs="saveRegion"]'));
+      ok("name required", /Enter the region name/.test(text("#panel")));
+      q("#rgName").value = "gurugram central"; click(q('[data-bs="saveRegion"]'));
+      ok("duplicate rejected", /already exists/.test(text("#panel")));
+      q("#rgName").value = "Delhi West"; click(q('[data-bs="saveRegion"]'));
+      ok("added", qa("#rows tr[data-id]").length === 3 && /Delhi West/.test(text("#rows")));
+      click(q('[data-bs="renameRegion"][data-id="r1"]')); q("#rgName").value = "Gurugram North"; click(q('[data-bs="saveRegion"]'));
+      ok("renamed (branch switcher follows)", D().regions[0].name === "Gurugram North" && /Gurugram North/.test(q('[data-dd-menu="branch"]').innerText));
+      var nr = D().regions[2], sw = q('[data-region-on="' + nr.id + '"]'); sw.checked = false; sw.dispatchEvent(new (W().Event)("change", { bubbles: true }));
+      ok("switched off", nr.active === false && /Switched off/.test(text('tr[data-id="' + nr.id + '"]')));
+      click(q('[data-btab="branches"]')); click(q('[data-bs="add"]'));
+      ok("switched-off region not offered for a branch", !Array.prototype.some.call(q("#brRegion").options, function (o) { return o.value === nr.id; }));
+      A().closeAll();
+      D().regions.pop(); D().regions[0].name = "Gurugram Central"; A().dataChanged();
     });
     load(LEADS, function () {
       step("Leads table header sentence case", function () {

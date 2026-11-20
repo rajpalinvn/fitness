@@ -196,7 +196,10 @@
   // ---------- What's new (#124) ----------
   App.buildLine = function () { var b = DUMMY.build || {}; return "Build " + App.empty(b.date) + " · " + App.empty(b.commit); };
   App.WhatsNew = {
-    seen: function () { return (App.sessionGet("newsSeen") || "").split(",").filter(Boolean); },
+    // "Seen" is remembered per user in localStorage (#125). Wrapped: storage can be blocked.
+    key: function () { return "mock.newsSeen." + ((App.demoUser() || {}).id || "anon"); },
+    seen: function () { try { return (localStorage.getItem(App.WhatsNew.key()) || "").split(",").filter(Boolean); } catch (e) { return []; } },
+    markSeen: function () { try { localStorage.setItem(App.WhatsNew.key(), DUMMY.releaseNotes.map(function (n) { return n.id; }).join(",")); } catch (e) {} },
     unseen: function () { var s = App.WhatsNew.seen(); return DUMMY.releaseNotes.filter(function (n) { return s.indexOf(n.id) < 0; }); },
     open: function () {
       var m = App.makeModal("newsModal"), s = App.WhatsNew.seen();
@@ -208,7 +211,7 @@
       m.body.innerHTML += '<p class="sb-version">' + esc(App.buildLine()) + "</p>";
       m.foot.innerHTML = '<button class="btn btn-primary" data-close>Close</button>';
       App.openModal("newsModal");
-      App.sessionSet("newsSeen", DUMMY.releaseNotes.map(function (n) { return n.id; }).join(","));
+      App.WhatsNew.markSeen();
       renderSidebar();
     }
   };

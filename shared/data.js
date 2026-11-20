@@ -18,8 +18,8 @@
 
   // Regions (#124): set by the CEO; a grouping / filter of branches (not a permission scope, #95).
   var regions = [
-    { id: "r1", name: "Gurugram Central", tenantId: "t1" },
-    { id: "r2", name: "Gurugram South",   tenantId: "t1" }
+    { id: "r1", name: "Gurugram Central", tenantId: "t1", active: true },
+    { id: "r2", name: "Gurugram South",   tenantId: "t1", active: true }
   ];
   // Indian states + union territories with their GST state code (fixed list, #124). GSTIN starts with this code.
   var states = [
@@ -160,6 +160,12 @@
     { key: "settings.editLostReasons",  module: "Settings", label: "Edit Lost reasons (no screen yet)",                   type: "tick",  defaults: { CEO: true } },
     { key: "settings.stock",        module: "Settings", label: "Accessory / key fob stock",                       type: "scope",  defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "settings.editInactivity", module: "Settings", label: "Edit inactivity release days",                        type: "tick",   defaults: { CM: true, RM: true, CEO: true } },
+    // Admin screens (#125): Branches, Staff, Regions. CEO all; RM + CM view / edit their own branches; Regions (and a branch's region) CEO only.
+    { key: "admin.viewBranches", module: "Admin", label: "View branches",                                    type: "scope", defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "admin.editBranches", module: "Admin", label: "Edit branches (All = also add a branch)",          type: "scope", defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "admin.viewStaff",    module: "Admin", label: "View staff",                                       type: "scope", defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "admin.editStaff",    module: "Admin", label: "Edit staff role + branches",                       type: "scope", defaults: { CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "admin.regions",      module: "Admin", label: "Regions: add / rename / switch off; set a branch's region", type: "tick", defaults: { CEO: true } },
     { key: "settings.rolesPermissions", module: "Settings", label: "Roles & permissions",                               type: "tick",   defaults: { CEO: true }, lock: "all" }
   ];
   // Settings values (decision #96, notes "Settings values"). Who can change: a grid row (permission key) or CEO.

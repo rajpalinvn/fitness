@@ -59,7 +59,7 @@ Settings › General settings → page. Change a number / option → save bar "N
 ## 5. Status
 Ready for review
 
-# Branches & staff (`branches.html`, #124)
+# Branches & staff (`branches.html`, #124, #125)
 
 ## 1. Screens
 | Screen | File | Purpose |
@@ -67,6 +67,9 @@ Ready for review
 | Branches tab | `features/settings/branches.html` + `branches.js` | Branch list: Branch (state · PIN), Region, City, Club Manager, GSTIN. Region filter. CEO: + Branch / Edit; others: View (read-only). |
 | Branch form (drawer) | same | Add / edit a branch. |
 | Staff tab + Staff form (drawer) | same | Each staff member's role and branches. |
+| Regions tab | same | `admin.regions` (CEO): add / rename / switch off regions. Others don't see the tab. |
+
+**Access (grid, module Admin, #125):** `admin.viewBranches` / `admin.editBranches` / `admin.viewStaff` / `admin.editStaff` (scope: CEO All, RM + CM Branch, others None) and `admin.regions` (tick, CEO). Tabs show only with a View row; no row at all → "You don't have access to branches and staff" and the Settings card is hidden. "+ Branch" needs edit scope All. Region field on a branch: `admin.regions` only. Staff edit with Branch scope: only staff whose branches are all mine; branch picks limited to my branches; the top role is never offered.
 
 ## 2. Flow
 Settings › Branches & staff card → page. "+ Branch" or row Edit → branch drawer → Save (toast, list updates). Staff tab → row Edit → staff drawer (Role; Branch dropdown OR branch checkboxes by role) → Save. Esc / outside click closes.
@@ -75,7 +78,7 @@ Settings › Branches & staff card → page. "+ Branch" or row Edit → branch d
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Branch name | text | Yes | Yes (in the tenant, case-insensitive) | — | |
-| Region | dropdown (`regions`) | Yes | — | — | Regions are set by the CEO. Grouping / filter only, not a permission scope (#95). |
+| Region | dropdown (`regions`) | Yes | — | — | Editable only with `admin.regions`. Switched-off regions are not offered (current one kept). Grouping / filter only, not a permission scope (#95). |
 | City | text | Yes | — | — | |
 | State | dropdown, fixed list | Yes | — | — | 36 states + UTs with their GST state code (`DUMMY.states`). |
 | PIN code | text, 6 digits | Yes | — | — | `^[1-9][0-9]{5}$`. |
@@ -91,8 +94,15 @@ Settings › Branches & staff card → page. "+ Branch" or row Edit → branch d
 | Branches | checkboxes | Yes (≥ 1) | — | — | Regional Manager, Finance, HR, Marketing only (`App.MULTI_BRANCH_ROLES`). |
 | (CEO) | text "All branches" | — | — | all | Top role has every branch; no picker. |
 
+## 3c. Field table: Region
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Region name | text | Yes | Yes (case-insensitive) | — | Add / Rename inline card. |
+| Status | switch | — | — | Active | Switched off = not offered on the branch form. |
+| Branches (list column) | derived | — | — | — | Count of branches in the region. |
+
 ## 4. States
-Normal; region filter with no match → "No branches in this region" + Clear filter; loading / empty / error with `?debug`; validation errors inline; non-CEO → "View only" banner.
+Normal; no Admin row → no access; region filter with no match → "No branches in this region" + Clear filter; loading / empty / error with `?debug`; validation errors inline; non-CEO → "View only" banner.
 
 ## 5. Status
 Ready for review

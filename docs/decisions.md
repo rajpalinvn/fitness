@@ -807,3 +807,11 @@
     characters, starts with the state's GST code), Email (optional). Branches list: Region, City, Club Manager columns
     + Region filter (Settings › Branches & staff; CEO edits, others view). (f) Branch switcher: grouped by region; a
     search box appears from 6 branches.
+125. Branches / Staff / Regions access + Regions screen (20 Nov 2026, c22; confirms the #124 assumptions). (a) Grid rows,
+    module "Admin": `admin.viewBranches`, `admin.editBranches`, `admin.viewStaff`, `admin.editStaff` (scope; CEO All,
+    RM + CM Branch = their own branches, others None) and `admin.regions` (tick, CEO only). Adding a branch needs edit
+    scope All. A branch's Region field can be changed only with `admin.regions`. Editing staff with Branch scope: only
+    staff whose branches are all mine, branch picks only from my branches, never the top role. (b) Required branch
+    fields stay as in #124 (Name, Region, City, State, PIN; GSTIN and Email optional). (c) Regions screen (tab on
+    Branches & staff, `admin.regions`): add, rename, switch off; name required + unique; switched-off regions can't be
+    picked for a branch (a branch keeps its current one). (d) What's new "seen" is remembered per user in localStorage.
