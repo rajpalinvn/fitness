@@ -59,6 +59,44 @@ Settings › General settings → page. Change a number / option → save bar "N
 ## 5. Status
 Ready for review
 
+# Branches & staff (`branches.html`, #124)
+
+## 1. Screens
+| Screen | File | Purpose |
+|---|---|---|
+| Branches tab | `features/settings/branches.html` + `branches.js` | Branch list: Branch (state · PIN), Region, City, Club Manager, GSTIN. Region filter. CEO: + Branch / Edit; others: View (read-only). |
+| Branch form (drawer) | same | Add / edit a branch. |
+| Staff tab + Staff form (drawer) | same | Each staff member's role and branches. |
+
+## 2. Flow
+Settings › Branches & staff card → page. "+ Branch" or row Edit → branch drawer → Save (toast, list updates). Staff tab → row Edit → staff drawer (Role; Branch dropdown OR branch checkboxes by role) → Save. Esc / outside click closes.
+
+## 3. Field table: Branch
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Branch name | text | Yes | Yes (in the tenant, case-insensitive) | — | |
+| Region | dropdown (`regions`) | Yes | — | — | Regions are set by the CEO. Grouping / filter only, not a permission scope (#95). |
+| City | text | Yes | — | — | |
+| State | dropdown, fixed list | Yes | — | — | 36 states + UTs with their GST state code (`DUMMY.states`). |
+| PIN code | text, 6 digits | Yes | — | — | `^[1-9][0-9]{5}$`. |
+| GSTIN | text, 15 chars | No | — | — | Upper-cased. Format `99AAAAA9999A9Z9`; first 2 digits = the state's GST code (error names the code). Empty → "Not set yet". |
+| Email | email | No | — | — | |
+| Club Manager (list column) | derived | — | — | — | Users with role Club Manager at this branch; none → "Not set yet". |
+
+## 3b. Field table: Staff branches
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Role | dropdown (fixed roles) | Yes | — | current | |
+| Branch | ONE dropdown | Yes | — | — | Every role except the four below and the CEO: exactly one branch. |
+| Branches | checkboxes | Yes (≥ 1) | — | — | Regional Manager, Finance, HR, Marketing only (`App.MULTI_BRANCH_ROLES`). |
+| (CEO) | text "All branches" | — | — | all | Top role has every branch; no picker. |
+
+## 4. States
+Normal; region filter with no match → "No branches in this region" + Clear filter; loading / empty / error with `?debug`; validation errors inline; non-CEO → "View only" banner.
+
+## 5. Status
+Ready for review
+
 # Packages (decisions #20, #45–#47, #49–#52, #56)
 
 ## 1. Screens

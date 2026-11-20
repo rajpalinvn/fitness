@@ -16,10 +16,34 @@
   // Every tenant-owned record (branches, users, people, packages) carries tenantId.
   var tenants = [{ id: "t1", name: "Innovana Fitness Labs", createdByUserId: "u1" }];
 
+  // Regions (#124): set by the CEO; a grouping / filter of branches (not a permission scope, #95).
+  var regions = [
+    { id: "r1", name: "Gurugram Central", tenantId: "t1" },
+    { id: "r2", name: "Gurugram South",   tenantId: "t1" }
+  ];
+  // Indian states + union territories with their GST state code (fixed list, #124). GSTIN starts with this code.
+  var states = [
+    ["01", "Jammu and Kashmir"], ["02", "Himachal Pradesh"], ["03", "Punjab"], ["04", "Chandigarh"], ["05", "Uttarakhand"], ["06", "Haryana"],
+    ["07", "Delhi"], ["08", "Rajasthan"], ["09", "Uttar Pradesh"], ["10", "Bihar"], ["11", "Sikkim"], ["12", "Arunachal Pradesh"],
+    ["13", "Nagaland"], ["14", "Manipur"], ["15", "Mizoram"], ["16", "Tripura"], ["17", "Meghalaya"], ["18", "Assam"],
+    ["19", "West Bengal"], ["20", "Jharkhand"], ["21", "Odisha"], ["22", "Chhattisgarh"], ["23", "Madhya Pradesh"], ["24", "Gujarat"],
+    ["26", "Dadra and Nagar Haveli and Daman and Diu"], ["27", "Maharashtra"], ["29", "Karnataka"], ["30", "Goa"], ["31", "Lakshadweep"],
+    ["32", "Kerala"], ["33", "Tamil Nadu"], ["34", "Puducherry"], ["35", "Andaman and Nicobar Islands"], ["36", "Telangana"],
+    ["37", "Andhra Pradesh"], ["38", "Ladakh"]
+  ].map(function (s) { return { code: s[0], name: s[1] }; });
+
   var branches = [
-    { id: "b1", name: "Sec 31", tenantId: "t1" },
-    { id: "b2", name: "Sec 65", tenantId: "t1" },
-    { id: "b3", name: "Golf Course", tenantId: "t1" }
+    { id: "b1", name: "Sec 31", tenantId: "t1", regionId: "r1", city: "Gurugram", stateCode: "06", pin: "122001", gstin: "06AAAAA0000A1Z5", email: "sec31@example.com" },
+    { id: "b2", name: "Sec 65", tenantId: "t1", regionId: "r2", city: "Gurugram", stateCode: "06", pin: "122102", gstin: null, email: "sec65@example.com" },
+    { id: "b3", name: "Golf Course", tenantId: "t1", regionId: "r2", city: "Gurugram", stateCode: "06", pin: "122011", gstin: "06AAAAA0000A2Z4", email: null }
+  ];
+
+  // Build + What's new (#124): sidebar bottom shows "What's new" (unseen count) and a grey version line.
+  var build = { date: "2026-11-20", commit: "abc1234" };
+  var releaseNotes = [
+    { id: "rn3", date: "2026-11-20", title: "Branches & staff", text: "Branch form with region, city, state, PIN and GSTIN. Branch switcher grouped by region." },
+    { id: "rn2", date: "2026-11-19", title: "Releasing soon", text: "Today shows leads that will be released to Unassigned soon." },
+    { id: "rn1", date: "2026-11-18", title: "Settings values", text: "Anyone who can change a settings value now has a General settings page." }
   ];
 
   // Roles are FIXED (decisions #95, #102; notes v3 §2a): seeded, locked rows. Code uses `key`, never a row id.
@@ -699,7 +723,7 @@
       ["dupRef", "Duplicate payment reference", ["CEO", "RM", "CM", "SM", "SE", "MXM", "TR", "FIN", "MKT", "HR"]]],
     notifyRoles: ["RM", "CM", "SM"],
     notifyDefaults: { transferIn: { CM: true }, released: { CM: true }, crossBranch: { CM: true }, dupRef: { CEO: true } },
-    tenants: tenants, branches: branches, roles: roles, platformRoles: platformRoles, users: users, lists: lists, people: people,
+    tenants: tenants, branches: branches, regions: regions, states: states, build: build, releaseNotes: releaseNotes, roles: roles, platformRoles: platformRoles, users: users, lists: lists, people: people,
     trainerTypes: trainerTypes, permissionDefs: permissionDefs, settingDefs: settingDefs,
     followUps: followUps, workTasks: workTasks, timeline: timeline, packages: packages,
     keyFobs: keyFobs, taxCategories: taxCategories, items: items, itemStock: itemStock, stockMoves: stockMoves,

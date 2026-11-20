@@ -797,3 +797,13 @@
     Add-on editable. PT TRIAL packages keep the #94 rule (editable, default OFF = leads may book them). (c) Dummies: Sec 31
     lead Ishita Rao (p44) inside the release-warning window; Club Manager Ritu Saxena (u18) at Sec 65 (she now also gets
     Sec 65's CM notifications, e.g. cross-branch work).
+124. Align with the real app (20 Nov 2026, c21). (a) Initials = first letter of the FIRST word + first letter of the LAST
+    word ("Priya Kumar Sharma" -> PS; one word -> one letter). (b) Table headers in sentence case ("Next follow-up").
+    (c) Sidebar bottom, under the user: a "What's new" button (unseen count; opens the release notes, then marks them
+    seen) and a small grey version line "Build <date> · <commit>". (d) Multi-branch roles: ONLY Regional Manager,
+    Finance, HR, Marketing; the CEO (top role) has all branches; every other role has exactly one branch (staff form:
+    one Branch dropdown; multi roles: branch checkboxes, at least one). (e) Branch form: Name*, Region* (regions set by
+    the CEO), City*, State* (fixed list of states / UTs with GST codes), PIN* (6 digits), GSTIN (optional; 15
+    characters, starts with the state's GST code), Email (optional). Branches list: Region, City, Club Manager columns
+    + Region filter (Settings › Branches & staff; CEO edits, others view). (f) Branch switcher: grouped by region; a
+    search box appears from 6 branches.

@@ -82,7 +82,22 @@
     if (!id || id === "all") return "All branches";
     var b = App.byId(DUMMY.branches, id); return b ? b.name : "—";
   };
-  App.initials = function (name) { return String(name || "").split(" ").map(function (w) { return w.charAt(0); }).join("").slice(0, 2).toUpperCase(); };
+  // Initials (#124): first letter of the FIRST word + first letter of the LAST word ("Priya Kumar Sharma" -> PS).
+  App.initials = function (name) {
+    var w = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!w.length) return "";
+    return (w[0].charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : "")).toUpperCase();
+  };
+  // Branches (#124): region, state, multi-branch roles.
+  App.regionName = function (id) { var r = App.byId(DUMMY.regions, id); return r ? r.name : "—"; };
+  App.stateName = function (code) { var s = DUMMY.states.filter(function (x) { return x.code === code; })[0]; return s ? s.name : "—"; };
+  App.MULTI_BRANCH_ROLES = ["REGIONAL_MANAGER", "FINANCE", "HR", "MARKETING"];   // CEO = all branches; every other role exactly one
+  App.roleBranchMode = function (roleKey) {
+    var r = DUMMY.roles.filter(function (x) { return x.key === roleKey; })[0];
+    if (!r) return "single";
+    return App.isTopShort(r.short) ? "all" : App.MULTI_BRANCH_ROLES.indexOf(roleKey) > -1 ? "multi" : "single";
+  };
+  App.branchCM = function (branchId) { return DUMMY.users.filter(function (u) { return u.roleKey === "CLUB_MANAGER" && u.branchIds.indexOf(branchId) > -1; }); };
   App.formatDate = function (iso) {
     if (!iso) return "Not set yet";
     var d = new Date(iso); if (isNaN(d)) return "Not set yet";

@@ -33,7 +33,7 @@ App shell (sidebar, top bar, branch/role menus, Ctrl+K palette) comes from `shar
 |---|---|---|---|---|---|
 | Name | text | Yes | No | — | Bold. "Meta" badge if the lead was synced (`synced` / `externalId`). Pinned left when the table scrolls. |
 | Mobile | country code + number | Yes | Yes (company-wide) | +91 | Shown under name as "+91 90000 01234". |
-| NEXT FOLLOW-UP | date-time + derived status | — (system) | No | — | **Most prominent column**, pinned left. Earliest *Open* follow-up of the lead. Status badge (colour + words): **Overdue · N days** (red), **Due today · time** (amber), **Scheduled · Tomorrow / weekday / date** (green), **Not set yet** (red). Follow-up type shown below. Lost leads show "— (lost lead)". |
+| Next follow-up | date-time + derived status | — (system) | No | — | **Most prominent column**, pinned left. Header in sentence case like the others (#124). Earliest *Open* follow-up of the lead. Status badge (colour + words): **Overdue · N days** (red), **Due today · time** (amber), **Scheduled · Tomorrow / weekday / date** (green), **Not set yet** (red). Follow-up type shown below. Lost leads show "— (lost lead)". |
 | Stage | list (configurable) + fixed Converted/Lost | Yes (system) | No | New | Badge. Converted leads are Clients and are not listed. Extra tag "Re-opened" if re-opened. Lost shows "Reason: …". Free trial shows "Free trial · ends in N days". |
 | Temperature | Hot / Warm / Cold (fixed) | Yes | No | Warm | Badge with word. |
 | Source | list (configurable) | Yes | No | — | |

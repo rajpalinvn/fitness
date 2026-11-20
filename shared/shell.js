@@ -171,7 +171,7 @@
   }
 
   function renderSidebar() {
-    var counts = App.counts(), u = App.demoUser(), collapsed = app.classList.contains("sb-collapsed");
+    var counts = App.counts(), u = App.demoUser(), collapsed = app.classList.contains("sb-collapsed"), unseen = App.WhatsNew.unseen().length;
     $(".sidebar", app).innerHTML =
       '<div class="sb-brand"><div class="sb-logo" aria-hidden="true">FL</div><div class="sb-text">' +
         '<div class="sb-name">Fitness Labs</div><div class="sb-branch">' + esc(App.branchName(App.state.branchId)) + "</div></div></div>" +
@@ -185,14 +185,65 @@
           '<span class="nav-icon">' + App.icon(collapsed ? "chevrons-right" : "chevrons-left") + '</span><span class="nav-label">Collapse</span></button>' +
         '<div class="sb-user" data-tip="' + esc(u.name + " · " + u.role) + '"><span class="avatar">' + esc(App.initials(u.name)) + "</span>" +
           '<span class="sb-user-text"><span class="sb-user-name">' + esc(u.name) + '</span><span class="sb-user-role">' + esc(u.role) + "</span></span></div>" +
+        // Two lines under the user (#124): What's new (unseen count) + a small grey version line.
+        '<button class="nav-item sb-news" data-whats-new data-tip="What&#39;s new" aria-label="What&#39;s new' + (unseen ? ", " + unseen + " new" : "") + '">' +
+          '<span class="nav-icon">' + App.icon("info") + (unseen ? '<span class="nav-badge neutral" data-news-count>' + unseen + "</span>" : "") + "</span>" +
+          '<span class="nav-label">What&#39;s new</span></button>' +
+        '<div class="sb-version" data-version>' + esc(App.buildLine()) + "</div>" +
       "</div>";
   }
+
+  // ---------- What's new (#124) ----------
+  App.buildLine = function () { var b = DUMMY.build || {}; return "Build " + App.empty(b.date) + " · " + App.empty(b.commit); };
+  App.WhatsNew = {
+    seen: function () { return (App.sessionGet("newsSeen") || "").split(",").filter(Boolean); },
+    unseen: function () { var s = App.WhatsNew.seen(); return DUMMY.releaseNotes.filter(function (n) { return s.indexOf(n.id) < 0; }); },
+    open: function () {
+      var m = App.makeModal("newsModal"), s = App.WhatsNew.seen();
+      m.title.textContent = "What's new";
+      m.body.innerHTML = DUMMY.releaseNotes.length ? '<ul class="news-list">' + DUMMY.releaseNotes.map(function (n) {
+        return '<li><div class="row row-tight"><strong>' + esc(n.title) + "</strong>" + (s.indexOf(n.id) < 0 ? ' <span class="badge badge-info">New</span>' : "") +
+          '</div><div class="cell-sub">' + esc(App.formatDate(n.date)) + "</div><p>" + esc(n.text) + "</p></li>";
+      }).join("") + "</ul>" : '<p class="muted">Nothing new yet.</p>';
+      m.body.innerHTML += '<p class="sb-version">' + esc(App.buildLine()) + "</p>";
+      m.foot.innerHTML = '<button class="btn btn-primary" data-close>Close</button>';
+      App.openModal("newsModal");
+      App.sessionSet("newsSeen", DUMMY.releaseNotes.map(function (n) { return n.id; }).join(","));
+      renderSidebar();
+    }
+  };
 
   function menuItem(attrs, label, selected, icon) {
     return '<button class="dd-item" role="' + (selected == null ? "menuitem" : "menuitemradio") + '" tabindex="-1" ' + attrs +
       (selected == null ? "" : ' aria-checked="' + selected + '"') + ">" +
       '<span class="dd-check">' + (selected ? App.icon("check") : icon ? App.icon(icon) : "") + "</span><span>" + label + "</span></button>";
   }
+
+  // Branch switcher (#124): grouped by region; a search box from 6 branches.
+  App.BRANCH_SEARCH_FROM = 6;
+  function branchMenu(br) {
+    var many = DUMMY.branches.length >= App.BRANCH_SEARCH_FROM;
+    var groups = DUMMY.regions.map(function (r) { return { r: r, list: DUMMY.branches.filter(function (b) { return b.regionId === r.id; }) }; })
+      .concat([{ r: { name: "No region" }, list: DUMMY.branches.filter(function (b) { return !App.byId(DUMMY.regions, b.regionId); }) }])
+      .filter(function (g) { return g.list.length; });
+    return (many ? '<div class="dd-search">' + App.icon("search") + '<input class="input" type="text" data-branch-search placeholder="Search branches" aria-label="Search branches" autocomplete="off"></div>' : "") +
+      menuItem('data-branch="all"', "All branches", br === "all") +
+      groups.map(function (g) {
+        return '<div class="dd-group" data-branch-group><div class="dd-sublabel">' + esc(g.r.name) + "</div>" +
+          g.list.map(function (b) { return menuItem('data-branch="' + b.id + '" data-branch-name="' + esc((b.name + " " + (b.city || "") + " " + g.r.name).toLowerCase()) + '"', esc(b.name), br === b.id); }).join("") + "</div>";
+      }).join("") + '<div class="dd-empty muted" data-branch-none hidden>No branch matches</div>';
+  }
+  function filterBranches(q) {
+    q = q.toLowerCase().trim(); var any = false;
+    $all("[data-branch-group]").forEach(function (g) {
+      var vis = 0;
+      $all("[data-branch-name]", g).forEach(function (i) { var on = !q || i.dataset.branchName.indexOf(q) > -1; i.hidden = !on; if (on) vis++; });
+      g.hidden = !vis; if (vis) any = true;
+    });
+    var all = $('[data-branch="all"]'); if (all) all.hidden = !!q;
+    var none = $("[data-branch-none]"); if (none) none.hidden = any;
+  }
+  App.filterBranches = filterBranches;
 
   function renderTopbar() {
     var counts = App.counts(), u = App.demoUser(), role = App.state.role, br = App.state.branchId;
@@ -209,9 +260,7 @@
           '<button class="pill" data-dd="branch" aria-haspopup="menu" aria-expanded="false" aria-label="Branch: ' + esc(App.branchName(br)) + '">' +
             App.icon("building") + '<span class="pill-text">' + esc(App.branchName(br)) + "</span>" + App.icon("chevron-down", "ico-sm") + "</button>" +
           '<div class="dd-menu" data-dd-menu="branch" role="menu" hidden>' +
-            '<div class="dd-label">Branch</div>' +
-            menuItem('data-branch="all"', "All branches", br === "all") +
-            DUMMY.branches.map(function (b) { return menuItem('data-branch="' + b.id + '"', esc(b.name), br === b.id); }).join("") +
+            '<div class="dd-label">Branch</div>' + branchMenu(br) +
           "</div></div>" +
         '<div class="dd">' +
           '<button class="icon-round" data-dd="bell" aria-haspopup="menu" aria-expanded="false" aria-label="Notifications' +
@@ -267,7 +316,7 @@
     if (restore && openDD.trigger && document.contains(openDD.trigger)) openDD.trigger.focus();
     openDD = null; return true;
   }
-  function items(menu) { return $all(".dd-item, [data-mark-read]", menu); }
+  function items(menu) { return $all(".dd-item:not([hidden]), [data-mark-read], [data-branch-search]", menu).filter(function (x) { return !x.closest("[hidden]"); }); }
   function openMenu(name, trigger) {
     collapseSearch();
     closeDD(false);
@@ -366,6 +415,7 @@
     }
     if ((t = e.target.closest("[data-branch]"))) { closeDD(true); App.setBranch(t.dataset.branch); return; }
     if ((t = e.target.closest("[data-role]"))) { closeDD(true); App.setRole(t.dataset.role); return; }
+    if ((t = e.target.closest("[data-whats-new]"))) { App.WhatsNew.open(); return; }
     if ((t = e.target.closest("[data-mark-read]"))) {   // "Mark all read" (#120)
       DUMMY.notifications.forEach(function (n) { n.unread = false; });
       closeDD(false); renderTopbar(); App.toast("All notifications marked as read", ""); return;
@@ -413,7 +463,10 @@
       else if (e.key === "Tab") collapseSearch();
     }
   });
-  document.addEventListener("input", function (e) { if (e.target.matches("[data-search-input]")) { sIndex = 0; renderSearch(); } });
+  document.addEventListener("input", function (e) {
+    if (e.target.matches("[data-search-input]")) { sIndex = 0; renderSearch(); }
+    if (e.target.matches("[data-branch-search]")) filterBranches(e.target.value);
+  });
   document.addEventListener("focusin", function (e) { if (e.target.matches && e.target.matches("[data-search-input]")) expandSearch(); });
   document.addEventListener("mock:context", render);
   document.addEventListener("mock:data", render);

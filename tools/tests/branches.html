@@ -1,0 +1,119 @@
+<!doctype html>
+<html><head><meta charset="utf-8"></head><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c21 (#124): initials, sentence-case header, sidebar What's new + version line, multi-branch roles,
+// branch form (Region, City, State, PIN, GSTIN, Email), Branches list (Region / City / Club Manager + Region filter),
+// branch switcher grouped by region with a search box from 6 branches.
+var ROOT = "../../", BR = ROOT + "features/settings/branches.html", LEADS = ROOT + "features/leads/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; } function D() { return W().DUMMY; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function setVal(s, v) { var e = q(s); e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function role(r) { A().setRole(r); }
+
+load(BR, function () {
+  ["mock.newsSeen", "mock.branch"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  W().sessionStorage.setItem("mock.role", "CEO");
+  load(BR, function () {
+    step("Initials: first + last word", function () {
+      var I = A().initials;
+      ok("Priya Kumar Sharma -> PS", I("Priya Kumar Sharma") === "PS", I("Priya Kumar Sharma"));
+      ok("two words, one word, extra spaces, empty", I("Anita Kapoor") === "AK" && I("Madonna") === "M" && I("  ravi   kumar  ") === "RK" && I("") === "", [I("Madonna"), I("  ravi   kumar  ")].join());
+    });
+    step("Sidebar: What's new (unseen count) + version line", function () {
+      var n = D().releaseNotes.length;
+      ok("What's new button with unseen count", !!q("[data-whats-new]") && text("[data-whats-new] [data-news-count]") === String(n), text("[data-whats-new]"));
+      ok("grey version line 'Build <date> · <commit>'", /^Build 2026-11-20 · abc1234$/.test(text("[data-version]")), text("[data-version]"));
+      click(q("[data-whats-new]"));
+      ok("modal lists the notes; count clears", q("#newsModal").classList.contains("open") && /Branches & staff/.test(text("#newsModal")) && !q("[data-news-count]"));
+      A().closeAll();
+      ok("modal closes", !q("#newsModal").classList.contains("open"));
+    });
+    step("Multi-branch roles", function () {
+      var m = A().roleBranchMode;
+      ok("RM / Finance / HR / Marketing = multi; CEO = all; others single",
+        ["REGIONAL_MANAGER", "FINANCE", "HR", "MARKETING"].every(function (k) { return m(k) === "multi"; }) && m("CEO") === "all" &&
+        ["CLUB_MANAGER", "SALES_MANAGER", "SALES_EXECUTIVE", "MXM", "TRAINER"].every(function (k) { return m(k) === "single"; }));
+      ok("dummy staff: single-branch roles have exactly one branch", D().users.filter(function (u) { return !u.platform && m(u.roleKey) === "single"; }).every(function (u) { return u.branchIds.length === 1; }));
+      ok("save rule: single needs 1, multi needs >= 1", A().validateStaffBranches("SALES_EXECUTIVE", ["b1", "b2"]) !== "" && A().validateStaffBranches("SALES_EXECUTIVE", ["b1"]) === "" && A().validateStaffBranches("HR", []) !== "");
+    });
+    step("Branches list: Region + City + Club Manager columns, Region filter", function () {
+      var h = text("thead");
+      ok("columns", /Region/.test(h) && /City/.test(h) && /Club Manager/.test(h), h);
+      ok("Sec 31 row: Gurugram Central, Gurugram, Sunita", /Gurugram Central/.test(text('tr[data-id="b1"]')) && /Sunita Iyer/.test(text('tr[data-id="b1"]')));
+      ok("Golf Course: no CM -> Not set yet", /Not set yet/.test(text('tr[data-id="b3"]')));
+      setVal("#fRegion", "r2");
+      ok("Region filter: Gurugram South -> Sec 65 + Golf Course", qa("#rows tr[data-id]").length === 2 && !q('tr[data-id="b1"]'));
+      setVal("#fRegion", "");
+      ok("no bad text", !badText(), badText());
+    });
+    step("Branch form: required, PIN, GSTIN prefix, email", function () {
+      click(q('[data-bs="add"]'));
+      ok("drawer open with Region / City / State / PIN / GSTIN / Email", q("#branchDrawer").classList.contains("open") && ["#brRegion", "#brCity", "#brState", "#brPin", "#brGstin", "#brEmail"].every(function (s) { return !!q(s); }));
+      ok("state list is fixed (36 states + UTs)", q("#brState").options.length === 37, q("#brState").options.length);
+      click(q('[data-bs="saveBranch"]'));
+      ok("required errors", /Enter the branch name/.test(text("#branchDrawer")) && /Pick a region/.test(text("#branchDrawer")) && /Pick a state/.test(text("#branchDrawer")) && /Enter the PIN/.test(text("#branchDrawer")));
+      var V = A().validateBranch, base = { name: "Sohna Road", regionId: "r2", city: "Gurugram", stateCode: "06", pin: "122018", gstin: "", email: "" };
+      ok("valid without GSTIN / email", Object.keys(V(base)).length === 0, JSON.stringify(V(base)));
+      ok("PIN must be 6 digits", !!V(Object.assign({}, base, { pin: "12201" })).pin && !!V(Object.assign({}, base, { pin: "12a018" })).pin);
+      ok("GSTIN must start with the state code", /must start with 06/.test(V(Object.assign({}, base, { gstin: "07AAAAA0000A1Z5" })).gstin || ""));
+      ok("bad email rejected", !!V(Object.assign({}, base, { email: "x@" })).email);
+      ok("duplicate name rejected", !!V(Object.assign({}, base, { name: "sec 31" })).name);
+      setVal("#brName", "Sohna Road"); setVal("#brRegion", "r2"); setVal("#brCity", "Gurugram"); setVal("#brState", "06");
+      ok("hint shows the state's GST code", /\(06\)/.test(text("#branchDrawer")));
+      setVal("#brPin", "122018"); setVal("#brGstin", "06aaaaa0000a3z3");
+      click(q('[data-bs="saveBranch"]'));
+      var nb = D().branches.filter(function (b) { return b.name === "Sohna Road"; })[0];
+      ok("saved (GSTIN upper-cased), drawer closed, row shown", !!nb && nb.gstin === "06AAAAA0000A3Z3" && !q("#branchDrawer").classList.contains("open") && /Sohna Road/.test(text("#rows")));
+      D().branches.splice(D().branches.indexOf(nb), 1); A().dataChanged();
+    });
+    step("Staff form: one dropdown for single roles, checkboxes for multi", function () {
+      click(q('[data-btab="staff"]'));
+      click(q('[data-bs="staff"][data-id="u6"]'));
+      ok("SE: one Branch dropdown, no checkboxes", !!q("#sfBranch") && !q("[data-sf-branch]"));
+      setVal("#sfRole", "HR");
+      ok("switch to HR: branch checkboxes", !!q("[data-sf-branch]") && !q("#sfBranch"));
+      setVal("#sfRole", "CEO");
+      ok("CEO: All branches, no picker", /All branches/.test(text("#staffDrawer")) && !q("#sfBranch") && !q("[data-sf-branch]"));
+      A().closeAll();
+      role("Sales Executive");
+      ok("non-CEO: view only, no Add branch", /View only/.test(text("#banner")) && !q('[data-bs="add"]'));
+      role("CEO");
+    });
+    step("Branch switcher: grouped by region; search from 6 branches", function () {
+      click(q('.topbar [data-dd="branch"]'));
+      var m = q('[data-dd-menu="branch"]');
+      ok("groups by region", m.querySelectorAll("[data-branch-group]").length === 2 && /Gurugram Central/.test(m.innerText) && /Gurugram South/.test(m.innerText));
+      ok("3 branches: no search box", !m.querySelector("[data-branch-search]"));
+      click(Dc().body);
+      var keep = D().branches.length;
+      ["Noida 18", "Noida 62", "Dwarka"].forEach(function (n, i) { D().branches.push({ id: "bt" + i, name: n, tenantId: "t1", regionId: "r1", city: i < 2 ? "Noida" : "Delhi", stateCode: "09", pin: "201301" }); });
+      A().refreshShell();
+      click(q('.topbar [data-dd="branch"]'));
+      m = q('[data-dd-menu="branch"]');
+      ok("6 branches: search box shown", !!m.querySelector("[data-branch-search]"));
+      var s = m.querySelector("[data-branch-search]"); s.value = "noida"; s.dispatchEvent(new (W().Event)("input", { bubbles: true }));
+      var vis = Array.prototype.filter.call(m.querySelectorAll("[data-branch-name]"), function (i) { return !i.hidden && !i.closest("[hidden]"); });
+      ok("search filters (city match)", vis.length === 2, vis.length);
+      s.value = "zzz"; s.dispatchEvent(new (W().Event)("input", { bubbles: true }));
+      ok("no match message", !m.querySelector("[data-branch-none]").hidden);
+      click(Dc().body);
+      D().branches.length = keep; A().refreshShell();
+    });
+    load(LEADS, function () {
+      step("Leads table header sentence case", function () {
+        ok("'Next follow-up'", text("th.col-next") === "Next follow-up" || /Next follow-up/.test(q("th.col-next").textContent), text("th.col-next"));
+      });
+      document.getElementById("out").textContent = out.join("\n");
+    });
+  });
+});
+</script>
+</body></html>

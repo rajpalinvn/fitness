@@ -8,7 +8,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 - **Tick** cells: Yes / No. **Number** cells: whole number 0–100 (%). **Pct + cap** cell (`sales.discountMax`): { pct 0–100, capRupees >= 0 }; the LOWER of (pct % of the package line) and the cap applies; cap 0 = no cap; pct 0 = no discount. Premium PT: on the PT part only.
 - **Roles** (10 tenant roles, #102, #114): CEO, RM (Regional Manager), CM (Club Manager), SM (Sales Manager), SE (Sales Executive),
   MXM, TR (Trainer), FIN (Finance), MKT (Marketing), HR. Multi-branch roles (branches picked when the user is created, one or
-  many): RM, Finance, HR, Marketing. Only CEO has All. SuperAdmin is a platform role (creates tenants + the first CEO account) and has no column.
+  many): RM, Finance, HR, Marketing. Only CEO has All. Every other role has exactly one branch (#124). SuperAdmin is a platform role (creates tenants + the first CEO account) and has no column.
 - **Locked**: CEO has every permission (whole column locked, top tenant role). `settings.rolesPermissions` is locked for every
   role (CEO only). `leads.view` can't go below Own for CEO / RM / CM / SM / SE ("an owner can always see and log follow-ups on
   their own leads"). Validation, not a lock: at least one role besides CEO keeps `leads.assign`.
