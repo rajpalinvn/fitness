@@ -29,14 +29,14 @@
 | Type | chips | Yes | No | Call (next step: same type as the finished one) | FIXED code list (#119), not a master: Call (CALL), WhatsApp (WHATSAPP), Visit planned (VISIT_PLANNED), Free trial planned (FREE_TRIAL_PLANNED), Payment expected (PAYMENT_EXPECTED) |
 | When (`dueDate`) | chips | Yes | No | Tomorrow | Tomorrow, In 3 days, In 1 week, Custom (date picker, not in the past). Stored as "YYYY-MM-DD". |
 | Time (`dueTime`) | time | No | No | 11:00 | Clear it for "any time" (stored null). Status is by date only (decision #24). |
-| Note | text area | No | No | — | |
+| Note | text area | **Yes** (#127) | No | — | "Add a note: what is this follow-up about?" |
 | Assigned to (`ownerUserId`) | staff (shown, not editable) | — | — | Lead owner | |
 
 ### Log outcome
 | Field | Type | Required | Unique | Default | Notes |
 |---|---|---|---|---|---|
 | Outcome | chips | Yes | No | none | Interested, No answer, Call later, Will visit, Not interested |
-| Note | text area | No | No | — | Added to the follow-up's note. |
+| Note | text area | **Yes** (#127) | No | — | Added to the follow-up's note. "Add a note: what did they say?" |
 
 ### Cancel follow-up
 | Field | Type | Required | Unique | Default | Notes |

@@ -57,9 +57,9 @@ load(LEADS, function () {
         ok("outcome modal opens", modalOpen("fuOutcomeModal"));
         click(q('#fuOutcomeModal [data-save]'));
         ok("outcome required", vis(q("#fuOutcomeModal [data-oerr]")));
-        click(chip(q("#fuOutcomeModal"), "Interested")); click(q('#fuOutcomeModal [data-save]'));
+        click(chip(q("#fuOutcomeModal"), "Interested")); q("#fuONote").value = "Wants quarterly"; click(q('#fuOutcomeModal [data-save]'));
         ok("asks next follow-up", /Next follow-up/.test(text("#fuOutcomeModal [data-m-title]")) && !!q("#fuOutcomeModal .ff"));
-        click(q('#fuOutcomeModal [data-save]'));
+        q("#fuOutcomeModal .ff-note").value = "Send the price"; click(q("#fuOutcomeModal [data-save]"));
         ok("modal closes after next saved", !modalOpen("fuOutcomeModal"));
         ok("NEXT STEP now green", q(".pd-left .next-step").classList.contains("green"), q(".pd-left .next-step").className);
         ok("timeline links next follow-up", /Interested · next call tomorrow/.test(text(".pd-scroll")), text(".pd-scroll").slice(0, 300));
@@ -78,7 +78,7 @@ load(LEADS, function () {
       step("not interested -> lost -> reopen (Kavya)", function () {
         openP("p4");
         click(q('.next-step [data-pd="outcome"]'));
-        click(chip(q("#fuOutcomeModal"), "Not interested")); click(q('#fuOutcomeModal [data-save]'));
+        click(chip(q("#fuOutcomeModal"), "Not interested")); q("#fuONote").value = "Moving away"; click(q('#fuOutcomeModal [data-save]'));
         ok("asks Mark as Lost?", /Mark as Lost\?/.test(text("#fuOutcomeModal [data-m-title]")));
         click(q("#fuOutcomeModal [data-lost]"));
         click(chip(q("#fuOutcomeModal"), "Other")); click(q('#fuOutcomeModal [data-save]'));
@@ -93,7 +93,7 @@ load(LEADS, function () {
         ok("re-open restores stage, clears reason", person("p4").stage === "Contacted" && !person("p4").lostReason, person("p4").stage);
         ok("timeline says Re-opened", /Re-opened by/.test(text(".pd-scroll")));
         ok("re-open asks next follow-up", modalOpen("fuAddModal"));
-        click(q("#fuAddModal [data-save]"));
+        q("#fuAddModal .ff-note").value = "Call back about price"; click(q("#fuAddModal [data-save]"));
         ok("next follow-up set after re-open", q(".pd-left .next-step").classList.contains("green"));
       });
       step("mark lost from menu", function () {

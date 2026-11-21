@@ -55,6 +55,47 @@ load(CL, function () {
       A().closeAll(); A().closeAll();
       ok("no bad text", !badText(), badText());
     });
+    // ---------- Part 2 ----------
+    step("Part 2: follow-up notes required", function () {
+      role("CEO");
+      A().Followup.openAdd("p2");
+      click(q("#fuAddModal [data-save]"));
+      ok("Add follow-up: note required", !q("#fuAddModal .ff-nerr").hidden && q("#fuAddModal").classList.contains("open"));
+      q("#fuAddModal .ff-note").value = "Call about the trial"; click(q("#fuAddModal [data-save]"));
+      ok("saved with the note", !q("#fuAddModal").classList.contains("open"));
+      var f = D().followUps.filter(function (x) { return x.personId === "p2" && x.status === "Open"; }).pop();
+      A().Followup.openOutcome(f.id);
+      click(q('#fuOutcomeModal [data-chip="Interested"], #fuOutcomeModal [data-chip][data-val="Interested"]') || Array.prototype.filter.call(qa("#fuOutcomeModal [data-chip]"), function (c) { return /Interested/.test(c.textContent) && !/Not/.test(c.textContent); })[0]);
+      click(q("#fuOutcomeModal [data-save]"));
+      ok("Log outcome: note required", !q("#fuOutcomeModal [data-onerr]").hidden && f.status === "Open");
+      A().closeAll();
+    });
+    step("Part 2: Source vs Inquiry type, Campaign, Referred by, no FF ID on leads", function () {
+      var Ls = D().lists;
+      ok("inquiry types fixed list", Ls.inquiryTypes.join() === "Walk-in,Phone call,WhatsApp,Website form,Social DM");
+      ok("sources = marketing channels (no Walk-in / Phone / WhatsApp)", !/Walk-in|Phone Call|WhatsApp/.test(Ls.sources.join()) && Ls.campaignSources.join() === "Facebook,Instagram,Google ads");
+      A().QuickLead.open({ mobile: "90000 08888" });
+      ok("quick lead: no FF ID, Inquiry type required in the main part", !q("#qlFf") && !!q("#qlInq") && /Inquiry type \*/.test(q('label[for="qlInq"]') ? q('label[for="qlInq"]').innerText.replace(/\s+/g, " ") : text("#quickLeadDrawer")));
+      ok("Campaign + Referred by hidden until a matching source", q('#quickLeadDrawer [data-src-show="campaign"]').hidden && q('#quickLeadDrawer [data-src-show="referral"]').hidden);
+      setVal("#qlName", "Test Person"); setVal("#qlSource", "Facebook");
+      ok("Facebook: Campaign shown", !q('#quickLeadDrawer [data-src-show="campaign"]').hidden && q('#quickLeadDrawer [data-src-show="referral"]').hidden);
+      setVal("#qlSource", "Referral");
+      ok("Referral: Referred by shown, Campaign hidden", !q('#quickLeadDrawer [data-src-show="referral"]').hidden && q('#quickLeadDrawer [data-src-show="campaign"]').hidden);
+      click(q('[data-ql="save"]'));
+      ok("required: inquiry type + referred by", /Choose how they contacted us/.test(text("#quickLeadDrawer")) && /Who referred them/.test(text("#quickLeadDrawer")));
+      setVal("#qlRef", "Vivaan");
+      ok("search an existing client", !!q('#quickLeadDrawer [data-ref-pick="p7"]'));
+      click(q('#quickLeadDrawer [data-ref-pick="p7"]'));
+      setVal("#qlInq", "WhatsApp"); click(q('[data-ql="save"]'));
+      var p = D().people[D().people.length - 1];
+      ok("saved: referredById = Vivaan, inquiry WhatsApp, no campaign, no FF ID", p.name === "Test Person" && p.referredById === "p7" && p.referredBy === "Vivaan Joshi" && p.inquiryType === "WhatsApp" && !p.campaign && !p.ffId, JSON.stringify([p.referredById, p.referredBy, p.inquiryType]));
+      A().closeAll(); A().closeAll();
+      openP("p1", "details");
+      ok("lead details: no FF ID", !/FF ID/.test(text("#profileDrawer .pd-body, #profileDrawer")) || !/FF ID/.test(text("#profileDrawer dl")));
+      click(q('#profileDrawer [data-pd="edit"]'));
+      ok("lead edit form: no FF ID input", !q('#profileDrawer [data-details] [name="ffId"]'));
+      A().closeAll();
+    });
     finish();
   });
 });

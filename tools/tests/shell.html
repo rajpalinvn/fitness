@@ -73,7 +73,7 @@ load(BASE, function () {
   // add a follow-up for the no-follow-up lead -> badge and card both drop
   var before = badge("Today");
   var sneha = q('#rows tr[data-id="p2"] [data-act="follow"]'); click(sneha);
-  click(q("#fuAddModal [data-save]"));
+  q("#fuAddModal .ff-note").value = "Call back about price"; click(q("#fuAddModal [data-save]"));
   ok("badge updates after data change, still == card", badge("Today") === attnCard() && badge("Today") !== before, before + " -> " + badge("Today") + " / card " + attnCard());
 
   setSel(q("#fStage"), "Lost"); ok("Lost filter shows the 2 lost leads", rows() === 2 && !!q('#rows tr[data-id="p3"]') && !!q('#rows tr[data-id="p37"]'));

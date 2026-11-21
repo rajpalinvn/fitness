@@ -92,7 +92,7 @@ function s2() {
     var sel = q("#fuAddModal .ff-assign");
     ok("SE (assignFollowUp Own) on own lead: Assigned to, default = owner", !!sel && sel.value === "u6");
     ok("staff from any branch (Arjun Sec 65, Rahul Golf Course)", !!sel.querySelector('option[value="u7"]') && !!sel.querySelector('option[value="u10"]'));
-    pickSel(sel.id, "u7"); click(q("#fuAddModal [data-save]"));
+    pickSel(sel.id, "u7"); q("#fuAddModal .ff-note").value = "Cover while Priya is away"; click(q("#fuAddModal [data-save]"));
     var f = D().followUps[D().followUps.length - 1];
     ok("saved with assignedToUserId = Arjun, owner unchanged", f.personId === "p1" && f.assignedToUserId === "u7" && f.ownerUserId === "u6" && person("p1").ownerUserId === "u6");
     ok("timeline 'Priya set a follow-up for Arjun Nair'", /Priya set a follow-up for Arjun Nair/.test(tl("p1")));

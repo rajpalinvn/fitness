@@ -325,6 +325,56 @@
 
   // ---------- Pending-item actions, shared by the profile and Today (decisions #40, #46, #62) ----------
   function canWaive(p) { return App.scopeAllows("clients.waive", p); }   // grid row clients.waive (#96)
+  // ---------- Source vs Inquiry type (#127) ----------
+  // Source = how they heard of us (marketing channel, master, branch-wise). Inquiry type = how they contacted us (fixed, required).
+  // Campaign shows only for sources with "has campaigns"; Referral asks "Referred by" (pick an existing client or type a name).
+  App.Src = {
+    hasCampaigns: function (s) { return (L.campaignSources || []).indexOf(s) > -1; },
+    isReferral: function (s) { return (L.referralSources || []).indexOf(s) > -1; },
+    // pre = "ql" (quick lead, data-q) or "pd" (Details form, name=…). Both fields are always in the form; hidden unless the source needs them.
+    extraFields: function (source, v, pre, e) {
+      e = e || {};
+      var ql = pre === "ql", a = function (k) { return ql ? 'data-q="' + k + '"' : 'name="' + k + '"'; };
+      return '<div class="field" data-src-show="campaign"' + (App.Src.hasCampaigns(source) ? "" : " hidden") + '><label for="' + pre + 'Camp">Campaign</label>' +
+          '<input class="input" id="' + pre + 'Camp" ' + a("campaign") + ' value="' + esc(v.campaign || "") + '" placeholder="e.g. Diwali Fit 2026"><span class="hint">Only for sources with campaigns.</span></div>' +
+        '<div class="field ref-field" data-src-show="referral"' + (App.Src.isReferral(source) ? "" : " hidden") + '><label for="' + pre + 'Ref">Referred by <span class="req">*</span></label>' +
+          '<input class="input' + (e.referredBy ? " invalid" : "") + '" id="' + pre + 'Ref" ' + a("referredBy") + ' data-ref-input value="' + esc(v.referredBy || "") + '" autocomplete="off" placeholder="Search a client or type a name">' +
+          '<input type="hidden" ' + a("referredById") + ' data-ref-id value="' + esc(v.referredById || "") + '">' +
+          '<div class="ref-sugg dd-menu" data-ref-sugg hidden></div>' +
+          (e.referredBy ? '<span class="error">' + e.referredBy + "</span>" : '<span class="hint" data-ref-hint>' + (v.referredById ? "Client: " + esc(v.referredBy) : "Search an existing client or type a name.") + "</span>") + "</div>";
+    },
+    matches: function (q) {
+      q = String(q || "").toLowerCase().trim(); if (q.length < 2) return [];
+      return D.people.filter(function (o) { return o.kind === "Client" && (o.name.toLowerCase().indexOf(q) > -1 || App.phoneMatches(o, q)); }).slice(0, 5);
+    }
+  };
+  document.addEventListener("input", function (e) {
+    var t = e.target; if (!t.matches || !t.matches("[data-ref-input]") || t._picking) return;
+    var box = t.parentNode.querySelector("[data-ref-sugg]"), hid = t.parentNode.querySelector("[data-ref-id]"), list = App.Src.matches(t.value);
+    if (hid.value) { hid.value = ""; hid.dispatchEvent(new Event("input", { bubbles: true })); }
+    var hint = t.parentNode.querySelector("[data-ref-hint]"); if (hint) hint.textContent = "Search an existing client or type a name.";
+    box.innerHTML = list.length ? list.map(function (o) { return '<button type="button" class="dd-item" data-ref-pick="' + o.id + '"><span><strong>' + esc(o.name) + '</strong> <span class="cell-sub">' + esc(o.cc + " " + o.mobile) + " · " + esc(App.empty(o.clientNo)) + "</span></span></button>"; }).join("")
+      : (t.value.trim().length > 1 ? '<div class="dd-empty muted">No client matches · the typed name is kept</div>' : "");
+    box.hidden = !box.innerHTML;
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-ref-pick]");
+    Array.prototype.forEach.call(document.querySelectorAll("[data-ref-sugg]"), function (x) { if (!b || !x.contains(b)) x.hidden = true; });
+    if (!b) return;
+    var f = b.closest(".ref-field"), o = App.byId(D.people, b.dataset.refPick), inp = f.querySelector("[data-ref-input]"), hid = f.querySelector("[data-ref-id]");
+    inp._picking = true; inp.value = o.name; inp.dispatchEvent(new Event("input", { bubbles: true })); inp._picking = false;
+    hid.value = o.id; hid.dispatchEvent(new Event("input", { bubbles: true }));
+    f.querySelector("[data-ref-sugg]").hidden = true;
+    var hint = f.querySelector("[data-ref-hint]"); if (hint) hint.textContent = "Client: " + o.name;
+  });
+  // Details form: Campaign / Referred by follow the Source select without a re-render.
+  document.addEventListener("change", function (e) {
+    var t = e.target; if (!t.matches || !t.matches('[data-details] [name="source"]')) return;
+    var f = t.closest("[data-details]");
+    f.querySelector('[data-src-show="campaign"]').hidden = !App.Src.hasCampaigns(t.value);
+    f.querySelector('[data-src-show="referral"]').hidden = !App.Src.isReferral(t.value);
+  });
+
   // Details edit (#126): clients need clients.edit; leads unchanged.
   App.canEditDetails = function (p) { return !!p && (p.kind !== "Client" || App.scopeAllows("clients.edit", p)); };
   // FF ID (#126): only via clients.issueItems and only while empty; never edited afterwards.
@@ -510,10 +560,11 @@
         (App.canEditDetails(p) ? '<button class="btn btn-sm" data-pd="edit">' + icon("edit") + "Edit</button>" : '<span class="hint" data-no-edit>View only · editing needs Edit client details</span>') + "</div>" +
         '<h4 class="sec-title">Contact</h4><dl class="kv kv-wide">' +
           kv("Name", p.name) + kv("Mobile", p.cc + " " + p.mobile) + kv("Email", p.email) + kv("Gender", p.gender) +
-          kv("Birth date", p.birthDate && App.fmtIsoDate(p.birthDate)) + kv("FF ID", p.ffId) + "</dl>" +
+          kv("Birth date", p.birthDate && App.fmtIsoDate(p.birthDate)) + (client ? kv("FF ID", p.ffId) : "") + "</dl>" +
         '<h4 class="sec-title">' + (client ? "Lead history" : "Lead info") + '</h4><dl class="kv kv-wide">' +
           kv("Stage", p.stage) + (isLost(p) ? kv("Lost reason", p.lostReason) : "") + kv("Temperature", p.temperature) + kv("Source", p.source) +
-          kv("Inquiry type", p.inquiryType) + kv("Campaign", p.campaign) + kv("Owner", p.ownerUserId && App.userName(p.ownerUserId)) +
+          kv("Inquiry type", p.inquiryType) + (App.Src.hasCampaigns(p.source) || p.campaign ? kv("Campaign", p.campaign) : "") +
+          (App.Src.isReferral(p.source) ? kv("Referred by", p.referredBy) : "") + kv("Owner", p.ownerUserId && App.userName(p.ownerUserId)) +
           kv("Branch", App.branchName(p.branchId)) + kv("Remarks", p.remarks) + kv("External ID", p.externalId) + "</dl>" +
         (client ? '<h4 class="sec-title">Client</h4><dl class="kv kv-wide">' + kv("Client no", p.clientNo) + kv("Home branch", App.branchName(p.homeBranchId)) +
           kv("Joined", p.joinedAt && App.fmtDate(p.joinedAt)) + kv("Key fob", p.keyFob) + kv("Photo", p.photo) + "</dl>" : "") +
@@ -532,14 +583,14 @@
           fld("Email", '<input class="input" name="email" type="email" value="' + esc(p.email || "") + '">', false, "Unique across all branches.") +
           fld("Gender", '<select class="input" name="gender">' + opt(L.genders, p.gender, true) + "</select>") +
           fld("Birth date", '<input class="input" name="birthDate" type="date" value="' + esc(p.birthDate || "") + '">') +
-          (client ? fld("FF ID", '<div class="ro-val" data-ff-ro>' + esc(App.empty(p.ffId, "Not set yet")) + "</div>", false, "Read-only. Added once from Membership (Add FF ID).") :
-            fld("FF ID", '<input class="input" name="ffId" value="' + esc(p.ffId || "") + '">', false, "ID from the other software. Unique.")) +
+          // FF ID (#127): not on leads (only in Convert and on clients); client = read-only (#126).
+          (client ? fld("FF ID", '<div class="ro-val" data-ff-ro>' + esc(App.empty(p.ffId, "Not set yet")) + "</div>", false, "Read-only. Added once from Membership (Add FF ID).") : "") +
           fld("Source", '<select class="input" name="source">' + opt(App.sourcesFor(p.branchId).concat(p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? [p.source] : []), p.source) + "</select>", true, p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? "Not used at this branch. Change it to pick from " + App.branchName(p.branchId) + "'s sources." : "Only sources for " + App.branchName(p.branchId) + ".") +
           fld("Temperature", '<select class="input" name="temperature">' + opt(L.temperatures, p.temperature) + "</select>", true) +
           (stageEditable ? fld("Stage", '<select class="input" name="stage"' + (App.Trial.anyRunning(p) ? " disabled" : "") + ">" + opt(p.stage === "Trial" ? ["Trial"].concat(L.stageChoices) : L.stageChoices, p.stage) + "</select>", true,
             App.Trial.anyRunning(p) ? "Locked while a trial runs (Trial is set by Book trial). It unlocks when the trial ends." : "New / Contacted / Negotiation. Trial is set by Book trial; Converted and Lost by their own actions.") : "") +
-          fld("Inquiry type", '<select class="input" name="inquiryType">' + opt(L.inquiryTypes, p.inquiryType, true) + "</select>") +
-          fld("Campaign", '<input class="input" name="campaign" value="' + esc(p.campaign || "") + '">') +
+          fld("Inquiry type", '<select class="input" name="inquiryType">' + opt(L.inquiryTypes, p.inquiryType, true) + "</select>", true, "How they contacted us.") +
+          App.Src.extraFields(p.source, { campaign: p.campaign, referredBy: p.referredBy, referredById: p.referredById }, "pd") +
         "</div>" +
         fld("Remarks", '<textarea class="input" name="remarks" rows="2">' + esc(p.remarks || "") + "</textarea>") +
         '<div class="error form-error" data-derr hidden></div>' +
@@ -561,11 +612,15 @@
     if (hit) return fail("mobile", App.dupPhoneHtml(hit, 'data-pd="openDup"'));
     if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) return fail("email", "Enter a valid email.");
     if (v.email && D.people.some(function (o) { return o.id !== p.id && (o.email || "").toLowerCase() === v.email.toLowerCase(); })) return fail("email", "This email is already used by another person.");
+    if (!v.inquiryType) return fail("inquiryType", "Choose how they contacted us (Inquiry type).");   // #127
+    if (!App.Src.hasCampaigns(v.source)) v.campaign = "";
+    if (!App.Src.isReferral(v.source)) { v.referredBy = ""; v.referredById = ""; }
+    else if (!v.referredBy) return fail("referredBy", "Who referred them? Search a client or type a name.");
     if (v.ffId && D.people.some(function (o) { return o.id !== p.id && o.ffId === v.ffId; })) return fail("ffId", "This FF ID is already used by another person.");
     p.phone = e164;   // stored E.164 (#118)
     var oldStage = p.stage;
     var labels = { name: "Name", cc: "Mobile", mobile: "Mobile", email: "Email", gender: "Gender", birthDate: "Birth date", ffId: "FF ID", source: "Source",
-      temperature: "Temperature", stage: "Stage", inquiryType: "Inquiry type", campaign: "Campaign", remarks: "Remarks" }, changed = [];
+      temperature: "Temperature", stage: "Stage", inquiryType: "Inquiry type", campaign: "Campaign", remarks: "Remarks", referredBy: "Referred by", referredById: "Referred by" }, changed = [];
     Object.keys(v).forEach(function (k) {
       var nv = v[k] || null; if ((p[k] || null) !== nv) { p[k] = nv; if (changed.indexOf(labels[k]) < 0) changed.push(labels[k]); }
     });
@@ -836,7 +891,9 @@
           '<span class="error" data-qldup' + (dup ? "" : " hidden") + ">" + qlDupHtml(dup) + "</span>" + (dup ? "" : er("mobile")) + '<span class="hint">Unique across all branches.</span></div>' +
         // Mobile first (duplicate check before typing a name), Name second — decision #74.
         '<div class="field"><label for="qlName">Name <span class="req">*</span></label><input class="input' + inv("name") + '" id="qlName" data-q="name" value="' + esc(QL.name) + '" autocomplete="off">' + er("name") + "</div>" +
-        '<div class="field"><label for="qlSource">Source <span class="req">*</span></label><select class="input' + inv("source") + '" id="qlSource" data-q="source">' + opt(App.sourcesFor(QL.branchId), QL.source, "Choose…") + "</select>" + er("source") + "</div>" +
+        '<div class="field"><label for="qlSource">Source <span class="req">*</span></label><select class="input' + inv("source") + '" id="qlSource" data-q="source">' + opt(App.sourcesFor(QL.branchId), QL.source, "Choose…") + "</select>" + (e.source ? er("source") : '<span class="hint">How they heard of us.</span>') + "</div>" +
+        '<div class="field"><label for="qlInq">Inquiry type <span class="req">*</span></label><select class="input' + inv("inquiryType") + '" id="qlInq" data-q="inquiryType">' + opt(L.inquiryTypes, QL.inquiryType, "Choose…") + "</select>" + (e.inquiryType ? er("inquiryType") : '<span class="hint">How they contacted us.</span>') + "</div>" +
+        App.Src.extraFields(QL.source, { campaign: QL.campaign, referredBy: QL.referredBy, referredById: QL.referredById }, "ql", e) +
         '<div class="field"><label>Temperature</label><div class="seg" role="radiogroup" aria-label="Temperature">' + L.temperatures.map(function (t) {
           return '<button type="button" class="seg-btn' + (QL.temperature === t ? " active" : "") + '" role="radio" aria-checked="' + (QL.temperature === t) + '" data-qltemp="' + t + '">' + t + "</button>"; }).join("") + "</div></div>" +
         '<div class="field"><label for="qlOwner">Owner <span class="req">*</span></label><select class="input" id="qlOwner" data-q="ownerUserId">' + qlOwners(QL.branchId).map(function (u) {
@@ -850,9 +907,7 @@
         '<div class="field"><label for="qlEmail">Email</label><input class="input' + inv("email") + '" id="qlEmail" type="email" data-q="email" value="' + esc(QL.email) + '" placeholder="name@example.com">' + (e.email ? er("email") : '<span class="hint">Optional. Unique if given.</span>') + "</div>" +
         '<div class="field"><label for="qlGender">Gender</label><select class="input" id="qlGender" data-q="gender">' + opt(L.genders, QL.gender, "Not set yet") + "</select></div>" +
         '<div class="field"><label for="qlBirth">Birth date</label><input class="input" id="qlBirth" type="date" data-q="birthDate" value="' + esc(QL.birthDate) + '" max="' + App.todayIso() + '"></div>' +
-        '<div class="field"><label for="qlInq">Inquiry type</label><select class="input" id="qlInq" data-q="inquiryType">' + opt(L.inquiryTypes, QL.inquiryType, "Not set yet") + "</select></div>" +
-        '<div class="field"><label for="qlFf">FF ID</label><input class="input mono' + inv("ffId") + '" id="qlFf" data-q="ffId" value="' + esc(QL.ffId) + '" placeholder="e.g. FF-20500">' + (e.ffId ? er("ffId") : '<span class="hint">Optional. Unique company-wide.</span>') + "</div>" +
-        '<div class="field"><label for="qlCamp">Campaign</label><input class="input" id="qlCamp" data-q="campaign" value="' + esc(QL.campaign) + '"></div>' +
+
         '<div class="field"><label for="qlRem">Remarks</label><textarea class="input" id="qlRem" rows="2" data-q="remarks">' + esc(QL.remarks) + "</textarea></div>" +
       "</div>" : "") +
       '<p class="hint mt-3">' + (QL.ownerUserId || App.can("leads.viewUnassigned") !== "None" ? "After saving, the profile opens and asks for the first follow-up." : "After saving, you get a confirmation; the lead goes to the Unassigned list.") + "</p>";
@@ -867,6 +922,7 @@
       if (QL.source && App.sourcesFor(QL.branchId).indexOf(QL.source) < 0) QL.source = "";   // #115: source must apply to the branch
       qlRender(); return;
     }
+    if (k === "source" && e.type === "change") { qlRender(); return; }   // #127: Campaign / Referred by follow the source
     if (k === "mobile" || k === "cc") {   // live duplicate check
       var dup = qlDup(), box = ql.querySelector("[data-qldup]");
       box.innerHTML = qlDupHtml(dup); box.hidden = !dup; ql.querySelector("#qlMobile").classList.toggle("invalid", !!dup);
@@ -885,12 +941,11 @@
     if (!QL.name.trim()) e.name = "Name is required.";
     if (App.mobileDigits(QL.mobile).length < 10) e.mobile = "Enter a 10-digit mobile number.";
     if (!QL.source) e.source = "Choose a source.";
+    if (!QL.inquiryType) e.inquiryType = "Choose how they contacted us.";   // #127
+    if (App.Src.isReferral(QL.source) && !QL.referredBy.trim()) e.referredBy = "Who referred them? Search a client or type a name.";
     if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) e.email = "Check the email format.";
     else if (em && D.people.some(function (o) { return (o.email || "").toLowerCase() === em; })) e.email = "This email is already used by another person.";
-    var ff = QL.ffId.trim().toLowerCase();
-    if (ff) { var fd = D.people.filter(function (o) { return (o.ffId || "").toLowerCase() === ff; })[0];
-      if (fd) e.ffId = fd.branchId === QL.branchId ? "Already used by <strong>" + esc(fd.name) + "</strong>." : "Already exists in " + esc(App.branchName(fd.branchId)) + " · Owner: " + esc(fd.ownerUserId ? App.firstName(App.byId(D.users, fd.ownerUserId)) : "Unassigned") + "."; }
-    if (e.email || e.ffId) QL.more = true;
+    if (e.email) QL.more = true;
     QL.errors = e;
     if (Object.keys(e).length || qlDup()) { qlRender(); var f = ql.querySelector(".invalid"); if (f) f.focus(); return; }
     var now = new Date().toISOString(), me = App.me(), id = "p" + (D.people.length + 1);
@@ -898,8 +953,9 @@
     if (!qlOwners(QL.branchId).some(function (u) { return u.id === QL.ownerUserId; })) QL.ownerUserId = qlDefaultOwner();   // never trust the select
     var owner = QL.ownerUserId || null;
     var p = { id: id, kind: "Lead", name: QL.name.trim(), cc: QL.cc, mobile: fmtMobile(QL.mobile), phone: App.toE164(QL.cc, QL.mobile), email: em || null, gender: QL.gender || null,
-      birthDate: QL.birthDate || null, ffId: QL.ffId.trim() || null, source: QL.source, temperature: QL.temperature, stage: "New", lostReason: null,
-      inquiryType: QL.inquiryType || null, campaign: QL.campaign.trim() || null, ownerUserId: owner, unassignedReason: owner ? undefined : "New", branchId: QL.branchId,
+      birthDate: QL.birthDate || null, ffId: null, source: QL.source,
+      referredBy: App.Src.isReferral(QL.source) ? QL.referredBy.trim() : null, referredById: App.Src.isReferral(QL.source) ? (QL.referredById || null) : null, temperature: QL.temperature, stage: "New", lostReason: null,
+      inquiryType: QL.inquiryType || null, campaign: App.Src.hasCampaigns(QL.source) ? (QL.campaign.trim() || null) : null, ownerUserId: owner, unassignedReason: owner ? undefined : "New", branchId: QL.branchId,
       remarks: QL.remarks.trim() || null, externalId: null, createdAt: now, lastActivityAt: now, createdByUserId: me.id, ownerHistory: [], freeTrialCount: 0 };
     D.people.push(p);
     App.close(ql);
@@ -921,7 +977,7 @@
       var num = String(o.mobile || "").trim(), cc = "+91";
       var m1 = /^(\+\d{1,3})\s+(.*)$/.exec(num); if (m1 && L.countryCodes.indexOf(m1[1]) > -1) { cc = m1[1]; num = m1[2]; }
       QL = { name: "", cc: cc, mobile: num, source: "", temperature: "Warm", ownerUserId: qlDefaultOwner(), branchId: br, more: false,
-        email: "", gender: "", birthDate: "", ffId: "", inquiryType: "", campaign: "", remarks: "", errors: {} };
+        email: "", gender: "", birthDate: "", inquiryType: "", campaign: "", referredBy: "", referredById: "", remarks: "", errors: {} };
       qlRender();
       App.openDrawer("quickLeadDrawer");
       setTimeout(function () { var f = ql.querySelector(num ? "#qlName" : "#qlMobile"); if (f) f.focus(); }, 60);

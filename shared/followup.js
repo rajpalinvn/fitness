@@ -48,7 +48,7 @@
           '<div class="row ff-when"><input class="input ff-date" type="date" aria-label="Date" hidden>' +
           '<input class="input ff-time" type="time" value="11:00" aria-label="Time (optional)" title="Time is optional"></div>' +
           '<span class="hint ff-preview"></span><span class="error ff-err" hidden></span></div>' +
-        '<div class="field"><label>Note</label><textarea class="input ff-note" rows="2" placeholder="What is this follow-up about? (optional)"></textarea></div>' +
+        '<div class="field"><label>Note <span class="req">*</span></label><textarea class="input ff-note" rows="2" placeholder="What is this follow-up about?"></textarea><span class="error ff-nerr" hidden>Add a note: what is this follow-up about?</span></div>' +
         assignField(p) +
       "</div>";
     var root = container.querySelector(".ff");
@@ -79,7 +79,9 @@
         var err = root.querySelector(".ff-err"), d = dueDate();
         var bad = !d ? "Pick a date." : App.startOfDay(d) < App.startOfDay(new Date()) ? "The date can't be in the past." : "";
         err.hidden = !bad; err.textContent = bad;
-        if (bad) return null;
+        var nt = root.querySelector(".ff-note"), nerr = root.querySelector(".ff-nerr"), noNote = !nt.value.trim();   // #127: note required
+        nerr.hidden = !noNote; nt.classList.toggle("invalid", noNote);
+        if (bad || noNote) return null;
         var as = root.querySelector(".ff-assign");
         return { assignedToUserId: as ? as.value : (p && p.ownerUserId) || null, type: chipValue(root, "ftype"), dueDate: isoDate(d), dueTime: d.noTime ? null : ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2), note: root.querySelector(".ff-note").value.trim() || null };
       },
@@ -171,12 +173,14 @@
         (f.note ? '<div class="cell-sub">' + esc(f.note) + "</div>" : "") + "</div>" +
       '<div class="field"><label>What happened? <span class="req">*</span></label>' + chips("outcome", L.outcomes, "") +
         '<span class="error" data-oerr hidden>Choose an outcome.</span></div>' +
-      '<div class="field"><label for="fuONote">Note</label><textarea class="input" id="fuONote" rows="2" placeholder="Anything worth remembering? (optional)"></textarea></div>';
+      '<div class="field"><label for="fuONote">Note <span class="req">*</span></label><textarea class="input" id="fuONote" rows="2" placeholder="What did they say?"></textarea><span class="error" data-onerr hidden>Add a note: what did they say?</span></div>';
     m.body.onclick = function (e) { var c = e.target.closest("[data-chip]"); if (c) { selectChip(c); m.body.querySelector("[data-oerr]").hidden = true; } };
     m.foot.innerHTML = '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save outcome</button>';
     m.foot.querySelector("[data-save]").onclick = function () {
       var outcome = chipValue(m.body, "outcome"), note = m.body.querySelector("#fuONote").value.trim();
-      if (!outcome) { m.body.querySelector("[data-oerr]").hidden = false; return; }
+      if (!outcome) m.body.querySelector("[data-oerr]").hidden = false;
+      m.body.querySelector("[data-onerr]").hidden = !!note; m.body.querySelector("#fuONote").classList.toggle("invalid", !note);   // #127: note required
+      if (!outcome || !note) return;
       if (outcome === "Not interested" && isOpenLead(p)) askLost(m, f, p, note);
       else { finishDone(f, outcome, note); askNext(m, f, p); }
     };

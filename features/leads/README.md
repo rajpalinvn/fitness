@@ -84,11 +84,14 @@ List, sidebar badges and Today update.
 |---|---|---|---|---|---|
 | Country code + Mobile (first field, #74) | select + tel | Yes | Yes, company-wide | +91 | 10 digits; stored E.164 `+919000001234` (#118). Live check while typing (input normalized to E.164): "Already a lead · Owner Priya · Sec 65" / "Already a client · CL-1000 · Sec 31" / "This number belongs to a staff member" (blocks saving: staff are never leads, #119). "Open profile" only if you can see that person. Save blocked while duplicate. |
 | Name (second field) | text | Yes | No | — | "Name is required." |
-| Source | select (lead sources) | Yes | No | — (Choose…) | "Choose a source." Only sources that apply to the chosen branch (#115); changing the branch clears a source that no longer applies. |
+| Source | select (lead sources) | Yes | No | — (Choose…) | **How they heard of us** (marketing channel, #127). "Choose a source." Only sources that apply to the chosen branch (#115); changing the branch clears a source that no longer applies. |
+| Inquiry type | select, fixed: Walk-in / Phone call / WhatsApp / Website form / Social DM | Yes | No | — (Choose…) | **How they contacted us** (#127). "Choose how they contacted us." |
+| Campaign | text | No | No | — | Shown only for sources marked "has campaigns" (Facebook, Instagram, Google ads). Cleared if the source changes. |
+| Referred by | search + text | Yes, when Source = Referral | No | — | Type 2+ letters: matching clients (name / mobile) to pick (`referredById`), or keep a typed name (`referredBy`). "No client matches · the typed name is kept". |
 | Temperature | chips Hot / Warm / Cold | Yes | No | Warm | |
 | Owner | select | Yes | No | me (if I hold `leads.own`) | #118: other owners (`leads.own` in the chosen branch) and "Unassigned" only with `leads.assign`. Without `leads.own` (and no `leads.assign`): Unassigned only, hint "saved Unassigned (New)". Saved Unassigned → reason New; if I can't see Unassigned leads: confirmation toast only, no profile. "+ Lead" needs `leads.create`. |
 | Branch | select | Yes | No | top-bar branch (or my first branch when "All") | Only my branches. Changing it refreshes the owner list. |
-| More details (collapsed) | link | — | — | closed | Email (unique if given), Gender, Birth date (not future), FF ID (optional, unique company-wide; same branch "Already used by <name>", other branch "Already exists in <branch> · Owner: <first name>"), Inquiry type, Campaign, Remarks. |
+| More details (collapsed) | link | — | — | closed | Email (unique if given), Gender, Birth date (not future), Remarks. **No FF ID** on leads (#127): it is entered in Convert and on clients. |
 | Stage / Created by / Created | system | — | — | New / me / now | |
 
 ## 4. States

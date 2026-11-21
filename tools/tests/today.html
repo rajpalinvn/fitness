@@ -48,7 +48,7 @@ load(TODAY, function () {
     step("actions update the page + badges", function () {
       click(rowOf("attention", "Sneha Reddy").querySelector("button"));
       ok("Add follow-up opens the shared modal", q("#fuAddModal").classList.contains("open"));
-      click(q("#fuAddModal [data-save]"));
+      q("#fuAddModal .ff-note").value = "Call back about price"; click(q("#fuAddModal [data-save]"));
       ok("Sneha leaves the section", !rowOf("attention", "Sneha Reddy"));
       ok("count still == badge", cnt("attention") === badge("Today"), cnt("attention") + " vs " + badge("Today"));
       var before = +cnt("tasks"); click(rowOf("tasks", "Collect ID proof").querySelector("button"));

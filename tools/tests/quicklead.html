@@ -48,29 +48,27 @@ load(LEADS, function () {
       type("#qlMobile", "90000 07777");
       ok("unique number clears the message", q("[data-qldup]").hidden);
       click(q('[data-ql="more"]'));
-      ok("More details: email, gender, birth date, inquiry, campaign, remarks", !!q("#qlEmail") && !!q("#qlGender") && !!q("#qlBirth") && !!q("#qlInq") && !!q("#qlCamp") && !!q("#qlRem") && !!q("#qlFf"));
+      ok("More details: email, gender, birth date, remarks; no FF ID (#127); Inquiry type in the main part", !!q("#qlEmail") && !!q("#qlGender") && !!q("#qlBirth") && !!q("#qlInq") && !!q("#qlRem") && !q("#qlFf") && !q("[data-ql-more] #qlInq"));
       (function () {
         var A = W().App, opts = function () { return Array.prototype.map.call(qa("#qlSource option"), function (o) { return o.textContent; }); };
-        ok("source dropdown: all-branch sources + this branch's (#115)", A.sourcesFor("b1").indexOf("Hoarding") > -1 && A.sourcesFor("b3").indexOf("Hoarding") < 0 && A.sourcesFor("b3").indexOf("Pamphlet") < 0 && A.sourcesFor("b2").indexOf("Pamphlet") > -1 && A.sourcesFor("b3").indexOf("Walk-in") > -1);
+        ok("source dropdown: all-branch sources + this branch's (#115)", A.sourcesFor("b1").indexOf("Hoarding") > -1 && A.sourcesFor("b3").indexOf("Hoarding") < 0 && A.sourcesFor("b3").indexOf("Pamphlet") < 0 && A.sourcesFor("b2").indexOf("Pamphlet") > -1 && A.sourcesFor("b3").indexOf("Passing by") > -1);
         var b = q("#qlBranch").value; ok("quick lead Source list follows the lead's branch", JSON.stringify(opts().slice(1)) === JSON.stringify(A.sourcesFor(b)), b + ": " + opts().join());
       })();
-      type("#qlName", "Tanvi Desai"); pickSel("qlSource", "Referral");
+      type("#qlName", "Tanvi Desai"); pickSel("qlSource", "Referral"); pickSel("qlInq", "Walk-in"); type("#qlRef", "Vivaan");
       type("#qlEmail", "aarav.patel@example.com"); click(q('[data-ql="save"]'));
       ok("email must be unique", /already used/.test(text("#quickLeadDrawer")) && qOpen());
-      type("#qlEmail", "tanvi.desai@example.com"); type("#qlFf", "FF-20702"); click(q('[data-ql="save"]'));
-      ok("FF ID unique (other branch message)", /Already exists in Sec 65/.test(text("#quickLeadDrawer")) && qOpen());
-      type("#qlFf", "FF-31000");
+      type("#qlEmail", "tanvi.desai@example.com");
       click(q('[data-qltemp="Hot"]'));
       ok("width follows the drawer setting (70%)", Math.abs(width("quickLeadDrawer") - W().innerWidth * 0.7) < 3, width("quickLeadDrawer"));
       var before = D().people.length, badgeBefore = text('.nav-item[data-tip="Today"] .nav-badge');
       click(q('[data-ql="save"]'));
       var p = D().people[D().people.length - 1];
-      ok("lead saved with defaults", D().people.length === before + 1 && p.name === "Tanvi Desai" && p.stage === "New" && p.temperature === "Hot" && p.ownerUserId === "u6" && p.branchId === "b1" && p.mobile === "90000 07777" && p.createdByUserId === "u6" && p.ffId === "FF-31000");
+      ok("lead saved with defaults", D().people.length === before + 1 && p.name === "Tanvi Desai" && p.stage === "New" && p.temperature === "Hot" && p.ownerUserId === "u6" && p.branchId === "b1" && p.mobile === "90000 07777" && p.createdByUserId === "u6" && !p.ffId && p.referredBy === "Vivaan" && p.inquiryType === "Walk-in");
       ok("profile opens on the new lead", q("#profileDrawer").classList.contains("open") && /Tanvi Desai/.test(text(".pd-left")) && !qOpen());
       ok("asks for the first follow-up", q("#fuAddModal").classList.contains("open") && /Set first follow-up/.test(text("#fuAddModal")));
       ok("list shows the new lead", !!q('#rows tr[data-id="' + p.id + '"]'));
       ok("Today badge counts it (no follow-up yet)", +text('.nav-item[data-tip="Today"] .nav-badge') === +badgeBefore + 1, badgeBefore + " -> " + text('.nav-item[data-tip="Today"] .nav-badge'));
-      click(q("#fuAddModal [data-save]"));
+      q("#fuAddModal .ff-note").value = "First call"; click(q("#fuAddModal [data-save]"));
       ok("follow-up saved, badge back", +text('.nav-item[data-tip="Today"] .nav-badge') === +badgeBefore);
       key("Escape");
       ok("no bad text", !badText(), badText());
@@ -98,7 +96,7 @@ load(LEADS, function () {
       P.save([{ short: "SE", key: "leads.own", value: false }]); A.setRole("Sales Executive"); click(q(".topbar [data-new-lead]"));
       ok("no leads.own: Unassigned only + hint", opts().join() === ":Unassigned" && /saved Unassigned \(New\)/.test(text("#quickLeadDrawer")), opts().join());
       var n = D().people.length;
-      type("#qlMobile", "90000 07111"); type("#qlName", "Kiran Bedi"); pickSel("qlSource", "Walk-in"); click(q('[data-ql="save"]'));
+      type("#qlMobile", "90000 07111"); type("#qlName", "Kiran Bedi"); pickSel("qlSource", "Passing by"); pickSel("qlInq", "Walk-in"); click(q('[data-ql="save"]'));
       var np = D().people[D().people.length - 1];
       ok("saved Unassigned · New, no profile (SE can't see Unassigned), confirmation", D().people.length === n + 1 && np.ownerUserId === null && np.unassignedReason === "New" && np.phone === "+919000007111" &&
         !q("#profileDrawer.open") && !qOpen() && /Unassigned \(New\)/.test(text(".toast-wrap, .toasts, body")));
@@ -151,9 +149,9 @@ load(LEADS, function () {
     step("Leads Source filter follows the branch", function () {
       var A = W().App, so = function () { return Array.prototype.map.call(qa("#fSource option"), function (o) { return o.textContent; }); };
       A.setBranch("all");
-      ok("All branches: every source, branch-only ones tagged", so().indexOf("Hoarding · Sec 31") > -1 && so().indexOf("Pamphlet · Sec 31, Sec 65") > -1 && so().indexOf("Walk-in") > -1, so().join());
+      ok("All branches: every source, branch-only ones tagged", so().indexOf("Hoarding · Sec 31") > -1 && so().indexOf("Pamphlet · Sec 31, Sec 65") > -1 && so().indexOf("Passing by") > -1, so().join());
       A.setBranch("b3");
-      ok("Golf Course: company-wide only (no Hoarding / Pamphlet)", so().indexOf("Walk-in") > -1 && !so().some(function (t) { return /Hoarding|Pamphlet/.test(t); }), so().join());
+      ok("Golf Course: company-wide only (no Hoarding / Pamphlet)", so().indexOf("Passing by") > -1 && !so().some(function (t) { return /Hoarding|Pamphlet/.test(t); }), so().join());
       A.setBranch("b1"); change("#fSource", "Hoarding");
       ok("Sec 31: Hoarding offered untagged; filter keeps the branch", so().indexOf("Hoarding") > -1 && A.state.branchId === "b1");
       A.setBranch("all");

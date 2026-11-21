@@ -866,3 +866,5 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .news-list p { margin: var(--space-1) 0 0; }
 .check-list { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .ro-val { padding: var(--space-2) 0; color: var(--color-text-muted); }
+.ref-field { position: relative; }
+.ref-sugg { top: 100%; left: 0; right: auto; min-width: 100%; margin-top: calc(-1 * var(--space-4)); }

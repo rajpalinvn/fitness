@@ -821,3 +821,11 @@
     added only through `clients.issueItems` (Add FF ID) and only while empty, never changed afterwards. Leads unchanged.
     Confirmed from #125: only the CEO adds a branch; Branch-scope staff edit = staff whose branches are all mine, picks
     only from my branches, never the top role.
+127. Lead form + follow-up comments (21 Nov 2026, c23 part 2). (a) No FF ID on Quick lead / edit lead: FF ID lives only
+    in Convert and on clients. (b) Every follow-up needs a comment: Add follow-up Note REQUIRED, Log outcome Note
+    REQUIRED. (c) Source = how they heard of us (marketing channel; master, branch-wise #115): Passing by, Referral,
+    Website, Facebook, Instagram, Google ads, Hoarding, Pamphlet, Others. Contact channels moved OUT of sources.
+    Inquiry type = how they contacted us, fixed, REQUIRED: Walk-in, Phone call, WhatsApp, Website form, Social DM.
+    Campaign shows only for sources with "has campaigns" (Facebook, Instagram, Google ads). Source Referral asks
+    "Referred by" (required): search an existing client (name / mobile) or type a name. Dummy data mapped: source
+    Walk-in -> Passing by, Phone Call / WhatsApp -> Others, Google -> Google ads; inquiry Call -> Phone call.

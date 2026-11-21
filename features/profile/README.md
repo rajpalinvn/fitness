@@ -50,12 +50,13 @@
 | Email | email | No | Yes, company-wide | — | Format checked. |
 | Gender | select | No | No | Not set yet | Female / Male / Other |
 | Birth date | date | No | No | — | |
-| FF ID | text (lead) / read-only (client) | No | Yes, company-wide | — | ID from the other software. Client: read-only in Details; added only via Add FF ID (`clients.issueItems`) while empty (#126). |
+| FF ID | read-only (client only) | No | Yes, company-wide | — | Not on leads (#127). Client: read-only in Details; added only via Add FF ID (`clients.issueItems`) while empty (#126). |
 | Source | select | Yes | No | — | Lead sources that apply to the lead's branch (#115). A saved source that no longer applies stays selected with the note "Not used at this branch" (#116); changing it offers only the branch's sources. |
 | Temperature | select | Yes | No | Warm | Hot / Warm / Cold (fixed). |
 | Stage | select | Yes | No | New | Configurable stages only; hidden for Lost and Clients (Converted/Lost set by actions). |
-| Inquiry type | select | No | No | Not set yet | Call / Walk-in |
-| Campaign | text | No | No | — | |
+| Inquiry type | select | Yes (#127) | No | Not set yet | How they contacted us: Walk-in / Phone call / WhatsApp / Website form / Social DM. Synced Meta leads may arrive without it ("Not set yet"); required on the next edit. |
+| Campaign | text | No | No | — | Only for sources with "has campaigns" (#127). |
+| Referred by | search + text | Yes, for Referral | No | — | Existing client (picked) or a typed name (#127). |
 | Remarks | text area | No | No | — | |
 | Owner, Branch, External ID, Created, Last activity | read-only | — | — | — | Owner changes via Change owner. |
 | Client no, Home branch, Joined, Key fob, Photo | read-only (clients) | — | Client no / fob unique | — | |
