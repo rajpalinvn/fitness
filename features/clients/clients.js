@@ -8,6 +8,7 @@
   var PENDING_TYPES = [["addFf", "FF ID pending"], ["goFob", "Key fob pending"], ["issue", "Pending issue"], ["pay", "Payment due"]];
   var S = { card: "", search: "", rep: "", owner: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, mode: "loading" };
   if (/[?&]view=attention\b/.test(location.search)) S.card = "attention";
+  if (/[?&]view=renewal\b/.test(location.search)) S.card = "renewal";   // Today "Renewals due" View all (#129)
   var lastList = [];
 
   // ---------- data helpers ----------
@@ -148,6 +149,7 @@
         '<button class="btn btn-sm icon-btn" data-act="call" data-id="' + p.id + '" title="Call" aria-label="Call ' + esc(p.name) + '">' + App.icon("phone") + "</button>" +
         '<button class="btn btn-sm icon-btn" data-act="wa" data-id="' + p.id + '" title="WhatsApp" aria-label="WhatsApp ' + esc(p.name) + '">' + App.icon("message") + "</button>" +
         (b.length ? '<button class="btn btn-sm btn-primary" data-act="pay" data-id="' + p.id + '" data-what="' + b[0].what + '">Collect payment</button>'
+          : (st.key === "renewal" || st.key === "expired") && App.Renew.can(p) ? '<button class="btn btn-sm btn-primary" data-act="renew" data-id="' + p.id + '">' + App.icon("refresh") + "Renew</button>"   // #129
           : '<button class="btn btn-sm" data-act="follow" data-id="' + p.id + '">' + App.icon("plus") + "Follow-up</button>") +
       "</div></td></tr>";
   }
@@ -189,6 +191,7 @@
       if (b.dataset.act === "wa") App.toast("Opening WhatsApp for " + p.name, "");
       if (b.dataset.act === "follow") App.Followup.openAdd(p.id);
       if (b.dataset.act === "pay") App.collectPayment(p.id, b.dataset.what);
+      if (b.dataset.act === "renew") App.Renew.open(p.id);
       return;
     }
     var tr = e.target.closest("tr[data-id]"); if (tr) openProfile(tr.dataset.id);

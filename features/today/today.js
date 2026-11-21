@@ -64,6 +64,11 @@
   function quoteReqs() { var u = me(); return quoteRole() && u ? D.quoteRequests.filter(function (r) { return r.status === "Open" && r.askedUserId === u.id; }) : []; }
   function approvalsRole() { return App.can("trials.approve") !== "None"; }
   function approvals() { return approvalsRole() ? App.Trial.pendingApprovals().filter(function (x) { return inTopBranch(x.p); }) : []; }
+  function renewals() {
+    if (!pendingRole()) return [];
+    return App.visibleClients(App.state.branchId).filter(function (p) { var s = App.Renew.status(p); return s && (s.key === "renewal" || s.key === "expired") && App.Renew.can(p); })
+      .sort(function (a, b) { return new Date(a.membership.end) - new Date(b.membership.end); });
+  }
   function pending() {
     if (!pendingRole()) return [];
     return App.visibleClients(App.state.branchId).filter(function (p) { return App.profilePending(p).length; })
@@ -129,6 +134,16 @@
         var f = App.nextFollowUp(p.id);
         return row({ open: p.id, title: esc(p.name), sub: (f ? esc(f.type) + " · due " + esc(App.fmtDue(f)) : "No follow-up set") + ownerBit(p),
           status: '<span class="badge badge-warning">' + esc(App.Release.badgeText(App.Release.info(p))) + "</span>", action: btn("addfu", "Add follow-up", { p: p.id }) });
+      } },
+    // Renewals due (#129): clients whose membership is renewal due or expired (still counted in renewals) that I can renew.
+    { k: "renewals", area: "n", t: "Renewals due", ic: "refresh", tone: "amber", get: renewals, words: "renew or buy the next membership in advance",
+      empty: "No renewals due", all: "../clients/index.html?view=renewal", show: pendingRole,
+      row: function (p) {
+        var s = App.Renew.status(p);
+        return row({ open: p.id, tab: "membership", title: esc(p.name) + ' <span class="muted">· ' + esc(p.clientNo) + "</span>",
+          sub: esc(p.membership.package) + " · ends " + esc(App.fmtDate(p.membership.end)) + " · " + esc(App.branchName(p.branchId)),
+          status: '<span class="badge ' + s.badge + '">' + (s.key === "expired" ? "Expired" : "Renewal due · " + (s.left === 0 ? "today" : s.left + (s.left === 1 ? " day" : " days"))) + "</span>",
+          action: btn("renew", App.Renew.label(p), { p: p.id }) });
       } },
     { k: "transferred", area: "x", t: "Transferred in · needs follow-up person", ic: "swap", tone: "amber", get: transferred, words: "moved to your branch",
       empty: "No transferred leads waiting", all: "../leads/index.html?view=transferred", show: transferRole,
@@ -251,6 +266,7 @@
       if (d.act === "pick") App.Lead.pickPerson(d.p);
       if (d.act === "quote") App.QuoteUI.create(d.p);
       if (d.act === "ff") App.addFfId(d.p);
+      if (d.act === "renew") App.Renew.open(d.p);
       if (d.act === "fob") App.assignFob(d.p);
       if (d.act === "issue") App.issueItem(d.p, d.item);
       if (d.act === "pay") App.collectPayment(d.p, d.item);

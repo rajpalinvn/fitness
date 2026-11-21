@@ -20,7 +20,8 @@
   function person() { return App.byId(D.people, C.pid); }
   function pkg() { return C.pkgId ? App.byId(D.packages, C.pkgId) : null; }
   function isPrem() { var k = pkg(); return !!k && k.type === "Premium PT"; }
-  function needsFob() { var k = pkg(); return !!k && k.saleType === "Paid" && (k.type === "Membership" || k.type === "Premium PT"); }
+  // Renew mode (#129): FF ID and key fob stay the same -> no Corporate entry step, no fob deposit.
+  function needsFob() { var k = pkg(); return !C.renew && !!k && k.saleType === "Paid" && (k.type === "Membership" || k.type === "Premium PT"); }
   // Corporate entry step (decision #93): FF ID mandatory, key fob can stay Pending. Shown for every package sold here.
   function showCorp() { return needsFob(); }
   function isoDay(d) { var x = new Date(d); return x.getFullYear() + "-" + ("0" + (x.getMonth() + 1)).slice(-2) + "-" + ("0" + x.getDate()).slice(-2); }
@@ -41,6 +42,8 @@
   function sellable(p) {
     var direct = App.can("sales.sellPTDirect") === true, mem = App.can("sales.sellMembership") === true;
     return D.packages.filter(function (x) {
+      // Renew (#129): next MEMBERSHIP only, audience Renewal or Both.
+      if (C && C.renew) return x.active && x.category === "Membership" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "New" && mem;
       if (!(x.active && x.category !== "Add-on" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal")) return false;
       return x.category === "Membership" ? mem : direct;
     });
@@ -82,16 +85,16 @@
   //   ended within the buffer (Settings value) + grid row trials.adjustAfterEnd -> optional, start = today
   //   else -> no adjust, one info line. Free trials never.
   function adjustInfo(type) {
-    var p = person(), k = pkg(); if (!k || (type === "PT" && !isPrem())) return null;
+    var p = person(), k = pkg(); if (C.renew || !k || (type === "PT" && !isPrem())) return null;
     var st = App.paidTrialStatus(p, type); if (!st) return null;
     if (!st.ended) return { type: type, t: st.t, locked: true, on: true, amount: st.t.paid, why: "Running paid " + App.Trial.label(type) + " trial · adjusted (locked) · membership start = trial start, set by system" };
     var days = -st.left, buffer = App.setting("paidTrialAdjustBufferDays"), allowed = App.scopeAllows("trials.adjustAfterEnd", p);
     if (days <= buffer && allowed) return { type: type, t: st.t, locked: false, on: type === "PT" ? !!C.adjustPt : !!C.adjustMem, amount: st.t.paid, why: "Paid " + App.Trial.label(type) + " trial ended " + days + (days === 1 ? " day" : " days") + " ago · within the " + buffer + "-day buffer · start = today if adjusted" };
     return { type: type, t: st.t, none: true, why: days > buffer ? "Paid " + App.Trial.label(type) + " trial ended " + days + " days ago · past the " + buffer + "-day buffer, no adjust" : "Paid " + App.Trial.label(type) + " trial ended " + days + (days === 1 ? " day" : " days") + " ago · only roles with \"Paid trial adjust after it ended\" (" + App.state.role + ": no) can adjust" };
   }
-  function adjusts() { return [adjustInfo("Membership"), adjustInfo("PT")].filter(function (a) { return a && !a.none && a.on; }); }
+  function adjusts() { if (C.renew) return []; return [adjustInfo("Membership"), adjustInfo("PT")].filter(function (a) { return a && !a.none && a.on; }); }
   function adjAmount(type) { return adjusts().filter(function (a) { return a.type === type; }).reduce(function (s, a) { return s + a.amount; }, 0); }
-  function startLocked() { var a = adjustInfo("Membership"); return !!(a && a.locked); }
+  function startLocked() { if (C.renew) return true; var a = adjustInfo("Membership"); return !!(a && a.locked); }
   function syncAdjustDefaults() {
     var a = adjustInfo("Membership"), b = adjustInfo("PT");
     if (a && a.locked) { C.adjustMem = true; C.start = isoDay(a.t.from); } else if (a && a.none) C.adjustMem = false;
@@ -107,17 +110,19 @@
   // ---------- open ----------
   function open(pid, o) {
     o = o || {};
-    var p = App.byId(D.people, pid); if (!App.Followup.isOpenLead(p)) return;
+    var p = App.byId(D.people, pid);
+    if (o.renew ? !App.Renew.can(p) : !App.Followup.isOpenLead(p)) return;
     C = { pid: pid, step: 1, done: false, email: p.email || "", gender: p.gender || "", birthDate: p.birthDate || "", ffId: p.ffId || "",
       pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: defaultRep(p), start: isoDay(new Date()), adjustMem: false, adjustPt: false,
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
       pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "", sellHere: !!o.sellHere };
+    if (o.renew) { C.renew = true; C.step = 2; C.start = App.Renew.startIso(p); C.repId = App.me().id; }   // #129: seller = sales rep
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
     var groups = GROUPS.filter(function (g) { return sellable(p).some(function (x) { return x.type === g[0]; }); });
     var def = groups.filter(function (g) { return g[0] === "Membership"; })[0] || groups[0];
     if (def) C.open[def[0]] = true;
-    m = App.DrawerMode.open(pid, { key: "convert", title: "Convert to client", onExit: function () {
-      if (C && !C.done) App.toast("Conversion not saved", "");
+    m = App.DrawerMode.open(pid, { key: "convert", title: C.renew ? App.Renew.label(p) : "Convert to client", onExit: function () {
+      if (C && !C.done) App.toast(C.renew ? "Renewal not saved" : "Conversion not saved", "");
       // Cancel of Sell here changes nothing except the event (#106).
       if (C && !C.done && C.sellHere) App.Event.log(C.pid, { type: "SellHereCancelled", text: "Sell here cancelled by " + App.firstName(App.me()) + " · nothing changed" });
       var done = C && C.done && C.clientId; C = null;
@@ -128,7 +133,7 @@
   }
 
   // ---------- render ----------
-  function visibleSteps() { return STEPS.filter(function (s) { return s.k !== 4 || !pkg() || showCorp(); }); }
+  function visibleSteps() { return STEPS.filter(function (s) { return C.renew ? s.k !== 1 && s.k !== 4 : s.k !== 4 || !pkg() || showCorp(); }); }
   function header() {
     var vs = visibleSteps();
     return '<ol class="stepper" aria-label="Steps">' + vs.map(function (s, i) {
@@ -139,7 +144,7 @@
   }
   function render() {
     var p = person();
-    m.title.textContent = C.done ? "Converted" : "Convert to client";
+    m.title.textContent = C.renew ? (C.done ? "Renewed" : App.Renew.label(p)) : C.done ? "Converted" : "Convert to client";
     if (C.done) {
       m.body.innerHTML = C.doneHtml; m.foot.innerHTML = '<button class="btn btn-primary" data-cv="done">Done · back to profile</button>';
       m.foot.querySelector("[data-cv=done]").onclick = function () { m.exit(); };
@@ -148,7 +153,7 @@
     // Stepper across the full width (one line on desktop), then steps left + sticky bill right (bill below on tablet).
     m.body.innerHTML = '<div class="cv-wrap">' + header() + '<div class="cv-layout"><div class="cv-main"><div class="cv-body">' + [null, s1, s2, s3, s4, s5, s6][C.step](p) + "</div></div>" +
       '<aside class="cv-bill" aria-label="Bill summary" data-bill>' + bill(p) + "</aside></div></div>";
-    var back = C.step > 1 ? '<button class="btn" data-cv="back">Previous</button>' : '<button class="btn" data-dm-back>Cancel</button>';
+    var back = C.step > visibleSteps()[0].k ? '<button class="btn" data-cv="back">Previous</button>' : '<button class="btn" data-dm-back>Cancel</button>';
     var vs = visibleSteps(), last = C.step === vs[vs.length - 1].k;
     var nextLabel = !last ? "Next" : "Save payment";
     // Footer aligned with the steps column, not the far edge.
@@ -388,7 +393,7 @@
       '<span class="hint">' + (exp ? "Expired on " + esc(App.fmtIsoDate(q.validTill)) : "Valid till " + esc(App.fmtIsoDate(q.validTill))) + "</span></button>";
   }
   function repField(p, k) {
-    return '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
+    return '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId"' + (C.renew ? ' disabled' : '') + '>' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
           '</select><span class="hint">You, the person creating the sale. The trainer is separate: the quote\'s trainer goes on the PT line.</span></div>';
   }
@@ -486,7 +491,7 @@
         (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><select class="input' + inv("reason") + '" id="cvReason" data-k="reason">' +
             '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
             (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
-        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId">' + reps(p).map(function (u) {
+        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId"' + (C.renew ? ' disabled' : '') + '>' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
           '</select><span class="hint">' + (k.type === "Premium PT" ? "One sales rep for the whole Premium PT package. Whether the membership part pays any incentive, and to whom, is set by the incentive scheme." : "Gets the credit for this sale line. Defaults to you (the person creating the sale); any staff who can be sales rep, any branch.") + "</span></div>" +
         "</div></section>";
@@ -498,11 +503,11 @@
     return priceSection(p) + sec("Sale type", saleBox(k)) + adjustBox() + sec("Dates",
       '<div class="form-grid"><div class="field"><label for="cvStart">Start date <span class="req">*</span></label>' +
         '<input class="input' + inv("start") + '" id="cvStart" data-k="start" type="date" min="' + (locked ? C.start : r.min) + '" max="' + (locked ? C.start : r.max) + '" value="' + esc(C.start) + '"' + (locked ? " disabled" : "") + ">" +
-        (C.errors.start ? err("start") : locked ? '<span class="hint" data-start-locked>Set by system = the paid trial\'s start date (' + esc(App.fmtIsoDate(C.start)) + "). Exempt from the back-date rule.</span>" : '<span class="hint" data-start-hint>' + esc(r.hint) + "</span>") + "</div>" +
+        (C.errors.start ? err("start") : C.renew ? '<span class="hint" data-start-locked>' + (App.Renew.status(p).key === "expired" ? "Membership expired: the new one starts today." : "Starts the day after the current membership ends (" + esc(App.fmtDate(p.membership.end)) + "). Future start is allowed only for a renewal.") + "</span>" : locked ? '<span class="hint" data-start-locked>Set by system = the paid trial\'s start date (' + esc(App.fmtIsoDate(C.start)) + "). Exempt from the back-date rule.</span>" : '<span class="hint" data-start-hint>' + esc(r.hint) + "</span>") + "</div>" +
       '<div class="field"><label>Ends</label><div class="input input-static" data-end>' + (e ? esc(App.fmtDate(e.toISOString())) + ' <span class="muted">· ' + k.days + (k.days === 1 ? " day" : " days") + ", start day included</span>" : "—") + "</div></div></div>");
   }
   function check3() {
-    var e = checkPrice(), msg = startLocked() ? "" : App.saleStartError(C.start);
+    var e = checkPrice(), msg = startLocked() ? "" : App.saleStartError(C.start);   // renew: start set by system (#129)
     if (msg) e.start = msg;
     return e;
   }
@@ -542,9 +547,14 @@
     rows.push(["Sales rep", App.userName(C.repId) + (prem ? " · whole package (membership part: incentive by scheme)" : "")]);
     if (mo.disc) rows.push(["Discount reason", reasonText()]);
     adjusts().forEach(function (a) { rows.push(["Paid " + App.Trial.label(a.type) + " trial adjusted", "− " + App.fmtMoney(a.amount) + " · " + a.t.package + (a.locked ? " · start = trial start (set by system)" : " · start = today")]); });
-    rows.push([CORP, "FF ID: " + C.ffId.trim() + " · Key fob: " + (C.fob ? C.fob + (C.fobFree ? " (free)" : "") : "Pending")]);
-    if (!p.ownerUserId) rows.push(["Owner", App.me().name + " (you, lead was unassigned)"]);
-    var open = App.Followup.openFollowUps(p.id).length;
+    if (C.renew) {
+      rows.push([CORP, "Stay the same · FF ID: " + App.empty(p.ffId, "Not set yet") + " · Key fob: " + App.empty(p.keyFob, "Not set yet")]);
+      if (p.ownerUserId !== App.me().id) rows.push(["Owner", App.me().name + " (you, the seller) · was " + (p.ownerUserId ? App.userName(p.ownerUserId) : "Unassigned")]);
+    } else rows.push([CORP, "FF ID: " + C.ffId.trim() + " · Key fob: " + (C.fob ? C.fob + (C.fobFree ? " (free)" : "") : "Pending")]);
+    if (!C.renew && !p.ownerUserId) rows.push(["Owner", App.me().name + " (you, lead was unassigned)"]);
+    var open = C.renew ? 0 : App.Followup.openFollowUps(p.id).length;
+    if (C.renew) return sec("Summary", '<dl class="kv kv-wide">' + rows.map(function (r) { return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>"; }).join("") + "</dl>" +
+      '<div class="callout">' + icon("info") + "<span>Next: Payment. The renewal is saved with the first payment.</span></div>");
     return sec("Summary", '<dl class="kv kv-wide">' + rows.map(function (r) { return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>"; }).join("") + "</dl>" +
       (open ? '<p class="hint">' + open + " open follow-up" + (open > 1 ? "s" : "") + " will be closed by system · client converted.</p>" : "") +
       '<div class="callout">' + icon("info") + "<span>Next: Payment. " + esc(p.name.split(" ")[0]) + " becomes a client when the first payment is saved.</span></div>");
@@ -679,6 +689,7 @@
 
   // ---------- finish ----------
   function finish() {
+    if (C.renew) return finishRenew();
     var xe = Object.assign(checkExtras(), check4(), check6());
     if (Object.keys(xe).length) { C.errors = xe; if (xe.ffId) { C.step = 4; } render(); var f0 = m.body.querySelector(".invalid, .error"); if (f0 && f0.focus) f0.focus(); return; }
     var T = payTotals();
@@ -762,5 +773,49 @@
     App.openProfile(p.id, { state: "normal", tab: "membership" });   // updates the link to #client-…; shows when the mode exits
   }
 
+  // ---------- Renew / buy next membership in advance (#129) ----------
+  function finishRenew() {
+    var xe = Object.assign(checkExtras(), check6());
+    if (Object.keys(xe).length) { C.errors = xe; render(); var f0 = m.body.querySelector(".invalid, .error"); if (f0 && f0.focus) f0.focus(); return; }
+    var T = payTotals(), p = person(), k = pkg(), mo = money(), now = new Date().toISOString(), me = App.me(), why = reasonText();
+    var advance = App.Renew.status(p).key !== "expired";
+    var startIso = new Date(C.start + "T00:00").toISOString(), endIso = endDate().toISOString();
+    function takeStock(itemId, qty, note) {
+      var st = D.itemStock.filter(function (x) { return x.itemId === itemId && x.branchId === p.branchId; })[0];
+      st.qty -= qty; D.stockMoves.push({ itemId: itemId, branchId: p.branchId, qty: -qty, at: now, by: me.id, note: note });
+    }
+    var receiptNo = App.nextReceiptNo(p.branchId, true);
+    var rows = C.pay.rows.map(function (r) { var a = Math.round(Number(r.amount) * 100) / 100; return Object.assign(App.PayRef.save(r, receiptNo, p, a), { amount: a, slip: r.slip || null }); });
+    var nm = { packageId: k.id, package: k.name, saleType: k.saleType, start: startIso, end: endIso, price: mo.mem, discount: mo.memDisc, discountReason: mo.memDisc ? why : null,
+      finalPrice: mo.memFinal, salesRepUserId: me.id, renewalOf: p.membership.packageId, renewedAt: now,
+      freeItems: freeLines(p, k).map(function (f) { return { itemId: f.itemId, name: f.name, qty: f.qty, status: f.status }; }),
+      items: C.extras.map(function (x) { var l = extraLine(x); return { itemId: x.itemId, name: l.it.name, qty: x.qty, price: l.amount, free: x.free, reason: x.free ? x.why.trim() : null }; }),
+      payment: { total: T.total, paid: T.paid, dueDate: T.balance ? C.payDue : null, receipts: [{ no: receiptNo, at: now, by: me.id, rows: rows }] } };
+    nm.freeItems.forEach(function (f) { if (f.status !== "Issued") return; takeStock(f.itemId, f.qty, "Free with " + k.name + " · " + p.name); p.freeItemsReceived = (p.freeItemsReceived || []).concat(f.itemId); });
+    nm.items.forEach(function (x) { takeStock(x.itemId, x.qty, (x.free ? "Complimentary (" + x.reason + ")" : "Sold") + " · " + p.name); });
+    if (advance) p.nextMembership = nm;
+    else { p.pastMemberships = (p.pastMemberships || []).concat([p.membership]); p.membership = nm; }
+    // Renewal changes the client owner to the seller (lifecycle: owner = who renews them).
+    if (p.ownerUserId !== me.id) {
+      var old = p.ownerUserId; p.ownerHistory = (p.ownerHistory || []).concat([{ from: old, to: me.id, at: now, by: me.id, reason: "Renewal" }]); p.ownerUserId = me.id;
+      App.Event.log(p.id, { type: "OwnerChanged", from: old, to: me.id, reason: "Renewal", text: "Owner changed to " + App.firstName(me) + " · renewal" + (old ? " (was " + App.firstName(App.byId(D.users, old)) + ")" : "") });
+    }
+    p.lastActivityAt = now;
+    App.addTimeline(p.id, "milestone", (advance ? "Renewed in advance · " : "Renewed · ") + k.name + " · " + App.fmtDate(startIso) + " – " + App.fmtDate(endIso) + " · " + App.fmtMoney(mo.final) +
+      (mo.disc ? " (" + App.fmtMoney(mo.disc) + " off: " + why + ")" : "") + " · sold by " + App.firstName(me));
+    App.addTimeline(p.id, "milestone", "Payment " + App.fmtMoney(T.paid) + " received · receipt " + receiptNo + (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + App.fmtIsoDate(C.payDue) : " · paid in full"));
+    if (T.balance) App.Followup.create(p.id, { type: "Payment expected", dueDate: C.payDue, dueTime: null, note: "Renewal balance " + App.fmtMoney(T.balance) + " · receipt " + receiptNo });
+    App.Event.log(p.id, { type: "Renewed", to: k.name, remark: advance ? "in advance, starts " + App.fmtIsoDate(C.start) : "starts today" });
+    C.done = true; C.clientId = p.id;
+    C.doneHtml = '<div class="state">' + icon("check") + "<h3>" + esc(p.name) + (advance ? " renewed in advance" : " renewed") + "</h3>" +
+      '<p class="muted">' + esc(k.name) + " · " + esc(App.fmtDate(startIso)) + " – " + esc(App.fmtDate(endIso)) + " · receipt <span class=\"mono\">" + esc(receiptNo) + "</span>" +
+      (T.balance ? " · balance " + App.fmtMoney(T.balance) + " due " + esc(App.fmtIsoDate(C.payDue)) : " · paid in full") + "</p>" +
+      '<p class="hint">FF ID and key fob stay the same.</p></div>';
+    render();
+    App.toast(p.name + (advance ? " renewed in advance" : " renewed"), "success");
+    App.dataChanged();
+  }
+
   App.Convert = { open: open, defaultRep: defaultRep };
+  App.Renew.open = function (pid) { open(pid, { renew: true }); };
 })();

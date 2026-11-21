@@ -84,3 +84,4 @@ Roles with no `leads.view` (Trainer / MXM / Finance by default) see the note "Le
 
 ## 5. Status
 Ready for review
+- Renewals due (#129): clients whose membership is Renewal due or Expired (still in renewals) and that I can renew; row action **Renew in advance** / **Renew**; View all → Clients `?view=renewal`. Same visibility as Clients with pending items (`clients.view`).

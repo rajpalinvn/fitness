@@ -642,16 +642,16 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .today-card.tone-neutral { border-left-color: var(--color-info); }
 .today-card.tone-clear { border-left-color: var(--color-success); } .today-card.tone-clear .cell-sub { color: var(--color-success); display: inline-flex; gap: var(--space-1); align-items: center; }
 .today-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: start;
-  grid-template-areas: "a u" "t p" "x x" "r r" "q q" "f f" "v v" "k k"; }
-.today-grid.no-unassigned { grid-template-areas: "a p" "t p" "x x" "r r" "q q" "f f" "v v" "k k"; }
-.today-grid.no-transfer { grid-template-areas: "a u" "t p" "r r" "q q" "f f" "v v" "k k"; }
-.today-grid.no-unassigned.no-transfer { grid-template-areas: "a p" "t p" "r r" "q q" "f f" "v v" "k k"; }
+  grid-template-areas: "a u" "t p" "x x" "r r" "q q" "f f" "v v" "k k" "n n"; }
+.today-grid.no-unassigned { grid-template-areas: "a p" "t p" "x x" "r r" "q q" "f f" "v v" "k k" "n n"; }
+.today-grid.no-transfer { grid-template-areas: "a u" "t p" "r r" "q q" "f f" "v v" "k k" "n n"; }
+.today-grid.no-unassigned.no-transfer { grid-template-areas: "a p" "t p" "r r" "q q" "f f" "v v" "k k" "n n"; }
 .today-sec[data-area="x"] { grid-area: x; }
 .today-sec[data-area="v"] { grid-area: v; }
 .today-sec[data-area="q"] { grid-area: q; }
 .today-sec[data-area="f"] { grid-area: f; }
 .today-sec[data-area="r"] { grid-area: r; }
-.today-sec[data-area="a"] { grid-area: a; } .today-sec[data-area="t"] { grid-area: t; } .today-sec[data-area="k"] { grid-area: k; }
+.today-sec[data-area="a"] { grid-area: a; } .today-sec[data-area="t"] { grid-area: t; } .today-sec[data-area="k"] { grid-area: k; } .today-sec[data-area="n"] { grid-area: n; }
 .today-sec[data-area="u"] { grid-area: u; } .today-sec[data-area="p"] { grid-area: p; }
 .today-sec { padding: 0; overflow: hidden; scroll-margin-top: var(--space-5); }
 .today-sec-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
@@ -671,7 +671,7 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .today-clear .ico { width: 40px; height: 40px; color: var(--color-success); }
 .today-clear h2 { margin: var(--space-2) 0; }
 @media (max-width: 1024px) {
-  .today-grid, .today-grid.no-unassigned, .today-grid.no-transfer, .today-grid.no-unassigned.no-transfer { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "t" "x" "r" "q" "f" "v" "k" "u" "p"; }
+  .today-grid, .today-grid.no-unassigned, .today-grid.no-transfer, .today-grid.no-unassigned.no-transfer { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "t" "x" "r" "q" "f" "v" "k" "n" "u" "p"; }
   .today-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .today-row { grid-template-columns: minmax(0, 1fr) auto; }
   .today-row .tr-status { grid-column: 1; grid-row: 2; justify-self: start; }

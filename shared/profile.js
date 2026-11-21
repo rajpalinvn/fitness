@@ -238,8 +238,9 @@
     return '<button class="btn qa" data-pd="' + act + '"' + (disabled ? ' disabled title="' + esc(why) + '" aria-label="' + label + " (" + esc(why) + ')"' : ' title="' + label + '"') + ">" +
       icon(ic) + '<span class="qa-label">' + label + "</span></button>";
   }
+  function renewButton(p) { return App.Renew.can(p) ? '<button class="btn btn-primary btn-block" data-pd="renew">' + icon("refresh") + esc(App.Renew.label(p)) + "</button>" : ""; }
   function bottomActions(p) {
-    if (isClient(p)) return trialButton(p);
+    if (isClient(p)) return renewButton(p) + trialButton(p);   // #129: Renew; Book trial only for Ex-clients
     if (isLost(p)) return (App.scopeAllows("leads.reopen", p) ? '<button class="btn btn-primary btn-block" data-pd="reopen">' + icon("refresh") + "Re-open lead</button>" : "") + trialButton(p);
     function item(act, ic, label) { return '<button class="dd-item" role="menuitem" tabindex="-1" data-pd="' + act + '"><span class="dd-check">' + icon(ic) + "</span><span>" + label + "</span></button>"; }
     return '<button class="btn btn-primary btn-block" data-pd="convert">Convert to Client</button>' + trialButton(p) +
@@ -674,7 +675,10 @@
         (paid ? kv("Fob stock", App.branchName(p.homeBranchId) + ": " + stock.length + " in stock") : "") + "</dl></section>" +
       paySection("Payments", m, p) +
       (p.pt ? ptSection(p) : "") +
-      '<p class="hint">Renewals come later.</p>';
+      (p.nextMembership ? '<section class="corp-sec" data-next-mem><h4 class="sec-title">Next membership (renewed in advance)</h4><dl class="kv kv-wide">' +
+        kv("Package", p.nextMembership.package) + kv("Starts", App.fmtDate(p.nextMembership.start)) + kv("Ends", App.fmtDate(p.nextMembership.end)) +
+        kv("Sales rep", App.userName(p.nextMembership.salesRepUserId)) + kv("Final price", App.fmtMoney(p.nextMembership.finalPrice)) + "</dl></section>" : "") +
+      (App.Renew.can(p) ? '<div class="stack mt-3"><button class="btn btn-primary" data-pd="renew">' + icon("refresh") + esc(App.Renew.label(p)) + '</button><span class="hint">Starts ' + esc(App.fmtIsoDate(App.Renew.startIso(p))) + ". FF ID and key fob stay the same.</span></div>" : "");
   }
   // Payments block (decisions #79–#83): Total · Paid · Balance due + receipts.
   function paySection(title, line, p, extra) {
@@ -820,6 +824,7 @@
       case "pay": App.collectPayment(p.id, t.dataset.item); break;
       case "task": App.toast("Task form comes with the Tasks screen", ""); break;
       case "edit": if (App.canEditDetails(p)) { S.editing = true; render(); } break;
+      case "renew": App.Renew.open(p.id); break;
       case "cancelEdit": S.editing = false; render(); break;
       case "saveEdit": saveDetails(p); break;
       case "openDup": App.openProfile(t.dataset.id, { state: "normal" }); break;

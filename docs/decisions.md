@@ -835,3 +835,13 @@
     Region, plus any list of 10+ options. Lost reason chips get a filter box + "No match". Short fixed lists (gender,
     temperature, stage, status, country code, payment method, discount reason) stay plain. One rule in
     `App.enhanceSelect` (`App.SEARCH_SELECT` / `App.isSearchSelect`); a select can opt in with `data-search`.
+129. Client actions: Book trial + Renew in advance (21 Nov 2026, c23 part 4). (a) Clients don't see "Book trial"; only
+    leads and Ex-clients (an Ex-client books like a lead). Changes the earlier "active client books PT trials" rule.
+    (b) RENEW / BUY NEXT MEMBERSHIP IN ADVANCE on an Active or Renewal-due client: start = current end + 1 (the only
+    place a future start is allowed); Expired clients renew from today. Convert-style steps in the drawer work mode:
+    Package (membership, audience Renewal / Both) · Sale & start · Summary · Payment. Sales rep = the seller (locked);
+    the client owner becomes the seller (owner = who renews them, lifecycle); FF ID and key fob stay the same (no
+    Corporate entry, no deposit). Advance = `nextMembership` (one at a time; the client leaves Renewal due); expired =
+    new membership, old kept in history. Shown on the client profile, the Clients row (Renewal due / Expired, when there
+    is no balance to collect) and a Today section "Renewals due". Ex-clients don't renew here. (c) Clients table header
+    "Ends on" in sentence case (#124).

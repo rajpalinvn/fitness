@@ -127,7 +127,56 @@ load(CL, function () {
       setVal(lf, "zzz"); ok("No match", !lm.querySelector("[data-chip-nomatch]").hidden);
       A().closeAll(); A().closeAll();
     });
-    finish();
+    // ---------- Part 4 ----------
+    step("Part 4: Book trial only for leads and Ex-clients", function () {
+      role("CEO");
+      openP("p7"); ok("active client: no Book trial", !q('#profileDrawer [data-pd="trial"]'));
+      openP("p22"); ok("Ex-client (Tarun): Book trial shown", !!q('#profileDrawer [data-pd="trial"]'));
+      ok("Ex-client books like a lead (membership trials offered)", A().Trial.packagesFor(person("p22")).some(function (x) { return x.category === "Membership"; }));
+      openP("p22"); ok("Ex-client: no Renew", !q('#profileDrawer [data-pd="renew"]'));
+      A().closeAll();
+    });
+    step("Part 4: Renew shown on profile, Clients row, Today", function () {
+      ok("Clients row (renewal due, Divya p19): Renew", !!q('#rows tr[data-id="p19"] [data-act="renew"]'));
+      openP("p19", "membership");
+      ok("profile: 'Renew in advance' + start = end + 1", !!q('#profileDrawer [data-pd="renew"]') && /Renew in advance/.test(text("#profileDrawer")) && A().Renew.startIso(person("p19")) === (function () { var d = new Date(person("p19").membership.end); d.setDate(d.getDate() + 1); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); })());
+      openP("p21", "membership");
+      ok("expired client (Pallavi p21): 'Renew', start today", /Renew/.test(text('#profileDrawer [data-pd="renew"]')) && !/advance/.test(text('#profileDrawer [data-pd="renew"]')) && A().Renew.startIso(person("p21")) === new Date().toISOString().slice(0, 10).replace(/^(\d+)-(\d+)-(\d+)$/, function () { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }));
+      A().closeAll();
+    });
+    step("Part 4: renew in advance (Divya p19, owner Priya -> CEO)", function () {
+      var p = person("p19"), ff = p.ffId, fob = p.keyFob, oldEnd = p.membership.end, oldOwner = p.ownerUserId;
+      A().Renew.open("p19");
+      var sm = q("#sellMode");
+      ok("work mode in the drawer: steps Package, Sale & start, Summary, Payment", !!sm && Array.prototype.map.call(qa("#sellMode .step"), function (s) { return s.textContent.replace(/^\d/, "").trim(); }).join(",") === "Package,Sale & start,Summary,Payment");
+      ok("only membership packages (renewal / both), no PT, no trials", !q('#sellMode [data-pkg="pk1"]') && !q('#sellMode [data-pkg="pk14"]') && !!q('#sellMode [data-pkg="pk4"]'));
+      click(q('#sellMode [data-pkg="pk4"]')); click(q('#sellMode [data-cv="next"]'));
+      ok("start locked = end + 1 (future), sales rep = seller (locked)", q("#cvStart").disabled && q("#cvStart").value === A().Renew.startIso(p) && q("#cvRep").disabled && q("#cvRep").value === "u2");
+      click(q('#sellMode [data-cv="next"]'));
+      ok("summary: FF ID and key fob stay the same; owner -> seller", /Stay the same/.test(text("#sellMode")) && /Anita Kapoor \(you, the seller\)/.test(text("#sellMode")));
+      click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="finish"]'));
+      ok("saved as next membership; current kept", !!p.nextMembership && p.membership.end === oldEnd && p.nextMembership.packageId === "pk4" && A().daysFromToday(p.nextMembership.start) > 0);
+      ok("owner = seller (event), sales rep = seller", p.ownerUserId === "u2" && oldOwner !== "u2" && p.nextMembership.salesRepUserId === "u2" && D().events.some(function (e) { return e.personId === "p19" && e.type === "OwnerChanged"; }));
+      ok("FF ID + key fob unchanged", p.ffId === ff && p.keyFob === fob);
+      ok("no longer renewal due; Renew gone", !A().packagesNeedingRenewal(p).length && !A().Renew.can(p));
+      A().closeAll(); A().closeAll();
+    });
+    step("Part 4: renew an expired client (Pallavi p21) from today", function () {
+      var p = person("p21");
+      A().Renew.open("p21"); click(q('#sellMode [data-pkg="pk4"]')); click(q('#sellMode [data-cv="next"]'));
+      ok("hint: starts today", /starts today/.test(text("#sellMode")));
+      click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="finish"]'));
+      ok("membership replaced, starts today, old one kept in history", A().daysFromToday(p.membership.start) === 0 && (p.pastMemberships || []).length === 1 && !p.nextMembership);
+      A().closeAll(); A().closeAll();
+    });
+    load(ROOT + "features/today/index.html", function () {
+      step("Part 4: Today 'Renewals due' section", function () {
+        ok("section with Renew action", !!q("#sec-renewals") && !!q('#sec-renewals [data-act="renew"]'), text("#sec-renewals"));
+        ok("no bad text", !badText(), badText());
+      });
+      finish();
+    });
+    return;
   });
 });
 </script>

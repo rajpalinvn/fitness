@@ -29,7 +29,7 @@ load(LEADS, function () {
     step("who gets the button", function () {
       openP("p1"); ok("open lead: Book trial next to Convert", !!q('[data-pd="trial"]') && !q('[data-pd="trial"]').disabled && !!q('[data-pd="convert"]'));
       openP("p3"); ok("lost lead: disabled 'Re-open the lead first'", !!q('[data-pd="trial"]') && q('[data-pd="trial"]').disabled && /Re-open the lead first/.test(q('[data-pd="trial"]').title));
-      openP("p7"); ok("active client: Book trial shown", !!q('[data-pd="trial"]') && !q('[data-pd="trial"]').disabled);
+      openP("p7"); ok("active client: no Book trial (#129: only leads and Ex-clients)", !q('[data-pd="trial"]'));
       openP("p21"); ok("expired client: no button", !q('[data-pd="trial"]'));
       W().App.setRole("Trainer"); openP("p1"); ok("no trials.book -> no button", !q('[data-pd="trial"]')); W().App.setRole("CEO");
     });
@@ -38,9 +38,6 @@ load(LEADS, function () {
       ok("Book trial work mode opens in the drawer", !!M() && /Book trial/.test(text(".dm-crumb")));
       ok("lead: Membership trials + PT trials with 'requires membership' OFF; clients-only PT trial hidden", !!card("pk1") && !!card("pk2") && !!card("pk19") && !card("pk20") && /Membership trials/.test(mtext()) && /PT trials/.test(mtext()));
       ok("no Premium PT, no non-trial packages", !card("pk17") && !card("pk7"));
-      key("Escape");
-      openP("p7"); click(q('[data-pd="trial"]'));
-      ok("active client: PT trials only (ON and OFF), no membership trials", !!card("pk19") && !!card("pk20") && !card("pk1") && !card("pk2") && /clients only/.test(card("pk20").textContent));
       key("Escape");
     });
     step("free-trial limits per type, by mobile", function () {

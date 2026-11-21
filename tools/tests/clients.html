@@ -55,12 +55,13 @@ load(TODAY, function () {
       step("row actions (max 3, switch)", function () {
         ok("max 3 actions per row", Array.prototype.every.call(qa("#rows tr"), function (r) { return r.querySelectorAll(".row-actions button").length <= 3; }));
         ok("balance -> Collect payment", /Collect payment/.test(text('#rows tr[data-id="p7"] .row-actions')) && !/Follow-up/.test(text('#rows tr[data-id="p7"] .row-actions')));
-        ok("no balance -> + Follow-up", /Follow-up/.test(text('#rows tr[data-id="p19"] .row-actions')) && !/Collect payment/.test(text('#rows tr[data-id="p19"] .row-actions')));
+        ok("no balance + renewal due -> Renew (#129); otherwise + Follow-up", /Renew/.test(text('#rows tr[data-id="p19"] .row-actions')) && !/Collect payment/.test(text('#rows tr[data-id="p19"] .row-actions')) &&
+          Array.prototype.some.call(qa("#rows .row-actions"), function (r) { return /Follow-up/.test(r.innerText); }));
         click(q('#rows tr[data-id="p24"] [data-act="pay"]'));
         ok("Collect payment opens the shared modal (PT balance), no drawer", q("#payModal").classList.contains("open") && /PT 24 Sessions/.test(text("#payModal")) && !q("#profileDrawer.open"));
         click(q("#payModal [data-save]"));
         ok("paid -> action switches to + Follow-up, attention count -1", /Follow-up/.test(text('#rows tr[data-id="p24"] .row-actions')) && cnt("attention") === todayPending.ceo - 1);
-        click(q('#rows tr[data-id="p19"] [data-act="follow"]'));
+        click(q('#rows [data-act="follow"]'));
         ok("+ Follow-up opens the shared modal", q("#fuAddModal").classList.contains("open")); key("Escape");
       });
       step("row click opens the profile on Membership with ‹ ›", function () {

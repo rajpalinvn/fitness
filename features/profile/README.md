@@ -132,3 +132,7 @@ Saving adds "<name> updated <fields>" to the timeline.
 
 ## 5. Status
 Ready for review
+
+## Client actions (#129)
+- **Book trial** shows only for leads and Ex-clients (an Ex-client books like a lead). Active, Renewal due and Expired clients don't see it.
+- **Renew in advance / Renew** (bottom + Membership tab) opens the Renew work mode; the Membership tab shows "Next membership" after an advance renewal.

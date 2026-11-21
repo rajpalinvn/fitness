@@ -38,15 +38,15 @@ There are two levels of status:
 - **Row actions** (max 3; they don't open the drawer):
   - Call
   - WhatsApp
-  - **Collect payment** when the client has a balance (membership first, then PT); otherwise **+ Follow-up**.
+  - **Collect payment** when the client has a balance (membership first, then PT); else **Renew** when the membership is Renewal due or Expired and I can sell it (#129); otherwise **+ Follow-up**.
 - After any action, the list, the cards, Today and the sidebar all update together.
-- Renewal itself (the "Renew" action, renewal follow-ups) is NOT on this screen. It comes next in the roadmap.
+- **Renew** (#129) opens the profile drawer in work mode (see `features/conversion/README.md` › Renew). `?view=renewal` opens the Renewal due card (Today "Renewals due" › View all). Automatic renewal follow-ups come later.
 
 ### Columns
 | Column | Shows |
 |---|---|
 | Name & mobile (pinned) | Name, a Meta badge if synced, mobile · client no. |
-| ENDS ON (pinned, most prominent) | Last package end ("12 Nov 2026", #86) plus a badge: "N days left" / "Ends today" / the per-package renewal badges / "Expired N days ago" / "Ex-client · ended N days ago". When membership and PT end on different days, a second line shows "Membership 6 Dec 2026 · PT 4 Feb 2027". |
+| Ends on (pinned, sentence case #124, most prominent) | Last package end ("12 Nov 2026", #86) plus a badge: "N days left" / "Ends today" / the per-package renewal badges / "Expired N days ago" / "Ex-client · ended N days ago". When membership and PT end on different days, a second line shows "Membership 6 Dec 2026 · PT 4 Feb 2027". |
 | Membership | Package name. Premium PT clients show "<package> · Membership (included)". |
 | PT | "PT 12 Sessions" + "5 of 12 unlocked · 5 usable now" (#83). On hold: "PT on hold · membership expired · 12 of 12 unlocked". No PT: "—". |
 | Balance due | "₹6,600 by 17 Nov 2026" (with "· PT" for a PT balance), or "—". |

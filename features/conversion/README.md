@@ -242,3 +242,32 @@ Premium PT with a free membership: "Monthly + 8 PT (membership free)" (pk21, ref
 
 ## 5. Status
 Ready for review
+
+# Renew / buy next membership in advance (#129)
+
+## 1. Screens
+| Screen | Where | Purpose |
+|---|---|---|
+| Renew (work mode) | profile drawer, `App.Renew.open(id)` = Convert stepper in renew mode (`shared/convert.js`) | Sell the next MEMBERSHIP to a client. |
+
+## 2. Flow
+Profile (bottom button + Membership tab), Clients row (Renewal due / Expired, no balance) or Today "Renewals due" → **Renew in advance** (Active / Renewal due) or **Renew** (Expired) → steps **Package · Sale & start · Summary · Payment** (no Details, no Corporate entry) → Save payment → done card → back to the profile. Esc / Cancel = "Renewal not saved".
+
+## 3. Field table
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Package | cards | Yes | — | — | Active MEMBERSHIP packages of the client's branch, audience Renewal or Both, no trials, no PT. Needs `sales.sellMembership` + `sales.convert` scope. |
+| Discount + reason | as Convert | — | — | — | Same role limit (% and ₹ cap) and reason rules. |
+| Start date | date, read-only | Yes | — | Active / Renewal due: current end + 1 · Expired: today | The ONLY place a future start is allowed. |
+| Sales rep | select, locked | Yes | — | the seller (me) | |
+| Owner | system | — | — | — | Becomes the seller (event OwnerChanged, reason Renewal). |
+| FF ID, key fob | system | — | — | unchanged | "Stay the same" in Summary; no deposit. |
+| Payment | as Convert | Yes | — | full amount, first method | Minimum first payment, split rows, references, balance due date + Payment expected follow-up. |
+
+Saved: advance → `nextMembership` (current kept; Membership tab shows "Next membership"; the client is no longer Renewal due); expired → new `membership`, old one in `pastMemberships`. A next membership whose start has come becomes current (`App.rollMemberships`, nightly in the real app). One next membership at a time; Ex-clients don't renew here (they book a trial / buy like a lead).
+
+## 4. States
+Normal; no package for the branch → empty package list; payment errors as Convert; done card.
+
+## 5. Status
+Ready for review

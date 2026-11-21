@@ -287,7 +287,8 @@
   Trial.canBookPT = function (p) { return !!p && App.scopeAllows("pt.quote", p, { strictOwn: true }); };
   Trial.canBook = function (p) {
     if (!p || !(App.scopeAllows("trials.book", p) || Trial.canBookPT(p))) return { show: false };
-    if (p.kind === "Client") { var ms = App.membershipStatus(p.membership); return ms && ms.cls !== "red" ? { show: true, disabled: false } : { show: false }; }
+    // #129: clients don't book trials; only leads and Ex-clients (who book like a lead).
+    if (p.kind === "Client") { var cst = App.clientStatus(p); return cst && cst.key === "ex" ? { show: true, disabled: false } : { show: false }; }
     if (p.stage === "Lost") return { show: true, disabled: true, why: "Re-open the lead first" };
     if (p.stage === "Converted") return { show: false };
     return { show: true, disabled: false };
@@ -296,7 +297,7 @@
   Trial.packagesFor = function (p) {
     return DUMMY.packages.filter(function (x) {
       if (!x.active || !x.isTrial || x.category === "Add-on" || x.category === "Premium PT" || x.branchIds.indexOf(p.branchId) < 0) return false;
-      if (p.kind === "Client") return x.category === "PT";
+      if (p.kind === "Client" && !(App.clientStatus(p) && App.clientStatus(p).key === "ex")) return x.category === "PT";
       return x.audience !== "Renewal" && (x.category === "Membership" || (x.category === "PT" && !x.requiresMembership));
     });
   };
@@ -651,7 +652,7 @@
   // Client status by the LAST package end (later of membership end and PT end; add-ons ignored, #103 Q25):
   // Active > 15 days left, Renewal due <= 15, Expired (counts in renewals) for N days, then Ex-client (Settings "Ex-client after").
   App.lastPackageEnd = function (p) {
-    var e = null; [p && p.membership, p && p.pt].forEach(function (x) { if (x && x.end && (!e || new Date(x.end) > new Date(e))) e = x.end; });
+    var e = null; [p && p.membership, p && p.nextMembership, p && p.pt].forEach(function (x) { if (x && x.end && (!e || new Date(x.end) > new Date(e))) e = x.end; });
     return e;
   };
   App.clientStatus = function (p) {
@@ -677,12 +678,38 @@
     if (p && p.pt) out.push({ what: "PT", line: p.pt, st: App.packageStatus(p.pt) });
     return out.filter(function (x) { return x.st; });
   };
-  App.renewalsDue = function (p) { return App.packageStatuses(p).filter(function (x) { return x.st.key === "renewal"; }); };
+  App.renewalsDue = function (p) { return App.packageStatuses(p).filter(function (x) { return x.st.key === "renewal" && !(x.what === "Membership" && p.nextMembership); }); };
+  // ---------- Renew / buy next membership in advance (#129) ----------
+  // Active or Renewal due: start = current end + 1 (the ONLY place a future start is allowed). Expired: start today.
+  // Steps as Convert (Package · Sale & start · Summary · Payment); sales rep = the seller; the client owner becomes the seller;
+  // FF ID and key fob stay the same. One next membership at a time.
+  App.Renew = {
+    status: function (p) { var s = p && p.kind === "Client" && p.membership ? App.packageStatus(p.membership) : null; return s; },
+    can: function (p) {
+      var s = App.Renew.status(p), cs = App.clientStatus(p);
+      if (!s || !cs || cs.key === "ex" || p.nextMembership) return false;
+      return App.can("sales.sellMembership") === true && App.scopeAllows("sales.convert", p);
+    },
+    // ISO day the new membership starts.
+    startIso: function (p) {
+      var s = App.Renew.status(p), d = new Date();
+      if (s && s.key !== "expired") { d = new Date(p.membership.end); d.setDate(d.getDate() + 1); }
+      return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    },
+    label: function (p) { var s = App.Renew.status(p); return s && s.key === "expired" ? "Renew" : "Renew in advance"; }
+  };
+  // A next membership whose start has come becomes the current one (the real app does this in the nightly job).
+  App.rollMemberships = function () {
+    (DUMMY.people || []).forEach(function (p) {
+      var n = p.nextMembership; if (!n || App.daysFromToday(n.start) > 0) return;
+      p.pastMemberships = (p.pastMemberships || []).concat(p.membership ? [p.membership] : []); p.membership = n; p.nextMembership = null;
+    });
+  };
   // Packages needing renewal (Clients "Renewal due"): a client that is not Expired / Ex-client at client level, with ANY package
   // <= 15 days left OR already expired (e.g. membership expired while PT runs). x.label = badge text.
   App.packagesNeedingRenewal = function (p) {
     var cs = App.clientStatus(p); if (!cs || cs.key === "ex" || cs.key === "expired") return [];
-    return App.packageStatuses(p).filter(function (x) { return x.st.key === "renewal" || x.st.key === "expired"; }).map(function (x) {
+    return App.packageStatuses(p).filter(function (x) { return (x.st.key === "renewal" || x.st.key === "expired") && !(x.what === "Membership" && p.nextMembership); }).map(function (x) {
       var l = x.st.left;
       x.label = x.st.key === "expired" ? (x.what === "Membership" && App.ptOnHold(p) ? "Membership expired · PT on hold" : x.what + " expired")
         : x.what + " renewal due · " + (l === 0 ? "today" : l + (l === 1 ? " day" : " days"));
@@ -1019,4 +1046,5 @@
   (DUMMY.followUps || []).forEach(function (f) { if (!f.assignedToUserId) f.assignedToUserId = f.ownerUserId || null; });
   (DUMMY.people || []).forEach(function (p) { if (p.kind === "Lead" && !p.ownerUserId && p.stage !== "Lost" && !p.unassignedReason) p.unassignedReason = "New"; });
   App.releaseResult = Release.run();
+  App.rollMemberships();   // #129: a next membership whose start has come becomes current
 })();
