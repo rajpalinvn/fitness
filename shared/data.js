@@ -142,6 +142,8 @@
     { key: "sales.backDate",        module: "Sales",    label: "Back-date a sale start (current month only)",     type: "tick",   defaults: {} },
     { key: "payments.refund",       module: "Payments", label: "Refund / cancel a payment (no screen yet)",       type: "tick",   defaults: {} },
     { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    // #126: edit client Details + add / log client follow-ups. FF ID is NOT here (clients.issueItems, only while empty).
+    { key: "clients.edit",          module: "Clients",  label: "Edit client details + client follow-ups",              type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.collectPayment", module: "Clients", label: "Collect payment",                                       type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.issueItems",    module: "Clients",  label: "Issue FF ID / key fob / item on a client",           type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.waive",         module: "Clients",  label: "Waive pending item",                              type: "scope",  defaults: { SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },

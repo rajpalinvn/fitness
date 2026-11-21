@@ -55,6 +55,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `sales.backDate` | Back-date a sale start (current month only, #103) | Sales | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `payments.refund` | Refund / cancel a payment (no screen yet, #103) | Payments | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `clients.view` | View clients | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
+| `clients.edit` | Edit client Details + add / log client follow-ups (#126). FF ID is not part of it: `clients.issueItems`, only while empty | Clients | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
 | `clients.collectPayment` | Collect payment | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
 | `clients.issueItems` | Issue FF ID / key fob / item on a client (pending items: add FF ID, assign fob, issue item) | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
 | `clients.waive` | Waive pending item (#67) | Clients | scope | All | Branch | Branch | Branch | None | None | None | None | None | None | CEO |

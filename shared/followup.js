@@ -134,6 +134,7 @@
     if (!p) return "Not found";
     if (p.kind === "Lead" && p.stage === "Lost") return "Re-open the lead first";
     if (p.kind === "Lead" && !p.ownerUserId) return "Take or assign this lead first";
+    if (p.kind === "Client" && !App.scopeAllows("clients.edit", p)) return "Your role can't add follow-ups for this client";   // #126 clients.edit
     return "";
   }
   function openAdd(personId, opts) {

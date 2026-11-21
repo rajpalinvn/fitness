@@ -30,6 +30,7 @@
 - Esc / outside click / X close. Esc closes the top layer first (menu → modal → drawer).
 - **Work modes** (decision #64): `App.DrawerMode.open(personId, { key, title, onExit })` turns the drawer into a wide mode (the larger of the drawer width setting and 80%; tablet 92%) with header "<Name> › <title>" and **Back**. The profile is hidden, not closed; Back, Esc or outside click return to it. Used by Convert to Client; Renewal, Upgrade and Transfer will reuse it.
 - **Pending items** (decision #62): NEXT STEP lists "FF ID pending", "Key fob pending" and "Pending issue · <item>" with Add FF ID / Assign fob / Issue item (same modals as Today: `App.addFfId`, `App.assignFob`, `App.issueItem`). The links only show for staff allowed to do them.
+- **Client edit (#126):** Details Edit and client follow-ups need grid row `clients.edit` (CEO All; RM, CM, SM Branch; SE Own). Without it: "View only" hint and Add follow-up blocked with the reason.
 
 ## 3. Field table
 
@@ -49,7 +50,7 @@
 | Email | email | No | Yes, company-wide | — | Format checked. |
 | Gender | select | No | No | Not set yet | Female / Male / Other |
 | Birth date | date | No | No | — | |
-| FF ID | text | No | Yes, company-wide | — | ID from the other software. |
+| FF ID | text (lead) / read-only (client) | No | Yes, company-wide | — | ID from the other software. Client: read-only in Details; added only via Add FF ID (`clients.issueItems`) while empty (#126). |
 | Source | select | Yes | No | — | Lead sources that apply to the lead's branch (#115). A saved source that no longer applies stays selected with the note "Not used at this branch" (#116); changing it offers only the branch's sources. |
 | Temperature | select | Yes | No | Warm | Hot / Warm / Cold (fixed). |
 | Stage | select | Yes | No | New | Configurable stages only; hidden for Lost and Clients (Converted/Lost set by actions). |

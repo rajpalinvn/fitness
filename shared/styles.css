@@ -865,3 +865,4 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .news-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 .news-list p { margin: var(--space-1) 0 0; }
 .check-list { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.ro-val { padding: var(--space-2) 0; color: var(--color-text-muted); }

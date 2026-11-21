@@ -325,8 +325,14 @@
 
   // ---------- Pending-item actions, shared by the profile and Today (decisions #40, #46, #62) ----------
   function canWaive(p) { return App.scopeAllows("clients.waive", p); }   // grid row clients.waive (#96)
+  // Details edit (#126): clients need clients.edit; leads unchanged.
+  App.canEditDetails = function (p) { return !!p && (p.kind !== "Client" || App.scopeAllows("clients.edit", p)); };
+  // FF ID (#126): only via clients.issueItems and only while empty; never edited afterwards.
   App.addFfId = function (pid) {
-    var p = App.byId(D.people, pid), m = App.makeModal("ffModal");
+    var p = App.byId(D.people, pid);
+    if (!p || p.ffId) { App.toast("FF ID is already set and can't be changed", "error"); return; }
+    if (!App.access.pendingActions(p, "addFf")) { App.toast("Your role can't add an FF ID", "error"); return; }
+    var m = App.makeModal("ffModal");
     m.title.textContent = "Add FF ID · " + p.name;
     m.body.innerHTML = '<div class="field"><label for="ffIn">FF ID <span class="req">*</span></label><input class="input mono" id="ffIn" placeholder="e.g. FF-20500">' +
       '<span class="hint">Permanent client ID from the corporate software. Unique company-wide.</span><span class="error" data-fferr hidden></span></div>';
@@ -501,7 +507,7 @@
     var client = isClient(p);
     if (!S.editing) {
       return '<div class="panel-head"><span class="muted">' + (client ? "Client" : "Lead") + ' details</span>' +
-        '<button class="btn btn-sm" data-pd="edit">' + icon("edit") + "Edit</button></div>" +
+        (App.canEditDetails(p) ? '<button class="btn btn-sm" data-pd="edit">' + icon("edit") + "Edit</button>" : '<span class="hint" data-no-edit>View only · editing needs Edit client details</span>') + "</div>" +
         '<h4 class="sec-title">Contact</h4><dl class="kv kv-wide">' +
           kv("Name", p.name) + kv("Mobile", p.cc + " " + p.mobile) + kv("Email", p.email) + kv("Gender", p.gender) +
           kv("Birth date", p.birthDate && App.fmtIsoDate(p.birthDate)) + kv("FF ID", p.ffId) + "</dl>" +
@@ -526,7 +532,8 @@
           fld("Email", '<input class="input" name="email" type="email" value="' + esc(p.email || "") + '">', false, "Unique across all branches.") +
           fld("Gender", '<select class="input" name="gender">' + opt(L.genders, p.gender, true) + "</select>") +
           fld("Birth date", '<input class="input" name="birthDate" type="date" value="' + esc(p.birthDate || "") + '">') +
-          fld("FF ID", '<input class="input" name="ffId" value="' + esc(p.ffId || "") + '">', false, "ID from the other software. Unique.") +
+          (client ? fld("FF ID", '<div class="ro-val" data-ff-ro>' + esc(App.empty(p.ffId, "Not set yet")) + "</div>", false, "Read-only. Added once from Membership (Add FF ID).") :
+            fld("FF ID", '<input class="input" name="ffId" value="' + esc(p.ffId || "") + '">', false, "ID from the other software. Unique.")) +
           fld("Source", '<select class="input" name="source">' + opt(App.sourcesFor(p.branchId).concat(p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? [p.source] : []), p.source) + "</select>", true, p.source && App.sourcesFor(p.branchId).indexOf(p.source) < 0 ? "Not used at this branch. Change it to pick from " + App.branchName(p.branchId) + "'s sources." : "Only sources for " + App.branchName(p.branchId) + ".") +
           fld("Temperature", '<select class="input" name="temperature">' + opt(L.temperatures, p.temperature) + "</select>", true) +
           (stageEditable ? fld("Stage", '<select class="input" name="stage"' + (App.Trial.anyRunning(p) ? " disabled" : "") + ">" + opt(p.stage === "Trial" ? ["Trial"].concat(L.stageChoices) : L.stageChoices, p.stage) + "</select>", true,
@@ -607,7 +614,7 @@
         }).join("") + "</dd>" : "") + "</dl>" +
       // One combined section for the two IDs from the corporate software (FF ID + key fob).
       '<section class="corp-sec" data-corp><h4 class="sec-title">' + esc(App.CORP_LABEL) + '</h4><dl class="kv kv-wide">' +
-        "<dt>FF ID</dt><dd>" + (p.ffId ? esc(p.ffId) : paid ? '<span class="badge badge-warning">FF ID pending</span> <button class="link-btn" data-pd="addFf">Add FF ID</button>' : "Not set yet") + "</dd>" +
+        "<dt>FF ID</dt><dd>" + (p.ffId ? esc(p.ffId) : paid ? '<span class="badge badge-warning">FF ID pending</span>' + (App.access.pendingActions(p, "addFf") ? ' <button class="link-btn" data-pd="addFf">Add FF ID</button>' : "") : "Not set yet") + "</dd>" +
         "<dt>Key fob</dt><dd>" + fobHtml + "</dd>" +
         (paid ? kv("Fob stock", App.branchName(p.homeBranchId) + ": " + stock.length + " in stock") : "") + "</dl></section>" +
       paySection("Payments", m, p) +
@@ -757,7 +764,7 @@
       case "issue": App.issueItem(p.id, t.dataset.item); break;
       case "pay": App.collectPayment(p.id, t.dataset.item); break;
       case "task": App.toast("Task form comes with the Tasks screen", ""); break;
-      case "edit": S.editing = true; render(); break;
+      case "edit": if (App.canEditDetails(p)) { S.editing = true; render(); } break;
       case "cancelEdit": S.editing = false; render(); break;
       case "saveEdit": saveDetails(p); break;
       case "openDup": App.openProfile(t.dataset.id, { state: "normal" }); break;

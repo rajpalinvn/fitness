@@ -815,3 +815,9 @@
     fields stay as in #124 (Name, Region, City, State, PIN; GSTIN and Email optional). (c) Regions screen (tab on
     Branches & staff, `admin.regions`): add, rename, switch off; name required + unique; switched-off regions can't be
     picked for a branch (a branch keeps its current one). (d) What's new "seen" is remembered per user in localStorage.
+126. clients.edit (20 Nov 2026, c23 part 1). New grid row `clients.edit` (scope Own / Branch / All): edit client Details
+    and add / log client follow-ups. Defaults CEO All; RM, CM, SM Branch; SE Own; others None. Without it: Details shows
+    "View only" (no Edit) and Add follow-up is blocked with the reason. FF ID is NOT part of it: read-only in Details;
+    added only through `clients.issueItems` (Add FF ID) and only while empty, never changed afterwards. Leads unchanged.
+    Confirmed from #125: only the CEO adds a branch; Branch-scope staff edit = staff whose branches are all mine, picks
+    only from my branches, never the top role.

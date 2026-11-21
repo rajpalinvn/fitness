@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8"></head><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c23: Part 1 clients.edit (#126) · Part 2 lead form + follow-up comments (#127) · Part 3 searchable dropdowns (#128) · Part 4 renew in advance (#129).
+var ROOT = "../../", CL = ROOT + "features/clients/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; } function D() { return W().DUMMY; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function setVal(s, v) { var e = typeof s === "string" ? q(s) : s; e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function role(r) { A().setRole(r); }
+function openP(id, tab) { A().openProfile(id, { state: "normal", tab: tab }); }
+function person(id) { return A().byId(D().people, id); }
+function finish() { document.getElementById("out").textContent = out.join("\n"); }
+
+load(CL, function () {
+  ["mock.perms", "mock.branch"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  W().sessionStorage.setItem("mock.role", "CEO");
+  load(CL, function () {
+    // ---------- Part 1 ----------
+    step("Part 1: clients.edit grid row", function () {
+      var d = D().permissionDefs.filter(function (x) { return x.key === "clients.edit"; })[0];
+      ok("row: scope, CEO All, RM/CM/SM Branch, SE Own, others None", !!d && d.type === "scope" && d.defaults.CEO === "All" && d.defaults.RM === "Branch" && d.defaults.CM === "Branch" && d.defaults.SM === "Branch" && d.defaults.SE === "Own" && !d.defaults.MXM && !d.defaults.FIN);
+    });
+    step("Part 1: Details edit + follow-ups by scope", function () {
+      role("Sales Executive");   // Priya, owns p7 / p12 (Sec 31)
+      openP("p7", "details");
+      ok("SE own client: Edit shown", !!q('#profileDrawer [data-pd="edit"]'));
+      ok("SE own client: follow-up allowed", A().Followup.blockReason(person("p7")) === "");
+      role("Club Manager");   // Sunita, Sec 31
+      openP("p24", "details");
+      ok("CM other branch client (Zoya, Golf Course): no Edit, follow-up blocked", !q('#profileDrawer [data-pd="edit"]') && !!q("#profileDrawer [data-no-edit]") && /can't add follow-ups/.test(A().Followup.blockReason(person("p24"))));
+      role("MXM");
+      ok("MXM (None): follow-up blocked on any client", /can't add follow-ups/.test(A().Followup.blockReason(person("p7"))));
+      role("CEO");
+      ok("CEO: everything", A().Followup.blockReason(person("p24")) === "" && A().canEditDetails(person("p24")));
+      ok("leads unchanged by clients.edit", A().canEditDetails(person("p1")));
+    });
+    step("Part 1: FF ID read-only in Details; Add FF ID only while empty + issueItems", function () {
+      openP("p7", "details"); click(q('#profileDrawer [data-pd="edit"]'));
+      ok("client edit form: FF ID read-only text, no input", !!q("#profileDrawer [data-ff-ro]") && !q('#profileDrawer [data-details] [name="ffId"]') && /FF-19877/.test(text("#profileDrawer [data-ff-ro]")));
+      click(q('#profileDrawer [data-pd="cancelEdit"]'));
+      A().addFfId("p7");
+      ok("FF ID set: Add FF ID refused", !(q("#ffModal") && q("#ffModal").classList.contains("open")) && person("p7").ffId === "FF-19877");
+      role("MXM"); A().addFfId("p12");
+      ok("no clients.issueItems: refused", !(q("#ffModal") && q("#ffModal").classList.contains("open")) && !person("p12").ffId);
+      role("CEO"); openP("p12", "membership");
+      ok("empty + allowed: Add FF ID button on Membership", !!q('#profileDrawer [data-pd="addFf"]'));
+      A().closeAll(); A().closeAll();
+      ok("no bad text", !badText(), badText());
+    });
+    finish();
+  });
+});
+</script>
+</body></html>
