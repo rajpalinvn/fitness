@@ -124,16 +124,26 @@
     new MutationObserver(function () { App.syncSelect(sel); }).observe(sel, { childList: true });
     App.syncSelect(sel);
   };
+  // Searchable dropdowns (#128): lists that can be long get a "Type to filter" box + "No match".
+  // Owner, Assigned to, Sales rep, Source, Branch, Package, Staff / trainer / approver pickers, State, Region; plus any list of 10+.
+  // Short fixed lists (gender, temperature, stage, country code, method, discount reason…) stay plain.
+  App.SEARCH_SELECT = /^(fOwner|fRep|fBranch|fSource|fRegion|qlOwner|qlBranch|qlSource|assignUser|assignManyUser|ffAssign.*|movePerson|pickSe|cvRep|cvPkg.*|trTrainer|trApprover|qrAsk|qPkg|qTrainer|sfBranch|brState|brRegion|fiItem.*)$/;
+  App.isSearchSelect = function (sel) {
+    return sel.dataset.search != null || App.SEARCH_SELECT.test(sel.id) || sel.name === "source" || sel.classList.contains("ff-assign") || sel.options.length >= 10;
+  };
   App.syncSelect = function (sel) {
     if (!sel || !sel._dd) return;
     var o = sel.options[sel.selectedIndex], first = sel.options[0];
     sel._dd.btn.innerHTML = '<span class="pill-text">' + esc(o ? o.text : "") + "</span>" + App.icon("chevron-down", "ico-sm");
     sel._dd.btn.classList.toggle("is-set", !!o && !!first && o !== first && sel.dataset.noHighlight == null);
     sel._dd.btn.disabled = sel.disabled;
-    sel._dd.menu.innerHTML = Array.prototype.map.call(sel.options, function (op) {
+    var search = App.isSearchSelect(sel);
+    sel._dd.menu.classList.toggle("dd-searchable", search);
+    sel._dd.menu.innerHTML = (search ? '<div class="dd-search">' + App.icon("search") + '<input class="input" type="text" data-dd-search placeholder="Type to filter" aria-label="Filter ' + esc(sel._dd.btn.getAttribute("aria-label") || "list") + '" autocomplete="off"></div>' : "") +
+      Array.prototype.map.call(sel.options, function (op) {
       return '<button class="dd-item" role="menuitemradio" tabindex="-1" data-sel="' + esc(sel.id) + '" data-val="' + esc(op.value) +
         '" aria-checked="' + (op.selected) + '"><span class="dd-check">' + (op.selected ? App.icon("check") : "") + "</span><span>" + esc(op.text) + "</span></button>";
-    }).join("");
+    }).join("") + (search ? '<div class="dd-empty muted" data-dd-nomatch hidden>No match</div>' : "");
   };
   App.syncAllSelects = function (root) { $all("select", root).forEach(function (s) { if (s._dd) App.syncSelect(s); }); };
 
@@ -247,6 +257,12 @@
     var none = $("[data-branch-none]"); if (none) none.hidden = any;
   }
   App.filterBranches = filterBranches;
+  // Filter a searchable select menu (#128). The first option ("All …" / "Choose…") stays visible.
+  App.filterMenu = function (menu, q) {
+    q = String(q || "").toLowerCase().trim(); var shown = 0, list = $all("[data-sel]", menu);
+    list.forEach(function (b, i) { var on = !q || i === 0 && !b.dataset.val || b.textContent.toLowerCase().indexOf(q) > -1; b.hidden = !on; if (on && (b.dataset.val || i > 0)) shown++; });
+    var nm = $("[data-dd-nomatch]", menu); if (nm) nm.hidden = shown > 0;
+  };
 
   function renderTopbar() {
     var counts = App.counts(), u = App.demoUser(), role = App.state.role, br = App.state.branchId;
@@ -319,7 +335,7 @@
     if (restore && openDD.trigger && document.contains(openDD.trigger)) openDD.trigger.focus();
     openDD = null; return true;
   }
-  function items(menu) { return $all(".dd-item:not([hidden]), [data-mark-read], [data-branch-search]", menu).filter(function (x) { return !x.closest("[hidden]"); }); }
+  function items(menu) { return $all(".dd-item:not([hidden]), [data-mark-read], [data-branch-search], [data-dd-search]", menu).filter(function (x) { return !x.closest("[hidden]"); }); }
   function openMenu(name, trigger) {
     collapseSearch();
     closeDD(false);
@@ -327,8 +343,9 @@
     menu.hidden = false;
     $all('[data-dd="' + name + '"]').forEach(function (b) { b.setAttribute("aria-expanded", "true"); });
     openDD = { name: name, menu: menu, trigger: trigger };
-    var list = items(menu), sel = menu.querySelector('[aria-checked="true"]') || list[0];
-    if (sel) sel.focus();
+    var list = items(menu), sel = menu.querySelector('[aria-checked="true"]') || list[0], srch = menu.querySelector("[data-dd-search]");
+    if (srch) { srch.value = ""; App.filterMenu(menu, ""); srch.focus(); }   // searchable list: type right away (#128)
+    else if (sel) sel.focus();
   }
 
   // ---------- Inline search (decision #34): the top-bar field expands in place ----------
@@ -469,6 +486,7 @@
   document.addEventListener("input", function (e) {
     if (e.target.matches("[data-search-input]")) { sIndex = 0; renderSearch(); }
     if (e.target.matches("[data-branch-search]")) filterBranches(e.target.value);
+    if (e.target.matches("[data-dd-search]")) App.filterMenu(e.target.closest(".dd-menu"), e.target.value);
   });
   document.addEventListener("focusin", function (e) { if (e.target.matches && e.target.matches("[data-search-input]")) expandSearch(); });
   document.addEventListener("mock:context", render);

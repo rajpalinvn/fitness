@@ -868,3 +868,4 @@ a.soon-card:hover { border-color: var(--color-primary); }
 .ro-val { padding: var(--space-2) 0; color: var(--color-text-muted); }
 .ref-field { position: relative; }
 .ref-sugg { top: 100%; left: 0; right: auto; min-width: 100%; margin-top: calc(-1 * var(--space-4)); }
+.mb-2 { margin-bottom: var(--space-2); }

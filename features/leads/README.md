@@ -148,3 +148,6 @@ Dummy (c4): p28 Varun (Rahul's, follow-up assigned to Priya), p29 Tanvi (Priya's
 
 ## 5. Status
 Ready for review
+
+## Searchable dropdowns (#128)
+Owner, Source, Branch (filters + quick lead), Assigned to, Sales rep, Package, staff pickers, State, Region and any list of 10+ options open with a "Type to filter" box and show "No match" when nothing fits. Lost reason chips have the same filter. Short fixed lists stay plain. Rule: `App.isSearchSelect` in `shared/shell.js`.

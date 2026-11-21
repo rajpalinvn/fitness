@@ -96,6 +96,37 @@ load(CL, function () {
       ok("lead edit form: no FF ID input", !q('#profileDrawer [data-details] [name="ffId"]'));
       A().closeAll();
     });
+    // ---------- Part 3 ----------
+    step("Part 3: searchable dropdowns", function () {
+      A().closeAll(); A().closeAll();
+      click(q('[data-dd="sel-fRep"]'));
+      var m = q('[data-dd-menu="sel-fRep"]'), s = m.querySelector("[data-dd-search]");
+      ok("Sales rep filter: search box, focused", !!s && Dc().activeElement === s);
+      setVal(s, "priya");
+      var vis = Array.prototype.filter.call(m.querySelectorAll("[data-sel]"), function (b) { return !b.hidden && b.dataset.val; });
+      ok("type to filter", vis.length === 1 && /Priya/.test(vis[0].textContent), vis.length);
+      setVal(s, "zzzz");
+      ok("No match", !m.querySelector("[data-dd-nomatch]").hidden);
+      click(Dc().body);
+      click(q('[data-dd="sel-fStatus"]'));
+      ok("short fixed list (status) stays plain", !q('[data-dd-menu="sel-fStatus"] [data-dd-search]'));
+      click(Dc().body);
+      ok("rule: Owner / Assigned to / Sales rep / Source / Branch / staff pickers / package / state",
+        ["fOwner", "fRep", "fBranch", "fSource", "qlOwner", "qlBranch", "qlSource", "assignUser", "ffAssignp1", "cvRep", "trTrainer", "qPkg", "sfBranch", "brState", "pickSe", "movePerson"].every(function (id) { return A().SEARCH_SELECT.test(id); }) &&
+        !A().SEARCH_SELECT.test("qlGender") && !A().SEARCH_SELECT.test("fStatus"));
+      A().QuickLead.open({});
+      click(q('[data-dd="sel-qlSource"]'));
+      ok("quick lead Source is searchable", !!q('[data-dd-menu="sel-qlSource"] [data-dd-search]'));
+      click(Dc().body); A().closeAll();
+      openP("p2", "timeline"); A().Lead.markLost("p2");
+      var lm = q("#lostModal"), lf = lm.querySelector("[data-chip-filter]");
+      ok("Lost reason: filter box", !!lf);
+      setVal(lf, "timing");
+      var shown = Array.prototype.filter.call(lm.querySelectorAll("[data-chip]"), function (c) { return !c.hidden; });
+      ok("filters the reasons", shown.length === 1 && /Timing/.test(shown[0].textContent));
+      setVal(lf, "zzz"); ok("No match", !lm.querySelector("[data-chip-nomatch]").hidden);
+      A().closeAll(); A().closeAll();
+    });
     finish();
   });
 });

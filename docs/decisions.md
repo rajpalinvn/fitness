@@ -829,3 +829,9 @@
     Campaign shows only for sources with "has campaigns" (Facebook, Instagram, Google ads). Source Referral asks
     "Referred by" (required): search an existing client (name / mobile) or type a name. Dummy data mapped: source
     Walk-in -> Passing by, Phone Call / WhatsApp -> Others, Google -> Google ads; inquiry Call -> Phone call.
+128. Searchable dropdowns (21 Nov 2026, c23 part 3). Every dropdown whose list can be long gets a "Type to filter" box
+    (focused when it opens) and "No match": Owner, Assigned to, Sales rep, Source, Branch (filters, quick lead, staff),
+    Package (quote; Convert already has package search), staff pickers (trainer, approver, move / pick person), State,
+    Region, plus any list of 10+ options. Lost reason chips get a filter box + "No match". Short fixed lists (gender,
+    temperature, stage, status, country code, payment method, discount reason) stay plain. One rule in
+    `App.enhanceSelect` (`App.SEARCH_SELECT` / `App.isSearchSelect`); a select can opt in with `data-search`.

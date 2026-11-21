@@ -243,10 +243,20 @@
     App.openModal("fuCancelModal");
   }
 
+  // Lost reason chips: type to filter (#128).
+  document.addEventListener("input", function (e) {
+    var t = e.target; if (!t.matches || !t.matches("[data-chip-filter]")) return;
+    var f = t.closest(".field"), q = t.value.toLowerCase().trim(), n = 0;
+    Array.prototype.forEach.call(f.querySelectorAll("[data-chip]"), function (c) { var on = !q || c.textContent.toLowerCase().indexOf(q) > -1; c.hidden = !on; if (on) n++; });
+    f.querySelector("[data-chip-nomatch]").hidden = n > 0;
+  });
+
   // ---------- Lost / Re-open / Assign ----------
   function lostForm(m, p, preset, beforeSave) {
     m.title.textContent = "Mark " + p.name + " as Lost";
-    m.body.innerHTML = '<div class="field"><label>Reason <span class="req">*</span></label>' + chips("lreason", L.lostReasons, preset || "") +
+    m.body.innerHTML = '<div class="field"><label>Reason <span class="req">*</span></label>' +
+      '<input class="input mb-2" type="text" data-chip-filter placeholder="Type to filter reasons" aria-label="Filter lost reasons" autocomplete="off">' + chips("lreason", L.lostReasons, preset || "") +
+      '<span class="muted" data-chip-nomatch hidden>No match</span>' +
       '<span class="error" data-lerr hidden></span></div>' +
       '<div class="field" data-other hidden><label for="lostOther">Describe the reason <span class="req">*</span></label>' +
       '<input class="input" id="lostOther" placeholder="Required when the reason is Other"></div>' +
