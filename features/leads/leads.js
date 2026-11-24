@@ -270,14 +270,9 @@
       box.innerHTML = '<div class="state"><h3>No leads assigned to you</h3><p>Viewing as ' + esc(App.state.role) + ".</p></div>";
     } else {
       // #105: full mobile number -> leads of other branches as a READ-ONLY row (never in the normal list).
-      var other = App.findByFullMobile(S.search).filter(function (p) { return App.Cross.readOnly(p); });
-      if (other.length) {
-        box.innerHTML = '<div class="callout" data-cross-hits>' + App.icon("lock") + '<div><strong>Found in another branch · read only</strong>' + other.map(function (p) {
-          return '<div class="row row-tight mt-1" data-ro-row="' + p.id + '"><span><strong>' + esc(p.name) + "</strong> · " + esc(p.cc + " " + p.mobile) + " · " + esc(App.branchName(p.branchId)) +
-            " · " + esc(p.stage) + " · Owner: " + esc(p.ownerUserId ? App.userName(p.ownerUserId) : "Unassigned") + '</span><button class="btn btn-sm" data-ro-open="' + p.id + '">Open (read only)</button></div>';
-        }).join("") + "</div></div>";
-        return;
-      }
+      // #133: EXACT search (mobile / email / FF ID / client no) across the company -> cards with actions.
+      var other = App.findExact(S.search).filter(function (p) { return App.Cross.hidden(p); });
+      if (other.length) { box.innerHTML = App.crossCards(other); return; }
       var create = isPhoneLike(S.search) ? '<button class="btn btn-primary" data-create-number>Create lead with this number</button>' : "";
       box.innerHTML = '<div class="state"><h3>No leads match these filters</h3><p>Try fewer filters or a different search.</p>' +
         '<div class="stack center"><button class="btn" id="btnClear2">Clear filters</button>' + create + "</div></div>";

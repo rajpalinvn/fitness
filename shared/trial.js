@@ -27,11 +27,11 @@
 
   function open(pid, o) {
     o = o || {};
-    var p = App.byId(D.people, pid), cb = T.canBook(p);
+    var p = App.byId(D.people, pid), cross = !!o.atBranch && App.Cross.canTrialHere(p), cb = cross ? { show: true } : T.canBook(p);
     if (!cb.show || cb.disabled) { if (cb.why) App.toast(cb.why, "error"); return; }
     var apr = T.approvers(p);
     C = { pid: pid, step: 1, pkgId: null, trainerId: o.trainerId || "", start: isoDay(new Date()), comment: "", approverId: apr.length === 1 ? apr[0].id : "", errors: {}, done: false,
-      pay: { method: (App.activePayMethods()[0] || {}).name || "", ref: "", bank: "", dupOk: false, dupWhy: "", slip: "" } };
+      pay: { method: (App.activePayMethods()[0] || {}).name || "", ref: "", bank: "", dupOk: false, dupWhy: "", slip: "" }, atBranch: cross ? o.atBranch : null };
     m = App.DrawerMode.open(pid, { key: "trial", id: "trialMode", title: "Book trial", onExit: function () { if (C && !C.done) App.toast("Trial not booked", ""); C = null; } });
     m.body.onclick = onClick; m.body.oninput = onInput; m.body.onchange = onInput;
     render();
@@ -93,7 +93,7 @@
   }
   function s1(p) {
     // Membership trials: trials.book (SE …). PT trials: only pt.quote users (CM / MXM, #112).
-    var all = T.packagesFor(p).filter(function (x) { return T.typeOf(x) === "PT" ? T.canBookPT(p) : App.scopeAllows("trials.book", p); }), groups = [["Membership", "Membership trials"], ["PT", "PT trials"]];
+    var all = T.packagesFor(p, C.atBranch).filter(function (x) { return C.atBranch ? T.typeOf(x) !== "PT" : T.typeOf(x) === "PT" ? T.canBookPT(p) : App.scopeAllows("trials.book", p); }), groups = [["Membership", "Membership trials"], ["PT", "PT trials"]];
     var html = '<section class="cv-card"><h3 class="cv-card-title">Trial package</h3>' +
       '<p class="muted">' + (p.kind === "Client" ? "Clients get PT trials." : "Leads get membership trials and PT trials open to leads.") +
       ' Free-trial limits: ' + App.setting("freeTrialsPerPerson") + " per person and " + App.setting("freeTrialsPerBranch") + " per branch, counted separately for each trial type and the same for every role (L1c). Paid trials are unlimited.</p>" +
@@ -195,7 +195,7 @@
     var p = person(), k = pkg(), type = T.typeOf(k), now = new Date().toISOString(), me = App.me(), apr = T.approvers(p);
     var startIso = new Date(C.start + "T00:00").toISOString(), endIso = endDate().toISOString(), paid = isPaid();
     var t = { id: "tr" + Date.now(), type: type, kind: paid ? "paid" : "free", packageId: k.id, package: k.name, from: startIso, to: endIso, price: k.price, paid: paid ? k.price : 0,
-      branchId: p.branchId, bookedByUserId: me.id, bookedAt: now, comment: C.comment.trim(), approverUserId: type === "PT" ? null : (C.approverId || null),
+      branchId: C.atBranch || p.branchId, crossBranch: C.atBranch ? true : undefined, bookedByUserId: me.id, bookedAt: now, comment: C.comment.trim(), approverUserId: type === "PT" ? null : (C.approverId || null),
       approval: type === "PT" ? "Not needed" : apr.length ? "Pending" : "No approver available", trainerUserId: type === "PT" ? C.trainerId : undefined };
     if (paid) { t.receiptNo = App.nextReceiptNo(p.branchId, true); t.payment = App.PayRef.save(C.pay, t.receiptNo, p, k.price); }
     p.trials = T.list(p).concat(t);

@@ -97,7 +97,7 @@ queue.push(function (nx) { start("Sales Executive", null, function () {
   });
   setTimeout(function () {
     step("read-only row + profile", function () {
-      ok("full mobile -> read-only row 'Found in another branch'", /Found in another branch · read only/.test(text("[data-cross-hits]")) && !!q('[data-ro-row="p41"]'), text("#tableBox") );
+      ok("full mobile -> read-only row 'Found in another branch'", /Found across the company · exact match/.test(text("[data-cross-hits]")) && !!q('[data-ro-row="p41"]'), text("#tableBox") );
       click(q('[data-ro-open="p41"]')); A().openProfile("p41", { state: "normal" });
       ok("profile read only: name, full mobile, owner, branch, stage, timeline", /Owner: Arjun Nair \(Sec 65\)/.test(text("[data-ro-box]")) && /90000 01274/.test(text(".pd-mobile")) && /Contacted/.test(text(".pd-kv")) && !!q('[data-tab-k="timeline"]'));
       ok("no actions: no composer, no Convert, no Call / quick actions, only Timeline tab", !q("[data-composer]") && !q('[data-pd="convert"]') && !q('[data-pd="call"]') && qa(".pd-tabs .tab").length === 1);

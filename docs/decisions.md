@@ -865,3 +865,10 @@
     HomeBranchPlanned at sale, HomeBranchChanged + OwnerChanged on the day; an expired client's renewal starts today, so
     it moves now). Same branch: owner = seller at sale (#129). PT never decides the home branch. Moving a running
     membership / PT to another branch = the future Add-on "Transfer" (hint on the Membership tab).
+133. Cross-branch (24 Nov 2026, c24 part 4; real-app decision). (a) EXACT search across the company: full mobile, email,
+    FF ID or client no (never partial) - in the Leads list (no visible match) and in the global search (Ctrl K).
+    (b) Each hit is a card with the actions the user may do: My follow-up (leads.crossBranchFollowUp), Trial at my
+    branch (membership trial at my branch, trials.book + the cross-branch row), Sell here (sales.sellCrossBranch), Ask
+    to own. (c) Labels: "Cross-branch" = another branch's person; "Another owner's lead" = my branch, a lead I can't see.
+    (d) Ask to own = LEADS WITH NO SALE only (open, no paid trial, not converted; needs leads.own); notifies the owner
+    and the branch's Club Manager(s), event OwnRequested. Clients found this way show info only.

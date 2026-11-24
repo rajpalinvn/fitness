@@ -137,6 +137,31 @@
   }
   function skel(n) { var h = ""; for (var k = 0; k < n; k++) h += '<div class="skeleton"></div>'; return h; }
 
+  // ---------- Exact-search cards (#133): Leads list + global search. Actions: own follow-up, trial at my branch, Sell here, Ask to own. ----------
+  App.crossCards = function (list) {
+    return '<div class="callout" data-cross-hits>' + icon("lock") + '<div class="grow"><strong>Found across the company · exact match</strong>' + list.map(function (p) {
+      var C2 = App.Cross, lead = p.kind === "Lead", acts = [];
+      if (lead) acts.push('<button class="btn btn-sm" data-ro-open="' + p.id + '">Open (read only)</button>');
+      if (C2.canFollowUp(p)) acts.push('<button class="btn btn-sm" data-cross-act="fu" data-id="' + p.id + '">' + icon("plus") + "My follow-up</button>");
+      if (C2.canTrialHere(p)) acts.push('<button class="btn btn-sm" data-cross-act="trial" data-id="' + p.id + '">Trial at my branch</button>');
+      if (C2.canSellHere(p)) acts.push('<button class="btn btn-sm btn-primary" data-cross-act="sell" data-id="' + p.id + '">Sell here</button>');
+      if (C2.canAskOwn(p)) acts.push('<button class="btn btn-sm btn-ghost" data-cross-act="own" data-id="' + p.id + '">Ask to own</button>');
+      return '<div class="cross-card mt-2" data-ro-row="' + p.id + '"><div><strong>' + esc(p.name) + '</strong> <span class="badge badge-warning" data-cross-label>' + esc(C2.label(p)) + "</span> " +
+        '<span class="badge">' + (lead ? "Lead · " + esc(p.stage) : "Client · " + esc(App.empty(p.clientNo))) + "</span>" +
+        '<div class="cell-sub">' + esc(p.cc + " " + p.mobile) + " · " + esc(App.branchName(p.branchId)) + " · Owner: " + esc(p.ownerUserId ? App.userName(p.ownerUserId) : "Unassigned") + "</div></div>" +
+        '<div class="stack mt-1">' + (acts.join("") || '<span class="hint">Ask ' + esc(App.branchName(p.branchId)) + " to help this person.</span>") + "</div></div>";
+    }).join("") + "</div></div>";
+  };
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-cross-act]"); if (!b) return;
+    var p = App.byId(D.people, b.dataset.id), a = b.dataset.crossAct;
+    if (App.closeSearch) App.closeSearch();
+    if (a === "fu") App.Lead.crossFollowUp(p.id, {});
+    if (a === "sell") App.Lead.crossFollowUp(p.id, { sellHere: true });
+    if (a === "trial") App.Trial.open(p.id, { atBranch: App.Cross.myBranch() });
+    if (a === "own") { if (App.Cross.askOwn(p)) { App.toast("Asked to own " + p.name + " · the owner and the Club Manager are notified", "success"); b.disabled = true; b.textContent = "Asked"; } }
+  });
+
   // ---------- READ-ONLY (#105): another branch's lead found by the full mobile. Shows everything, no actions. ----------
   function roLeft(p) {
     var owner = p.ownerUserId ? App.userName(p.ownerUserId) + " (" + App.branchName(p.branchId) + ")" : "Unassigned (" + App.branchName(p.branchId) + ")";
@@ -146,7 +171,7 @@
         '<div class="pd-mobile">' + esc(p.cc + " " + p.mobile) + "</div>" +
         '<div class="cell-sub">' + esc(App.branchName(p.branchId)) + " · Created " + esc(App.fmtDay(p.createdAt)) + "</div></div>" +
       '<div class="stack pd-badges"><span class="badge badge-info">Lead</span><span class="badge' + (p.stage === "Lost" ? " badge-danger" : "") + '">' + esc(p.stage) + "</span>" +
-        '<span class="badge" data-ro>' + (App.Quote.viewOnly(p) ? "View only · PT quote" : "Read only · another branch") + "</span></div>" +
+        '<span class="badge" data-ro>' + (App.Quote.viewOnly(p) ? "View only · PT quote" : "Read only · " + esc(App.Cross.label(p))) + "</span></div>" +
       '<div class="callout" data-ro-box>' + icon("lock") + "<div><strong>Owner: " + esc(owner) + "</strong>" +
         '<div class="cell-sub" data-ro-why>' + (qv ? "You see this lead because of a PT quote (request to you or your open quote): view + quote actions only."
           : "This lead belongs to " + esc(App.branchName(p.branchId)) + ". You can see it because the full mobile number matched." +
@@ -156,7 +181,9 @@
         "<dt>Last activity</dt><dd>" + esc(App.fmtShortWhen(p.lastActivityAt)) + "</dd></dl>" +
       '<div class="pd-bottom">' +
         (sell ? '<button class="btn btn-primary btn-block" data-pd="sellHere">Sell here</button>' : "") +
-        (fu ? '<button class="btn btn-block" data-pd="crossFu">' + icon("plus") + "Add a follow-up for myself</button>" : "") + "</div>";
+        (fu ? '<button class="btn btn-block" data-pd="crossFu">' + icon("plus") + "Add a follow-up for myself</button>" : "") +
+        (App.Cross.canTrialHere(p) ? '<button class="btn btn-block" data-cross-act="trial" data-id="' + p.id + '">Trial at my branch</button>' : "") +
+        (App.Cross.canAskOwn(p) ? '<button class="btn btn-block btn-ghost" data-cross-act="own" data-id="' + p.id + '">Ask to own</button>' : "") + "</div>";
   }
 
   // ---------- LEFT column ----------

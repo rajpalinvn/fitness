@@ -299,9 +299,10 @@
     return { show: true, disabled: false };
   };
   // Trial packages for this person: lead = Membership trials + PT trials with "Requires an active membership" OFF; active client = PT trials (ON or OFF).
-  Trial.packagesFor = function (p) {
+  Trial.packagesFor = function (p, atBranch) {
+    var bid = atBranch || p.branchId;   // #133: trial at MY branch on a cross-branch lead
     return DUMMY.packages.filter(function (x) {
-      if (!x.active || !x.isTrial || x.category === "Add-on" || x.category === "Premium PT" || x.branchIds.indexOf(p.branchId) < 0) return false;
+      if (!x.active || !x.isTrial || x.category === "Add-on" || x.category === "Premium PT" || x.branchIds.indexOf(bid) < 0) return false;
       if (p.kind === "Client" && !(App.clientStatus(p) && App.clientStatus(p).key === "ex")) return x.category === "PT";
       return x.audience !== "Renewal" && (x.category === "Membership" || (x.category === "PT" && !x.requiresMembership));
     });
@@ -972,6 +973,15 @@
     var d = App.phoneQuery(q); if (d.length !== 10) return [];
     return DUMMY.people.filter(function (p) { return App.phoneOf(p) === "+91" + d; });   // E.164 (#119)
   };
+  // #133: EXACT search across the company: full mobile, email, FF ID or client no (never partial).
+  App.findExact = function (q) {
+    q = String(q || "").trim(); if (!q) return [];
+    var byPhone = App.findByFullMobile(q); if (byPhone.length) return byPhone;
+    var lq = q.toLowerCase();
+    return DUMMY.people.filter(function (p) {
+      return (p.email && p.email.toLowerCase() === lq) || (p.ffId && p.ffId.toLowerCase() === lq) || (p.clientNo && p.clientNo.toLowerCase() === lq);
+    });
+  };
   var Cross = {};
   // Read-only = a lead the user can't see by the grid (another branch's lead found by full mobile). Shows everything, no actions.
   Cross.readOnly = function (p) { return !!p && p.kind === "Lead" && !App.canSee(p); };
@@ -982,6 +992,24 @@
   Cross.isCrossWorker = function (p, uid) {
     var u = App.byId(DUMMY.users, uid || (App.demoUser() || {}).id);
     return !!u && !!p && u.branchIds.indexOf(p.branchId) < 0 && p.ownerUserId !== u.id;
+  };
+  // Labels (#133): "Cross-branch" = another branch's person; "Another owner's lead" = my branch, someone else's lead I can't see.
+  Cross.label = function (p) { var u = App.demoUser(); return u && u.branchIds.indexOf(p.branchId) > -1 ? "Another owner's lead" : "Cross-branch"; };
+  // Hidden from my lists (any kind): what the exact search shows as a card.
+  Cross.hidden = function (p) { return !!p && (p.kind === "Lead" ? !App.canSee(p) : !App.scopeAllows("clients.view", p)); };
+  // Trial at MY branch on another branch's open lead (membership trial, trials.book + the cross-branch follow-up row).
+  Cross.canTrialHere = function (p) { return Cross.readOnly(p) && Cross.isOpenLead(p) && App.can("trials.book") !== "None" && App.can("leads.crossBranchFollowUp") === true; };
+  // Ask to own (#133): leads with NO SALE only (no paid trial, not converted), not mine.
+  Cross.canAskOwn = function (p) {
+    var u = App.demoUser();
+    return !!u && Cross.isOpenLead(p) && p.ownerUserId !== u.id && !App.Trial.list(p).some(function (t) { return t.kind === "paid"; }) && App.can("leads.own") === true;
+  };
+  Cross.askOwn = function (p) {
+    if (!Cross.canAskOwn(p)) return false;
+    var me = App.demoUser(), to = [p.ownerUserId].concat(DUMMY.users.filter(function (u) { return u.roleKey === "CLUB_MANAGER" && u.branchIds.indexOf(p.branchId) > -1; }).map(function (u) { return u.id; })).filter(Boolean);
+    DUMMY.notifications.unshift({ id: "nown" + Date.now(), event: "askOwn", text: App.firstName(me) + " asks to own " + p.name + " · " + App.branchName(p.branchId), at: new Date().toISOString(), unread: true, toUserIds: to });
+    Event.log(p.id, { type: "OwnRequested", to: me.id, text: App.firstName(me) + " asked to own this lead" });
+    return true;
   };
   Cross.myBranch = function () {
     var u = App.demoUser(); if (!u) return null;

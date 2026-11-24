@@ -103,6 +103,40 @@ part(function (done) {
   done();
 });
 
+// ---------- Part 4 · Cross-branch (#133) ----------
+part(function (done) {
+  load(ROOT + "features/leads/index.html", function () {
+    step("Part 4: exact search across the company + card actions", function () {
+      role("Sales Executive"); A().setBranch("all");   // Priya, Sec 31
+      var X = A().findExact;
+      ok("exact: mobile / email / FF ID / client no; never partial", X("90000 01274")[0].id === "p41" && X("zoya.s@example.com")[0].id === "p24" && X("ff-20705")[0].id === "p24" && X("CL-1001").length === 1 && !X("zoya").length && !X("90000 0127").length);
+      setVal("#fSearch", "90000 01274");
+      ok("Leads list: card with 'Cross-branch' label", /Cross-branch/.test(text('[data-ro-row="p41"]')));
+      ok("card actions: My follow-up, Trial at my branch, Sell here, Ask to own", !!q('[data-cross-act="fu"][data-id="p41"]') && !!q('[data-cross-act="trial"][data-id="p41"]') && !!q('[data-cross-act="sell"][data-id="p41"]') && !!q('[data-cross-act="own"][data-id="p41"]'));
+      click(q('[data-cross-act="trial"][data-id="p41"]'));
+      var tm = q("#trialMode");
+      ok("Trial at my branch: membership trials of Sec 31", !!tm && /Membership trial/.test(tm.innerText) && !/PT Trial Session/.test(tm.innerText), tm ? tm.innerText.replace(/\s+/g, " ").slice(0, 400) : "no #trialMode · " + text("#profileDrawer").slice(0, 200));
+      A().closeAll(); A().closeAll();
+      click(q('[data-cross-act="own"][data-id="p41"]'));
+      ok("Ask to own: owner + CM notified, event", D().notifications[0].event === "askOwn" && D().notifications[0].toUserIds.indexOf("u7") > -1 && A().Event.of("p41", "OwnRequested").length === 1);
+      setVal("#fSearch", "zoya.s@example.com");
+      ok("client of another branch: Cross-branch card, no Ask to own (leads only)", /Cross-branch/.test(text('[data-ro-row="p24"]')) && /Client/.test(text('[data-ro-row="p24"]')) && !q('[data-cross-act="own"][data-id="p24"]'));
+      ok("label: my branch, other owner = \"Another owner's lead\"", A().Cross.label(person("p2")) === "Another owner's lead" && A().Cross.label(person("p41")) === "Cross-branch");
+      var lead = person("p41"); lead.trials = [{ id: "trX", type: "Membership", kind: "paid", from: new Date().toISOString(), to: new Date().toISOString() }];
+      ok("Ask to own = leads with no sale only (paid trial -> hidden)", !A().Cross.canAskOwn(lead));
+      lead.trials = [];
+      setVal("#fSearch", "");
+    });
+    step("Part 4: global search shows the exact cards", function () {
+      var inp = q("[data-search-input]"); inp.focus(); inp.dispatchEvent(new (W().FocusEvent)("focusin", { bubbles: true }));
+      setVal(inp, "90000 01274");
+      ok("Ctrl K search: 'Found across the company' card with actions", /Found across the company/.test(text("#tbSearchResults")) && !!q('#tbSearchResults [data-cross-act="fu"]'));
+      A().closeSearch(); role("CEO");
+    });
+    done();
+  });
+});
+
 load(CL, function () {
   ["mock.perms", "mock.branch", "mock.settings"].forEach(function (k) { W().sessionStorage.removeItem(k); });
   W().sessionStorage.setItem("mock.role", "CEO");

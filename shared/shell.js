@@ -368,6 +368,8 @@
   }
   function renderSearch() {
     var res = sResults(), q = sInput().value.trim(), box = $("#tbSearchResults");
+    // #133: exact match (mobile / email / FF ID / client no) across the company -> cards with actions.
+    var exact = q && App.findExact && App.crossCards ? App.findExact(q).filter(function (p) { return App.Cross.hidden(p); }) : [];
     sIndex = Math.min(sIndex, Math.max(res.length - 1, 0));
     box.innerHTML = (res.length
       ? '<div class="pal-section">' + (q ? "Matching leads" : "Recent leads") + "</div>" + res.map(function (p, i) {
@@ -378,7 +380,8 @@
         }).join("")
       : '<div class="pal-empty">No leads match "' + esc(q) + '".' +
           (/^[+\d\s-]{6,}$/.test(q) ? ' <button type="button" class="btn btn-sm btn-primary" data-sr-create>' + App.icon("plus", "ico-sm") + "Create lead with this number</button>" : "") + "</div>") +
-      '<div class="pal-foot">' + App.icon("search", "ico-sm") + " Placeholder results. Full search comes in a later screen.</div>";
+      (exact.length ? '<div class="pal-cross" data-pal-cross>' + App.crossCards(exact) + "</div>" : "") +
+      '<div class="pal-foot">' + App.icon("search", "ico-sm") + " Exact mobile, email, FF ID or client no also finds people of other branches.</div>";
     sInput().setAttribute("aria-activedescendant", res[sIndex] ? "sr-" + res[sIndex].id : "");
   }
   function expandSearch() {
@@ -388,6 +391,7 @@
     sInput().setAttribute("aria-expanded", "true"); $("[data-search-kbd]").textContent = "Esc";
     $("#tbSearchResults").hidden = false; renderSearch();
   }
+  App.closeSearch = function () { return collapseSearch(); };
   function collapseSearch() {
     var s = sBox(); if (!s || !s.classList.contains("open")) return false;
     s.classList.remove("open");

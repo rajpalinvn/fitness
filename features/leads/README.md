@@ -151,3 +151,6 @@ Ready for review
 
 ## Searchable dropdowns (#128)
 Owner, Source, Branch (filters + quick lead), Assigned to, Sales rep, Package, staff pickers, State, Region and any list of 10+ options open with a "Type to filter" box and show "No match" when nothing fits. Lost reason chips have the same filter. Short fixed lists stay plain. Rule: `App.isSearchSelect` in `shared/shell.js`.
+
+## Exact search across the company (#133)
+When the list has no visible match, an EXACT mobile, email, FF ID or client no shows cards "Found across the company · exact match" (same cards in the Ctrl K search). Card: name, label **Cross-branch** (another branch) or **Another owner's lead** (my branch, a lead I can't see), Lead · stage or Client · client no, mobile, branch, owner. Actions (only those allowed): Open (read only), My follow-up, Trial at my branch, Sell here, Ask to own (leads with no sale only; notifies the owner + Club Manager).
