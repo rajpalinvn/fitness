@@ -5,7 +5,7 @@
 // c10: staff never see decision numbers. Fails if the rendered text of any visited screen contains "#" + digits.
 // Visits every page (several roles), profile drawers (lead, client, read-only, quote view), Convert steps, Book trial steps,
 // the quote modals and every Settings › Roles & permissions tab.
-var ROOT = "../../", out = [], fr = document.getElementById("f"), RX = /#\d+/;
+var ROOT = "../../", out = [], fr = document.getElementById("f"), RX = /(?<!ssessment )#\d+/;   // "Assessment #1 / Re-assessment #2" are labels (#130), not decision numbers
 function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
 function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
 function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; }

@@ -6,7 +6,7 @@
   var CARDS = [["attention", "Needs attention", "pending items"], ["active", "Active", "more than 15 days left"], ["renewal", "Renewal due", "any package ≤ 15 days"],
     ["expired", "Expired", "counts in renewals"], ["ex", "Ex-client", "no active package"]];
   var PENDING_TYPES = [["addFf", "FF ID pending"], ["goFob", "Key fob pending"], ["issue", "Pending issue"], ["pay", "Payment due"]];
-  var S = { card: "", search: "", rep: "", owner: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, mode: "loading" };
+  var S = { card: "", search: "", rep: "", owner: "", branch: App.state.branchId, pending: "", from: "", to: "", pt: false, bal: false, ptw: "", mode: "loading" };
   if (/[?&]view=attention\b/.test(location.search)) S.card = "attention";
   if (/[?&]view=renewal\b/.test(location.search)) S.card = "renewal";   // Today "Renewals due" View all (#129)
   var lastList = [];
@@ -40,6 +40,7 @@
       if (S.rep && p.membership.salesRepUserId !== S.rep) return false;
       if (S.owner && p.ownerUserId !== S.owner) return false;
       if (S.pt && !p.pt) return false;
+      if (S.ptw && App.Assess.work(p) !== S.ptw) return false;   // MXM PT work card (#130)
       if (S.bal && !balances(p).length) return false;
       if (S.pending && !App.profilePending(p).some(function (i) { return i.k === S.pending; })) return false;
       if (S.from && new Date(p.joinedAt) < new Date(S.from + "T00:00")) return false;
@@ -91,6 +92,15 @@
         '<span class="count">' + n + '</span><span class="label">' + c[1] + ' <span class="cell-sub">· ' + c[2] + "</span></span></button>";
     }).join("");
   }
+  // MXM PT work cards (#130): Never assessed, Trial running, Quote sent, Re-assess due, PT active. pt.quote users only.
+  function renderPtWork(list) {
+    var box = $("ptWork"), on = App.can("pt.quote") !== "None";
+    box.hidden = !on; if (!on) { box.innerHTML = ""; return; }
+    box.innerHTML = '<span class="pt-work-label">PT work</span>' + App.Assess.CARDS.map(function (c) {
+      var n = list.filter(function (p) { return App.Assess.work(p) === c[0]; }).length, sel = S.ptw === c[0];
+      return '<button class="pipe-card' + (sel ? " selected" : "") + '" data-ptw="' + c[0] + '" aria-pressed="' + sel + '"><span class="count">' + n + '</span><span class="label">' + c[1] + ' <span class="cell-sub">· ' + c[2] + "</span></span></button>";
+    }).join("");
+  }
   function renderActiveFilters() {
     var t = [];
     if (S.card) t.push(["card", CARDS.filter(function (c) { return c[0] === S.card; })[0][1]]);
@@ -102,6 +112,7 @@
     if (S.to) t.push(["to", "Joined to " + App.fmtIsoDate(S.to)]);
     if (S.pt) t.push(["pt", "Has PT"]);
     if (S.bal) t.push(["bal", "Balance due"]);
+    if (S.ptw) t.push(["ptw", "PT work: " + App.Assess.CARDS.filter(function (c) { return c[0] === S.ptw; })[0][1]]);
     $("activeFilters").innerHTML = t.length ? '<span class="muted">Filtered by:</span>' + t.map(function (x) {
       return '<button class="filter-tag" data-clear="' + x[0] + '" aria-label="Remove filter ' + esc(x[1]) + '">' + esc(x[1]) + App.icon("x", "ico-sm") + "</button>";
     }).join("") : "";
@@ -160,7 +171,7 @@
     var box = $("stateBox"), tbody = $("rows"); box.innerHTML = "";
     if (S.mode === "loading") {
       tbody.innerHTML = [1, 2, 3, 4, 5].map(function () { return '<tr class="loading-row"><td colspan="9"><div class="skeleton"></div></td></tr>'; }).join("");
-      $("pipeline").innerHTML = ""; $("clientCount").textContent = "Loading…"; return;
+      $("pipeline").innerHTML = ""; $("ptWork").hidden = true; $("clientCount").textContent = "Loading…"; return;
     }
     if (S.mode === "error") { tbody.innerHTML = ""; $("pipeline").innerHTML = ""; $("clientCount").textContent = ""; return; }
     if (noLeadsRole()) {
@@ -170,7 +181,7 @@
       return;
     }
     var sc = scope(), list = sortList(applyCard(base()));
-    renderPipeline(sc); renderActiveFilters();
+    renderPipeline(sc); renderPtWork(sc); renderActiveFilters();
     $("clientCount").textContent = list.length + (list.length === 1 ? " client" : " clients") + " · needs attention first, then fewest days left";
     lastList = list.map(function (p) { return p.id; });
     tbody.innerHTML = list.map(row).join("");
@@ -195,6 +206,10 @@
       return;
     }
     var tr = e.target.closest("tr[data-id]"); if (tr) openProfile(tr.dataset.id);
+  });
+  $("ptWork").addEventListener("click", function (e) {
+    var c = e.target.closest("[data-ptw]"); if (!c) return;
+    S.ptw = S.ptw === c.dataset.ptw ? "" : c.dataset.ptw; if (S.ptw) S.card = ""; syncControls(); render();
   });
   $("pipeline").addEventListener("click", function (e) {
     var c = e.target.closest("[data-card]"); if (!c) return;

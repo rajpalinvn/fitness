@@ -845,3 +845,11 @@
     new membership, old kept in history. Shown on the client profile, the Clients row (Renewal due / Expired, when there
     is no balance to collect) and a Today section "Renewals due". Ex-clients don't renew here. (c) Clients table header
     "Ends on" in sentence case (#124).
+130. MXM + PT, assessments (24 Nov 2026, c24 part 1; real-app decision). (a) MXM sees the branch's clients
+    (`clients.view` MXM = Branch). (b) A PT quote can be started directly on an ACTIVE client (Active / Renewal due) by
+    `pt.quote` users; client quotes offer PT packages (leads keep Premium PT). (c) ASSESSMENT = an MXM-led PT trial,
+    numbered per person: Assessment #1, Re-assessment #2, #3 … Status (derived): TrialRunning / QuoteSent / Converted /
+    NoSale; shown in the PT quote box. (d) MXM work cards on Clients (pt.quote users): Never assessed, Trial running,
+    Quote sent, Re-assess due (last assessment ended >= Settings "Re-assess PT after", default 90 days, CEO), PT active;
+    click = filter. (e) Active clients can book a PT trial only (pt.quote users); Ex-clients book like a lead; Expired
+    clients none. Changes #129 (a). Billing a client PT quote comes with client Sell mode.

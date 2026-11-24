@@ -130,7 +130,7 @@ load(CL, function () {
     // ---------- Part 4 ----------
     step("Part 4: Book trial only for leads and Ex-clients", function () {
       role("CEO");
-      openP("p7"); ok("active client: no Book trial", !q('#profileDrawer [data-pd="trial"]'));
+      openP("p7"); ok("active client: Book trial for PT only (#130)", !!q('#profileDrawer [data-pd="trial"]') && A().Trial.packagesFor(person("p7")).every(function (x) { return x.category === "PT"; }));
       openP("p22"); ok("Ex-client (Tarun): Book trial shown", !!q('#profileDrawer [data-pd="trial"]'));
       ok("Ex-client books like a lead (membership trials offered)", A().Trial.packagesFor(person("p22")).some(function (x) { return x.category === "Membership"; }));
       openP("p22"); ok("Ex-client: no Renew", !q('#profileDrawer [data-pd="renew"]'));

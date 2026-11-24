@@ -136,3 +136,4 @@ Ready for review
 ## Client actions (#129)
 - **Book trial** shows only for leads and Ex-clients (an Ex-client books like a lead). Active, Renewal due and Expired clients don't see it.
 - **Renew in advance / Renew** (bottom + Membership tab) opens the Renew work mode; the Membership tab shows "Next membership" after an advance renewal.
+- **PT quote on a client (#130):** `pt.quote` users can Create PT quote on an Active / Renewal-due client (PT packages). The PT quote box lists assessments: "Assessment #1", "Re-assessment #2"… with status Trial running / Quote sent / Converted / No sale. Book trial on an active client = PT trial only (pt.quote users).

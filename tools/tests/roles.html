@@ -40,7 +40,7 @@ var DOC = {
   "sales.discountMax": [{ pct: 100, cap: 0 }, { pct: 50, cap: 0 }, { pct: 30, cap: 0 }, { pct: 20, cap: 5000 }, { pct: 10, cap: 0 }, { pct: 0, cap: 0 }, { pct: 0, cap: 0 }, { pct: 0, cap: 0 }],
   "sales.backDate": [true, false, false, false, false, false, false, false],
   "payments.refund": [true, false, false, false, false, false, false, false],
-  "clients.view": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
+  "clients.view": ["All", "Branch", "Branch", "Branch", "Branch", "Branch", "None", "None"],
   "clients.collectPayment": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
   "clients.issueItems": ["All", "Branch", "Branch", "Branch", "Branch", "None", "None", "None"],
   "clients.waive": ["All", "Branch", "Branch", "Branch", "None", "None", "None", "None"],
@@ -153,7 +153,7 @@ load(SET, function () {
         });
         step("settings values", function () {
           click(q('[data-rtab="values"]'));
-          ok("8 fields with default + Changed by (incl. Ex-client after, cross-branch owner change)", qa(".set-row").length === 10 && /Ex-client after/.test(text("#panel")) && /Default 2 trials · Changed by: CEO, Regional Manager, Club Manager/.test(text("#panel")) && /Changed by: CEO/.test(text("#panel")));
+          ok("8 fields with default + Changed by (incl. Ex-client after, cross-branch owner change)", qa(".set-row").length === 11 && /Ex-client after/.test(text("#panel")) && /Default 2 trials · Changed by: CEO, Regional Manager, Club Manager/.test(text("#panel")) && /Changed by: CEO/.test(text("#panel")));
           ok("Round-robin disabled 'Later'", !!q('[data-setopt="newLeadAssignment"][data-val="Round-robin"]:disabled') && /Later/.test(text('[data-setopt="newLeadAssignment"][data-val="Round-robin"]')));
           type("#set-freeTrialsPerBranch", "5"); ok("per branch > per person error", /more than per person/.test(text("#panel")) && q('#saveBar [data-rp="save"]').disabled);
           type("#set-freeTrialsPerBranch", "1");

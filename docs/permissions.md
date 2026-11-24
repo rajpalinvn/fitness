@@ -54,7 +54,7 @@ Keys are stable dotted strings; the grid stores role × key → value.
 | `sales.discountMax` | Max discount % · max ₹ (#77, #103) | Sales | pct + cap | 100% · no cap | 50% · no cap | 30% · no cap | 20% · max ₹5,000 | 10% · no cap | 0 | 0 | 0 | 0 | 0 | CEO (set by the club, Q31 closed) |
 | `sales.backDate` | Back-date a sale start (current month only, #103) | Sales | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
 | `payments.refund` | Refund / cancel a payment (no screen yet, #103) | Payments | tick | Yes | No | No | No | No | No | No | No | No | No | CEO |
-| `clients.view` | View clients | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
+| `clients.view` | View clients (MXM Branch, #130) | Clients | scope | All | Branch | Branch | Branch | Branch | Branch | None | None | None | None | CEO |
 | `clients.edit` | Edit client Details + add / log client follow-ups (#126). FF ID is not part of it: `clients.issueItems`, only while empty | Clients | scope | All | Branch | Branch | Branch | Own | None | None | None | None | None | CEO |
 | `clients.collectPayment` | Collect payment | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |
 | `clients.issueItems` | Issue FF ID / key fob / item on a client (pending items: add FF ID, assign fob, issue item) | Clients | scope | All | Branch | Branch | Branch | Branch | None | None | None | None | None | CEO |

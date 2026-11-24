@@ -101,3 +101,6 @@ There are two levels of status:
 
 ## 5. Status
 Ready for review
+
+## PT work cards (#130)
+For users with `pt.quote` (MXM, CM, RM, CEO): a second card row **PT work** with Never assessed · Trial running · Quote sent · Re-assess due · PT active (active clients only, one card each, in that order). Click = filter (tag "PT work: …"); click again = clear. Re-assess due = the last assessment ended at least Settings "Re-assess PT after" days ago (default 90) and no PT is running. MXM now sees the branch's clients (`clients.view` Branch).

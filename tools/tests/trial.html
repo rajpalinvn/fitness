@@ -29,7 +29,8 @@ load(LEADS, function () {
     step("who gets the button", function () {
       openP("p1"); ok("open lead: Book trial next to Convert", !!q('[data-pd="trial"]') && !q('[data-pd="trial"]').disabled && !!q('[data-pd="convert"]'));
       openP("p3"); ok("lost lead: disabled 'Re-open the lead first'", !!q('[data-pd="trial"]') && q('[data-pd="trial"]').disabled && /Re-open the lead first/.test(q('[data-pd="trial"]').title));
-      openP("p7"); ok("active client: no Book trial (#129: only leads and Ex-clients)", !q('[data-pd="trial"]'));
+      openP("p7"); ok("active client: Book trial = PT trial only (#130, pt.quote users)", !!q('[data-pd="trial"]') && W().App.Trial.packagesFor(person("p7")).every(function (x) { return x.category === "PT"; }));
+      W().App.setRole("Sales Executive"); openP("p7"); ok("SE (no pt.quote): no Book trial on an active client", !q('[data-pd="trial"]')); W().App.setRole("CEO");
       openP("p21"); ok("expired client: no button", !q('[data-pd="trial"]'));
       W().App.setRole("Trainer"); openP("p1"); ok("no trials.book -> no button", !q('[data-pd="trial"]')); W().App.setRole("CEO");
     });

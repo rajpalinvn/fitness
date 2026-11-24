@@ -141,7 +141,7 @@
     { key: "sales.sellCrossBranch", module: "Sales",    label: "\"Sell here\" on another branch's lead (needs the cross-branch follow-up row)", type: "tick", defaults: { SE: true, SM: true, CM: true, RM: true, CEO: true }, requires: "leads.crossBranchFollowUp" },
     { key: "sales.backDate",        module: "Sales",    label: "Back-date a sale start (current month only)",     type: "tick",   defaults: {} },
     { key: "payments.refund",       module: "Payments", label: "Refund / cancel a payment (no screen yet)",       type: "tick",   defaults: {} },
-    { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
+    { key: "clients.view",          module: "Clients",  label: "View clients",                                          type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", MXM: "Branch", CEO: "All" } },
     // #126: edit client Details + add / log client follow-ups. FF ID is NOT here (clients.issueItems, only while empty).
     { key: "clients.edit",          module: "Clients",  label: "Edit client details + client follow-ups",              type: "scope",  defaults: { SE: "Own", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
     { key: "clients.collectPayment", module: "Clients", label: "Collect payment",                                       type: "scope",  defaults: { SE: "Branch", SM: "Branch", CM: "Branch", RM: "Branch", CEO: "All" } },
@@ -178,6 +178,7 @@
     { key: "inactivityReleaseDays",    label: "Release inactive leads after",           def: 7, min: 1, max: 90, unit: "days", by: "settings.editInactivity", hint: "Next follow-up overdue or not set for this many days → the lead becomes Unassigned. Checked daily at 02:00 India time." },
     { key: "releaseWarnDaysBefore",    label: "Warn the owner before release",          def: 1, min: 0, max: 89, unit: "days before", by: "settings.editInactivity", hint: "Must be less than the inactivity days." },
     { key: "exClientAfterDays",        label: "Ex-client after (days without an active package)", def: 30, min: 0, max: 365, unit: "days", by: "CEO", hint: "Expired for this many days after the last package ends (membership or PT), then Ex-client." },
+    { key: "reassessAfterDays",        label: "Re-assess PT after",                     def: 90, min: 7, max: 365, unit: "days", by: "CEO", hint: "An active client with no PT whose last assessment ended this many days ago shows under \"Re-assess due\" for the MXM (#130)." },
     { key: "ptQuoteValidDays",         label: "PT quote valid for",                     def: 7, min: 1, max: 90, unit: "days", by: "CEO", hint: "A PT quote can be billed until this many days after it is made; then it shows Expired." },
     { key: "ptTrialsPerPerson",        label: "PT trials per person",                   def: 0, min: 0, max: 20, unit: "trials (0 = no limit)", by: "CEO", hint: "PT trials are CM / MXM assessments: no approval, no limit by default; repeats show as info only." },
     { key: "crossBranchOwnerChange",   label: "When another branch's staff works on a lead, owner changes", def: "On sale", options: ["On sale", "On first follow-up", "Never"], by: "CEO", hint: "On the trigger the lead moves to that staff's branch, they become the owner and the old owner's open follow-ups close (\"Taken over by <branch>\"). Never: owner and branch stay; the seller is only the sales rep." },
@@ -492,6 +493,9 @@
   P("p22").membership.payment.total += 500; P("p22").membership.payment.paid += 500;
   P("p40").pt = { packageId: "pk9", package: "PT 12 Sessions", price: 12000, discount: 0, finalPrice: 12000, sessions: 12, start: day(-50), end: day(40),
     salesRepUserId: "u6", payment: pay(12000, null, [rc("S31-000091", day(-50), "u6", [["Card", 12000, "CARD-7710"]])]) };
+  // #130 assessments: Vivaan (Sec 31) had Assessment #1 95 days ago, no sale -> "Re-assess due" (setting 90 days).
+  P("p7").trials = (P("p7").trials || []).concat([{ id: "tr20", type: "PT", kind: "free", packageId: "pk19", package: "PT Trial Session", from: day(-95), to: day(-95), price: 0, paid: 0,
+    branchId: "b1", bookedByUserId: "u4", bookedAt: day(-96), comment: "PT assessment · strength", trainerUserId: "u8", approverUserId: null, approval: "Not needed", endedFollowUpId: null }]);
   P("p24").pt = { packageId: "pk10", package: "PT 24 Sessions", price: 22000, discount: 0, finalPrice: 22000, sessions: 24, start: day(-40), end: day(140),
     salesRepUserId: "u11", payment: pay(22000, dd(10), [rc("GC-000028", day(-40), "u11", [["UPI", 11000, "UPI-40012003"]])]) };
 
@@ -726,7 +730,10 @@
       { id: "q1", personId: "p43", packageId: "pk17", package: "Quarterly + 12 PT", trainerUserId: "u8", price: 30000, refPrice: 8000, discount: 2200, discountReason: "Referral", discountReasonOther: null,
         validTill: dd(5), note: "Mornings, 3x a week", status: "Open", createdByUserId: "u4", createdAt: day(-2), requestId: null },
       { id: "q2", personId: "p43", packageId: "pk18", package: "Annual + 36 PT", trainerUserId: "u8", price: 95000, refPrice: 24000, discount: 0, discountReason: null, discountReasonOther: null,
-        validTill: dd(-3), note: "Annual option", status: "Expired", createdByUserId: "u4", createdAt: day(-10), requestId: null }
+        validTill: dd(-3), note: "Annual option", status: "Expired", createdByUserId: "u4", createdAt: day(-10), requestId: null },
+      // #130: a PT quote started directly on an active client (Rohit, Sec 31) by the CM -> MXM card "Quote sent".
+      { id: "q3", personId: "p12", packageId: "pk9", package: "PT 12 Sessions", trainerUserId: "u8", price: 12000, refPrice: 0, discount: 0, discountReason: null, discountReasonOther: null,
+        validTill: dd(4), note: "Evenings", status: "Open", createdByUserId: "u4", createdAt: day(-1), requestId: null }
     ],
     // Notification rules (#108): event -> roles (short) that get it, for their own branch(es). Directly involved people always get it.
     // 3rd element = the roles that can be ticked for that event (default RM / CM / SM). "Duplicate payment reference" (#117): any role, default CEO.

@@ -287,7 +287,9 @@
     App.openModal("quoteReqModal");
   }
   // Packages for a LEAD quote: Premium PT only (#89), active, sold at the person's branch, not a trial.
-  function quotePackages(p) { return D.packages.filter(function (x) { return x.active && x.type === "Premium PT" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal"; }); }
+  // Leads: Premium PT (membership + PT). Active clients (#130): PT packages (they already have a membership).
+  function quotePackages(p) { if (p && p.kind === "Client") return D.packages.filter(function (x) { return x.active && x.category === "PT" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1; });
+    return D.packages.filter(function (x) { return x.active && x.type === "Premium PT" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal"; }); }
   function create(pid) {
     var p = qPerson(pid); if (!Q.canCreate(p)) return;
     var S2 = { pkgId: "", trainerId: "", mode: "%", disc: "", reason: "", reasonOther: "", note: "", trial: false, err: "" }, req = Q.openRequest(p.id);
@@ -314,7 +316,7 @@
         '<div>' +
         '<div class="field"><label for="qPkg">Package <span class="req">*</span></label><select class="input" id="qPkg" data-q="pkgId"><option value="">Choose…</option>' +
           pk.map(function (x) { return '<option value="' + x.id + '"' + (x.id === S2.pkgId ? " selected" : "") + ">" + esc(x.name) + " · " + App.fmtMoney(x.price) + "</option>"; }).join("") + "</select>" +
-          '<span class="hint">Leads: Premium PT only (membership + PT).</span></div>' +
+          '<span class="hint">' + (p.kind === "Client" ? "Client: PT packages (membership already running)." : "Leads: Premium PT only (membership + PT).") + "</span></div>" +
         '<div class="field"><label for="qTrainer">Trainer <span class="req">*</span></label><select class="input" id="qTrainer" data-q="trainerId"><option value="">Choose…</option>' +
           trs.map(function (u) { return '<option value="' + u.id + '"' + (u.id === S2.trainerId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") + "</select>" +
           '<span class="hint">Trainers of ' + esc(App.branchName(p.branchId)) + " who can take PT.</span></div>" +
@@ -374,10 +376,11 @@
   }
   // Quote box on a lead profile: request status, quotes with status, and the actions this user has.
   function box(p) {
-    if (!p || p.kind !== "Lead") return "";   // client PT quotes come with client Sell mode (Renewals)
-    var r = Q.openRequest(p.id), qs = Q.list(p.id).filter(function (q) { return q.status === "Open" || q.status === "Expired"; });
-    if (!r && !qs.length && !Q.canRequest(p) && !Q.canCreate(p)) return "";
+    if (!p || (p.kind !== "Lead" && !Q.canQuoteOn(p))) return "";   // #130: active clients too (MXM starts a PT quote directly)
+    var r = Q.openRequest(p.id), qs = Q.list(p.id).filter(function (q) { return q.status === "Open" || q.status === "Expired"; }), as = App.Assess.list(p);
+    if (!r && !qs.length && !as.length && !Q.canRequest(p) && !Q.canCreate(p)) return "";
     return '<div class="callout" data-quote-box>' + icon("note") + '<div class="grow"><strong>PT quote</strong>' +
+      (as.length ? '<div class="cell-sub" data-assess>' + as.map(function (a) { return esc(a.label) + " · " + esc(App.fmtIsoDate(a.trial.from.slice(0, 10))) + " · " + esc(App.userName(a.trial.trainerUserId)) + " " + App.Assess.badge(a.status); }).join("<br>") + "</div>" : "") +
       (r ? '<div class="cell-sub" data-quote-req>Requested from ' + esc(App.userName(r.askedUserId)) + " by " + esc(App.firstName(App.byId(D.users, r.byUserId))) + " · " + esc(App.fmtShortWhen(r.at)) + " · “" + esc(r.note) + "”</div>" : "") +
       qs.map(function (q) {
         var mo = Q.money(q);

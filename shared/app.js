@@ -288,7 +288,12 @@
   Trial.canBook = function (p) {
     if (!p || !(App.scopeAllows("trials.book", p) || Trial.canBookPT(p))) return { show: false };
     // #129: clients don't book trials; only leads and Ex-clients (who book like a lead).
-    if (p.kind === "Client") { var cst = App.clientStatus(p); return cst && cst.key === "ex" ? { show: true, disabled: false } : { show: false }; }
+    // #130: active clients (Active / Renewal due) book a PT trial only (an assessment, pt.quote users); Ex-clients book like a lead; Expired: none.
+    if (p.kind === "Client") {
+      var cst = App.clientStatus(p); if (!cst) return { show: false };
+      if (cst.key === "ex") return { show: true, disabled: false };
+      return (cst.key === "active" || cst.key === "renewal") && Trial.canBookPT(p) ? { show: true, disabled: false, ptOnly: true } : { show: false };
+    }
     if (p.stage === "Lost") return { show: true, disabled: true, why: "Re-open the lead first" };
     if (p.stage === "Converted") return { show: false };
     return { show: true, disabled: false };
@@ -678,6 +683,35 @@
     if (p && p.pt) out.push({ what: "PT", line: p.pt, st: App.packageStatus(p.pt) });
     return out.filter(function (x) { return x.st; });
   };
+  // ---------- Assessments (#130): an assessment = an MXM-led PT trial ----------
+  // Numbered per person: Assessment #1, then Re-assessment #2, #3 … Status: TrialRunning / QuoteSent / Converted / NoSale.
+  App.Assess = {
+    STATUS: { TrialRunning: ["badge-info", "Trial running"], QuoteSent: ["badge-warning", "Quote sent"], Converted: ["badge-success", "Converted"], NoSale: ["", "No sale"] },
+    list: function (p) {
+      var ts = App.Trial.list(p).filter(function (t) { return t.type === "PT"; }).sort(function (a, b) { return new Date(a.from) - new Date(b.from); });
+      var qs = App.Quote.list(p.id);
+      return ts.map(function (t, i) {
+        var nextFrom = ts[i + 1] ? new Date(ts[i + 1].from) : null;
+        var q = qs.filter(function (x) { var at = new Date(x.createdAt); return at >= new Date(new Date(t.from).getTime() - 864e5) && (!nextFrom || at < nextFrom); }).pop();
+        var st = App.Trial.isRunning(t) ? "TrialRunning" : q && q.status === "Used" ? "Converted" : q && q.status === "Open" ? "QuoteSent" : "NoSale";
+        return { n: i + 1, label: i === 0 ? "Assessment #1" : "Re-assessment #" + (i + 1), trial: t, quote: q || null, status: st };
+      });
+    },
+    last: function (p) { var l = App.Assess.list(p); return l[l.length - 1] || null; },
+    badge: function (st) { var s = App.Assess.STATUS[st]; return '<span class="badge ' + s[0] + '">' + s[1] + "</span>"; },
+    // MXM work card of an active client (one each, in this order): pt / running / quote / reassess / never; "" = nothing to do.
+    work: function (p) {
+      var cs = App.clientStatus(p); if (!cs || (cs.key !== "active" && cs.key !== "renewal")) return "";
+      if (p.pt && App.packageStatus(p.pt) && App.packageStatus(p.pt).key !== "expired") return "pt";
+      var l = App.Assess.list(p), last = l[l.length - 1];
+      if (last && last.status === "TrialRunning") return "running";
+      if (App.Quote.list(p.id).some(function (q) { return q.status === "Open"; })) return "quote";
+      if (!last) return "never";
+      return -App.daysFromToday(last.trial.to) >= App.setting("reassessAfterDays") ? "reassess" : "";
+    },
+    CARDS: [["never", "Never assessed", "no PT trial yet"], ["running", "Trial running", "assessment today / on"], ["quote", "Quote sent", "waiting for the sale"],
+      ["reassess", "Re-assess due", "last assessment long ago"], ["pt", "PT active", "running PT"]]
+  };
   App.renewalsDue = function (p) { return App.packageStatuses(p).filter(function (x) { return x.st.key === "renewal" && !(x.what === "Membership" && p.nextMembership); }); };
   // ---------- Renew / buy next membership in advance (#129) ----------
   // Active or Renewal due: start = current end + 1 (the ONLY place a future start is allowed). Expired: start today.
@@ -963,7 +997,9 @@
     return !!(r && r.askedUserId === uid) || Quote.list(p.id).some(function (q) { return q.status === "Open" && q.createdByUserId === uid; });
   };
   Quote.viewOnly = function (p) { var me = App.demoUser(); return !!p && p.kind === "Lead" && !App.canSeeGrid(p) && !!me && Quote.access(p, me.id); };
-  Quote.canCreate = function (p) { return Quote.isOpenLead(p) && App.scopeAllows("pt.quote", p, { strictOwn: true }); };
+  // #130: a PT quote can be started on an open lead OR directly on an active client (Active / Renewal due).
+  Quote.canQuoteOn = function (p) { var cs = p && p.kind === "Client" ? App.clientStatus(p) : null; return Quote.isOpenLead(p) || (!!cs && (cs.key === "active" || cs.key === "renewal")); };
+  Quote.canCreate = function (p) { return Quote.canQuoteOn(p) && App.scopeAllows("pt.quote", p, { strictOwn: true }); };
   Quote.canRequest = function (p) {
     return Quote.isOpenLead(p) && App.can("sales.sellFromQuote") === true && !Quote.canCreate(p) && !Quote.openRequest(p.id) && App.canSeeGrid(p);
   };

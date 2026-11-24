@@ -1,0 +1,68 @@
+<!doctype html>
+<html><head><meta charset="utf-8"></head><body><pre id="out">running</pre>
+<iframe id="f" style="width:1280px;height:900px"></iframe>
+<script>
+// c24: align with the real app. Part 1 MXM + PT (#130) · 2 incentives (#131) · 3 home branch (#132) · 4 cross-branch (#133) · 5 edit locks (#134) · 6 small (#135).
+var ROOT = "../../", CL = ROOT + "features/clients/index.html";
+var out = [], fr = document.getElementById("f");
+function ok(name, cond, extra) { out.push((cond ? "PASS " : "FAIL ") + name + (extra != null && !cond ? "  [" + extra + "]" : "")); }
+function load(url, cb) { fr.onload = function () { fr.onload = null; setTimeout(cb, 900); }; fr.src = url; }
+function W() { return fr.contentWindow; } function Dc() { return W().document; } function A() { return W().App; } function D() { return W().DUMMY; }
+function q(s) { return Dc().querySelector(s); } function qa(s) { return Dc().querySelectorAll(s); }
+function click(el) { if (!el) throw new Error("missing element"); el.dispatchEvent(new (W().MouseEvent)("click", { bubbles: true })); }
+function text(s) { var e = q(s); return e ? e.innerText : ""; }
+function setVal(s, v) { var e = typeof s === "string" ? q(s) : s; e.value = v; e.dispatchEvent(new (W().Event)("input", { bubbles: true })); e.dispatchEvent(new (W().Event)("change", { bubbles: true })); }
+function step(name, fn) { try { fn(); } catch (e) { ok(name + " (threw)", false, e.message); } }
+function badText() { return /\bnull\b|\bundefined\b|Jan 0001|\[object Object\]|NaN|Invalid Date/.exec(Dc().body.innerText); }
+function role(r) { A().setRole(r); }
+function openP(id, tab) { A().openProfile(id, { state: "normal", tab: tab }); }
+function person(id) { return A().byId(D().people, id); }
+var parts = [];
+function part(fn) { parts.push(fn); }
+function runParts(i) { if (i >= parts.length) { document.getElementById("out").textContent = out.join("\n"); return; } parts[i](function () { runParts(i + 1); }); }
+
+// ---------- Part 1 · MXM + PT (#130) ----------
+part(function (done) {
+  load(CL, function () {
+    step("Part 1: MXM sees the branch's clients", function () {
+      role("MXM");   // Meera, Golf Course
+      var vis = A().visibleClients("all");
+      ok("clients.view MXM = Branch", A().can("clients.view") === "Branch" && vis.length > 0 && vis.every(function (p) { return p.branchId === "b3"; }), vis.map(function (p) { return p.id; }).join());
+      ok("PT work cards shown to the MXM", !q("#ptWork").hidden && qa("#ptWork [data-ptw]").length === 5 && /Never assessed/.test(text("#ptWork")) && /Re-assess due/.test(text("#ptWork")) && /PT active/.test(text("#ptWork")));
+      role("Sales Executive");
+      ok("SE (no pt.quote): no PT work cards", q("#ptWork").hidden);
+    });
+    step("Part 1: assessments + work state", function () {
+      role("CEO");
+      var a7 = A().Assess.list(person("p7"));
+      ok("Vivaan: Assessment #1, No sale, 95 days ago -> Re-assess due", a7.length === 1 && a7[0].label === "Assessment #1" && a7[0].status === "NoSale" && A().Assess.work(person("p7")) === "reassess");
+      ok("Rohit: open client quote -> Quote sent", A().Assess.work(person("p12")) === "quote");
+      ok("Kabir: running PT -> PT active", A().Assess.work(person("p18")) === "pt");
+      ok("Harsh: never assessed", A().Assess.work(person("p13")) === "never");
+      click(q('#ptWork [data-ptw="reassess"]'));
+      ok("card filters the list", qa("#rows tr[data-id]").length >= 1 && Array.prototype.every.call(qa("#rows tr[data-id]"), function (r) { return A().Assess.work(person(r.dataset.id)) === "reassess"; }));
+      click(q('#ptWork [data-ptw="reassess"]'));
+    });
+    step("Part 1: MXM starts a PT quote on a client; active client = PT trial only", function () {
+      role("MXM");
+      openP("p24", "timeline");   // Zoya (Golf Course): active client
+      ok("Create PT quote on an active client", !!q('#profileDrawer [data-pd="quoteNew"]'));
+      click(q('#profileDrawer [data-pd="quoteNew"]'));
+      ok("client quote offers PT packages (no Premium PT)", Array.prototype.slice.call(q("#qPkg").options, 1).every(function (o) { var k = A().byId(D().packages, o.value); return k.category === "PT"; }) && q("#qPkg").options.length > 1);
+      A().closeAll();
+      ok("Book trial on an active client = PT only", A().Trial.canBook(person("p24")).show && A().Trial.canBook(person("p24")).ptOnly && A().Trial.packagesFor(person("p24")).every(function (x) { return x.category === "PT"; }));
+      role("CEO"); openP("p7", "timeline"); ok("assessment line + status in the PT quote box", /Assessment #1/.test(text("#profileDrawer [data-quote-box]")) && /Trial running|No sale|Quote sent|Converted/.test(text("#profileDrawer [data-quote-box]")));
+      A().closeAll(); A().closeAll(); role("CEO");
+      ok("no bad text", !badText(), badText());
+    });
+    done();
+  });
+});
+
+load(CL, function () {
+  ["mock.perms", "mock.branch", "mock.settings"].forEach(function (k) { W().sessionStorage.removeItem(k); });
+  W().sessionStorage.setItem("mock.role", "CEO");
+  runParts(0);
+});
+</script>
+</body></html>
