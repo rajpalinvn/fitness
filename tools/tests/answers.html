@@ -92,7 +92,7 @@ load(LEADS, function () {
     });
     step("Premium PT: discount on the PT line only, one sales rep", function () {
       startConvert("p1"); pick("pk17", "Premium PT"); next();
-      ok("one sales rep select", !!q("#cvRep") && !q("#cvRepPt") && /One sales rep for the whole Premium PT package/.test(mtext()));
+      ok("seller select + trainer = PT line rep (#131)", !!q("#cvRep") && !q("#cvRepPt") && !!q("#cvTrainer") && /Membership line incentive: No incentive/.test(mtext()));
       ok("hint: discount on the PT part only", /Discount on the PT part only \(₹22,000\); the membership stays at ₹8,000/.test(mtext()));
       type("#cvDisc", "10");
       ok("10% computed on the PT part (₹2,200), membership line unchanged ₹8,000", /₹2,200/.test(text('[data-line="disc"]')) && /₹8,000/.test(text('[data-line="mem"]')) && /₹27,800/.test(text("[data-total]")));

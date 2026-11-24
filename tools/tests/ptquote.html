@@ -149,7 +149,7 @@ queue.push(function (nx) { start(LEADS, "Sales Executive", function () {
     ok("rep = the creator (Priya), separate from the trainer", q("#cvRep").value === "u6");
     ok("sold to the end", sellThrough("FF-81001"));
     var p = person("p43"), qq = A().Quote.byId("q1");
-    ok("Client: PT line trainer = quote trainer, rep = Priya, price from the quote", p.kind === "Client" && p.pt.trainerUserId === "u8" && p.pt.salesRepUserId === "u6" && p.pt.finalPrice === 19800 && p.membership.finalPrice === 8000);
+    ok("Client: PT line trainer = quote trainer, rep = Priya, price from the quote", p.kind === "Client" && p.pt.trainerUserId === "u8" && p.pt.salesRepUserId === "u8" && p.pt.soldByUserId === "u6" && p.pt.finalPrice === 19800 && p.membership.finalPrice === 8000);
     ok("quote Used + event QuoteUsed", qq.status === "Used" && A().Event.of("p43", "QuoteUsed").length === 1);
     ok("no bad text", !badText(), badText());
   });

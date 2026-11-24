@@ -853,3 +853,9 @@
     Quote sent, Re-assess due (last assessment ended >= Settings "Re-assess PT after", default 90 days, CEO), PT active;
     click = filter. (e) Active clients can book a PT trial only (pt.quote users); Ex-clients book like a lead; Expired
     clients none. Changes #129 (a). Billing a client PT quote comes with client Sell mode.
+131. Incentives (24 Nov 2026, c24 part 2; real-app decision). (a) Every PT line's sales rep = the allotted trainer,
+    locked (quote: the quote's trainer; direct Premium PT: a required Trainer field in Sale & start). The seller is kept
+    as `soldByUserId`. (b) Premium PT membership line = "No incentive" by default; Settings "Premium PT · membership line
+    incentive": None (default) / Seller (CEO). (c) SE and MXM are always their own sales rep (field locked); other roles
+    may pick any `sales.rep` user (#107). Renewals: the seller (#129). Changes #103 / #107 "one rep for the whole
+    Premium PT package".

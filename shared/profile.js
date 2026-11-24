@@ -663,7 +663,7 @@
         kv("Start", App.fmtDate(m.start)) + kv("End", App.fmtDate(m.end)) + kv("Price", App.fmtMoney(m.price)) +
         (m.discount ? kv("Discount", App.fmtMoney(m.discount) + " · " + App.empty(m.discountReason)) : "") +
         kv("Final price", App.fmtMoney(m.finalPrice != null ? m.finalPrice : m.price)) +
-        kv("Sales rep", m.salesRepUserId ? App.userName(m.salesRepUserId) : "Not set yet") + kv("Client no", p.clientNo) +
+        kv("Sales rep", m.salesRepUserId ? App.userName(m.salesRepUserId) : m.incentive === "No incentive" ? "No incentive (Premium PT membership line)" : "Not set yet") + kv("Client no", p.clientNo) +
         ((m.freeItems || []).length ? "<dt>Free items</dt><dd>" + m.freeItems.map(function (f) {
           var b = f.status === "Issued" ? "badge-success" : f.status === "Pending issue" ? "badge-warning" : "";
           return '<div>' + esc(f.name) + " × " + f.qty + ' <span class="badge ' + b + '">' + esc(f.status) + "</span></div>";

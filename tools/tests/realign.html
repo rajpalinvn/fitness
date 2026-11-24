@@ -59,6 +59,29 @@ part(function (done) {
   });
 });
 
+// ---------- Part 2 · Incentives (#131) ----------
+part(function (done) {
+  step("Part 2: setting + SE / MXM locked to themselves", function () {
+    var d = D().settingDefs.filter(function (x) { return x.key === "premiumMemIncentive"; })[0];
+    ok("setting Premium PT membership incentive: None / Seller, default None", !!d && d.options.join() === "None,Seller" && d.def === "None" && A().setting("premiumMemIncentive") === "None");
+    role("Sales Executive"); openP("p1"); click(q('#profileDrawer [data-pd="convert"]'));
+    click(q('#sellMode [data-cv="next"]'));
+    if (!q('[data-pkg="pk7"]')) click(q('[data-acc="Membership"]'));
+    click(q('#sellMode [data-pkg="pk7"]')); click(q('#sellMode [data-cv="next"]'));
+    ok("SE: sales rep locked to themselves", q("#cvRep").disabled && q("#cvRep").value === "u6" && /always its own sales rep/.test(text("#sellMode")));
+    A().closeAll(); A().closeAll(); A().closeAll();
+    role("CEO"); openP("p1"); click(q('#profileDrawer [data-pd="convert"]')); click(q('#sellMode [data-cv="next"]'));
+    if (!q('[data-pkg="pk17"]')) click(q('[data-acc="Premium PT"]'));
+    click(q('#sellMode [data-pkg="pk17"]')); click(q('#sellMode [data-cv="next"]'));
+    ok("CEO: rep free to choose; Premium PT shows the trainer (PT line rep)", !q("#cvRep").disabled && !!q("#cvTrainer") && /Membership line incentive: No incentive/.test(text("#sellMode")));
+    A().Perm.saveSettings({ premiumMemIncentive: "Seller" });
+    ok("setting Seller -> hint follows", A().setting("premiumMemIncentive") === "Seller");
+    A().Perm.resetSettings();
+    A().closeAll(); A().closeAll(); A().closeAll();
+  });
+  done();
+});
+
 load(CL, function () {
   ["mock.perms", "mock.branch", "mock.settings"].forEach(function (k) { W().sessionStorage.removeItem(k); });
   W().sessionStorage.setItem("mock.role", "CEO");

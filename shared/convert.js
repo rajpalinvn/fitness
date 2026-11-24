@@ -104,6 +104,10 @@
 
   // Sales rep default (#107, replaces #103 "lead owner"): the person creating the sale, everywhere (incl. Premium PT).
   // A creator without sales.rep -> the first user with it. Every change from the default = SalesRepChanged event.
+  // Incentives (#131): SE and MXM are always their own sales rep (locked); renewal too (seller). The PT line's rep = the allotted trainer.
+  function repLocked() { var r = App.Perm.roleByName(App.state.role); return !!C && (C.renew || (!!r && (r.short === "SE" || r.short === "MXM"))); }
+  function ptTrainer() { var q0 = quote(); return q0 ? q0.trainerUserId : C.trainerId || ""; }
+  function memIncentive() { return App.setting("premiumMemIncentive") === "Seller" ? "Seller" : "No incentive"; }
   function defaultRep(p) { var me = App.me(); if (me && App.usersWith("sales.rep").some(function (u) { return u.id === me.id; })) return me.id; var l = App.usersWith("sales.rep", p && p.branchId); return l[0] ? l[0].id : (me && me.id); }
   // exposed below as App.Convert.defaultRep
 
@@ -117,6 +121,8 @@
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
       pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "", sellHere: !!o.sellHere };
     if (o.renew) { C.renew = true; C.step = 2; C.start = App.Renew.startIso(p); C.repId = App.me().id; }   // #129: seller = sales rep
+    C.trainerId = "";
+    if (repLocked()) C.repId = App.me().id;   // #131: SE / MXM = themselves
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
     var groups = GROUPS.filter(function (g) { return sellable(p).some(function (x) { return x.type === g[0]; }); });
     var def = groups.filter(function (g) { return g[0] === "Membership"; })[0] || groups[0];
@@ -392,8 +398,15 @@
       '<span class="pkg-price">' + App.fmtMoney(mo.final) + "</span>" + (mo.disc ? '<span class="cell-sub">' + App.fmtMoney(mo.disc) + " off the PT part</span>" : "") +
       '<span class="hint">' + (exp ? "Expired on " + esc(App.fmtIsoDate(q.validTill)) : "Valid till " + esc(App.fmtIsoDate(q.validTill))) + "</span></button>";
   }
+  // PT line sales rep = the allotted trainer, locked (#131). Direct Premium PT (no quote): pick the trainer here.
+  function ptRepField(p) {
+    var trs = App.Quote.trainers(p);
+    return '<div class="field" data-pt-rep><label for="cvTrainer">Trainer · PT line sales rep <span class="req">*</span></label><select class="input' + inv("trainerId") + '" id="cvTrainer" data-k="trainerId"><option value="">Choose…</option>' +
+      trs.map(function (u) { return '<option value="' + u.id + '"' + (u.id === C.trainerId ? " selected" : "") + ">" + esc(u.name) + "</option>"; }).join("") + "</select>" +
+      (C.errors.trainerId ? err("trainerId") : '<span class="hint">The allotted trainer gets the PT line incentive (locked to the trainer).</span>') + "</div>";
+  }
   function repField(p, k) {
-    return '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId"' + (C.renew ? ' disabled' : '') + '>' + reps(p).map(function (u) {
+    return '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId"' + (repLocked() ? ' disabled' : '') + '>' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
           '</select><span class="hint">You, the person creating the sale. The trainer is separate: the quote\'s trainer goes on the PT line.</span></div>';
   }
@@ -491,9 +504,11 @@
         (mo.disc > 0 ? '<div class="field"><label for="cvReason">Discount reason <span class="req">*</span></label><select class="input' + inv("reason") + '" id="cvReason" data-k="reason">' +
             '<option value="">Choose…</option>' + D.lists.discountReasons.map(function (r) { return "<option" + (r === C.reason ? " selected" : "") + ">" + esc(r) + "</option>"; }).join("") + "</select>" + err("reason") +
             (C.reason === "Other" ? '<input class="input mt-1' + inv("reasonOther") + '" id="cvReasonOther" data-k="reasonOther" value="' + esc(C.reasonOther) + '" placeholder="Write the reason" aria-label="Other reason">' + err("reasonOther") : "") + "</div>" : "") +
-        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId"' + (C.renew ? ' disabled' : '') + '>' + reps(p).map(function (u) {
+        '<div class="field"><label for="cvRep">Sales rep <span class="req">*</span></label><select class="input" id="cvRep" data-k="repId"' + (repLocked() ? ' disabled' : '') + '>' + reps(p).map(function (u) {
           return '<option value="' + u.id + '"' + (u.id === C.repId ? " selected" : "") + ">" + esc(u.name) + " · " + esc(App.branchName(u.branchIds[0])) + (u.id === App.me().id ? " (me)" : "") + "</option>"; }).join("") +
-          '</select><span class="hint">' + (k.type === "Premium PT" ? "One sales rep for the whole Premium PT package. Whether the membership part pays any incentive, and to whom, is set by the incentive scheme." : "Gets the credit for this sale line. Defaults to you (the person creating the sale); any staff who can be sales rep, any branch.") + "</span></div>" +
+          '</select><span class="hint">' + (k.type === "Premium PT" ? "Seller. Membership line incentive: " + memIncentive() + " (Settings). The PT line's sales rep is the trainer below." + (repLocked() ? " Locked: your role always sells as yourself." : "") :
+            repLocked() ? "Locked: your role is always its own sales rep." : "Gets the credit for this sale line. Defaults to you (the person creating the sale); any staff who can be sales rep, any branch.") + "</span></div>" +
+        (k.type === "Premium PT" ? ptRepField(p) : "") +
         "</div></section>";
     }
     return html;
@@ -508,6 +523,7 @@
   }
   function check3() {
     var e = checkPrice(), msg = startLocked() ? "" : App.saleStartError(C.start);   // renew: start set by system (#129)
+    if (isPrem() && !quote() && !C.trainerId) e.trainerId = "Choose the trainer: the PT line's sales rep.";
     if (msg) e.start = msg;
     return e;
   }
@@ -544,7 +560,8 @@
       ["Start – end", App.fmtDate(new Date(C.start + "T00:00").toISOString()) + " – " + App.fmtDate(e.toISOString())]];
     // Money lines (price, discount, free items, accessories, deposit, GST, total) are in the bill summary on the right.
     if (quote()) rows.push(["Trainer (PT line)", App.userName(quote().trainerUserId) + " · from the PT quote by " + App.userName(quote().createdByUserId)]);
-    rows.push(["Sales rep", App.userName(C.repId) + (prem ? " · whole package (membership part: incentive by scheme)" : "")]);
+    rows.push(["Sales rep", App.userName(C.repId) + (prem ? " · seller" : "")]);
+    if (prem) { rows.push(["Membership line incentive", memIncentive() === "Seller" ? App.userName(C.repId) + " (seller)" : "No incentive"]); rows.push(["PT line sales rep", App.userName(ptTrainer()) + " (allotted trainer)"]); }
     if (mo.disc) rows.push(["Discount reason", reasonText()]);
     adjusts().forEach(function (a) { rows.push(["Paid " + App.Trial.label(a.type) + " trial adjusted", "− " + App.fmtMoney(a.amount) + " · " + a.t.package + (a.locked ? " · start = trial start (set by system)" : " · start = today")]); });
     if (C.renew) {
@@ -711,7 +728,9 @@
     // Premium PT (#92, #93): membership line = reference price, PT line = the rest; discount split proportionally; one rep per line.
     var adjM = adjAmount("Membership"), adjP = adjAmount("PT"), adjList = adjusts();
     p.membership = { packageId: k.id, package: prem ? k.name + " · Membership (included)" : k.name, saleType: k.saleType, start: startIso, end: endIso, price: mo.mem,
-      discount: mo.memDisc, discountReason: mo.memDisc ? why : null, finalPrice: mo.memFinal - adjM, salesRepUserId: C.repId, premium: prem || undefined,
+      discount: mo.memDisc, discountReason: mo.memDisc ? why : null, finalPrice: mo.memFinal - adjM,
+      // #131: Premium PT membership line = "No incentive" by default (setting None / Seller).
+      salesRepUserId: prem && memIncentive() !== "Seller" ? null : C.repId, incentive: prem ? memIncentive() : undefined, soldByUserId: C.repId, premium: prem || undefined,
       incentiveByScheme: prem || undefined,   // Premium PT membership line: rep stored only as a reference (#103)
       trialAdjust: adjM ? { trialId: adjustInfo("Membership").t.id, amount: adjM } : undefined,
       freeItems: freeLines(p, k).map(function (f) { return { itemId: f.itemId, name: f.name, qty: f.qty, status: f.status }; }),
@@ -739,7 +758,7 @@
     p.membership.payment = { total: T.total - al.ptDue, paid: T.paid - al.pt, dueDate: T.balance && (T.total - al.ptDue) > (T.paid - al.pt) ? C.payDue : null, receipts: [receipt] };
     if (prem) {
       p.pt = { packageId: k.id, package: k.name + " · PT (included)", premium: true, price: mo.pt, discount: mo.ptDisc, finalPrice: mo.ptFinal - adjP, sessions: k.sessions,
-        start: startIso, end: endIso, salesRepUserId: C.repId, discountReason: mo.ptDisc ? why : null, trialAdjust: adjP ? { trialId: adjustInfo("PT").t.id, amount: adjP } : undefined,
+        start: startIso, end: endIso, salesRepUserId: ptTrainer(), trainerUserId: ptTrainer(), soldByUserId: C.repId, discountReason: mo.ptDisc ? why : null,   // #131 PT rep = trainer trialAdjust: adjP ? { trialId: adjustInfo("PT").t.id, amount: adjP } : undefined,
         payment: { total: al.ptDue, paid: al.pt, dueDate: al.ptDue > al.pt ? C.payDue : null, receipts: [receipt] } };
     }
     // The adjusted trial ends at conversion (#94); other running trials keep running until their end date.

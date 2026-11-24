@@ -271,3 +271,10 @@ Normal; no package for the branch → empty package list; payment errors as Conv
 
 ## 5. Status
 Ready for review
+
+## Incentives (#131)
+| Field | Type | Required | Unique | Default | Notes |
+|---|---|---|---|---|---|
+| Sales rep (seller) | select | Yes | — | me | Locked for SE and MXM (always themselves). Others: any `sales.rep` user. |
+| Trainer · PT line sales rep | select | Yes, direct Premium PT | — | — | The PT line's rep is ALWAYS the allotted trainer (quote: the quote's trainer). Trainers of the branch whose type can take PT. |
+| Membership line incentive (Premium PT) | system | — | — | No incentive | Settings "Premium PT · membership line incentive": None / Seller. Summary shows it; profile shows "No incentive (Premium PT membership line)". |
