@@ -82,6 +82,27 @@ part(function (done) {
   done();
 });
 
+// ---------- Part 3 · Home branch (#132) ----------
+part(function (done) {
+  step("Part 3: renew in advance at another branch moves home + owner on the start day", function () {
+    role("CEO"); A().setBranch("b2");
+    var p = person("p19"), home = p.homeBranchId, owner = p.ownerUserId;
+    ok("selling branch = the top-bar branch (Sec 65)", A().Renew.sellBranch(p) === "b2" && home === "b1");
+    A().Renew.open("p19"); click(q('#sellMode [data-pkg="pk4"]')); click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="next"]'));
+    ok("summary: Home branch Sec 31 → Sec 65 on the start date", /Home branch\s*Sec 31 → Sec 65 on/.test(text("#sellMode")));
+    click(q('#sellMode [data-cv="next"]')); click(q('#sellMode [data-cv="finish"]'));
+    ok("sold: home branch + owner unchanged until the start day", p.homeBranchId === home && p.ownerUserId === owner && p.nextMembership.branchId === "b2" && p.nextMembership.moveOwnerTo === "u2");
+    A().closeAll(); A().closeAll();
+    openP("p19", "membership"); ok("Membership tab: 'Home branch moves to Sec 65 on …' + Transfer comes later", /Home branch moves to Sec 65/.test(text("#profileDrawer")) && /Add-on "Transfer"/.test(text("#profileDrawer")));
+    A().closeAll();
+    p.nextMembership.start = new Date(Date.now() - 864e5).toISOString(); A().rollMemberships();
+    ok("start day: membership runs, home branch + owner moved (events)", p.homeBranchId === "b2" && p.branchId === "b2" && p.ownerUserId === "u2" && A().Event.of("p19", "HomeBranchChanged").length === 1);
+    ok("PT never decides it: a PT line has no branch rule", !A().Event.of("p18", "HomeBranchChanged").length);
+    A().setBranch("all");
+  });
+  done();
+});
+
 load(CL, function () {
   ["mock.perms", "mock.branch", "mock.settings"].forEach(function (k) { W().sessionStorage.removeItem(k); });
   W().sessionStorage.setItem("mock.role", "CEO");

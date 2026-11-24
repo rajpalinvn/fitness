@@ -678,6 +678,8 @@
       (p.nextMembership ? '<section class="corp-sec" data-next-mem><h4 class="sec-title">Next membership (renewed in advance)</h4><dl class="kv kv-wide">' +
         kv("Package", p.nextMembership.package) + kv("Starts", App.fmtDate(p.nextMembership.start)) + kv("Ends", App.fmtDate(p.nextMembership.end)) +
         kv("Sales rep", App.userName(p.nextMembership.salesRepUserId)) + kv("Final price", App.fmtMoney(p.nextMembership.finalPrice)) + "</dl></section>" : "") +
+      (p.nextMembership && p.nextMembership.branchId && p.nextMembership.branchId !== p.homeBranchId ? '<p class="hint" data-home-move>Home branch moves to ' + esc(App.branchName(p.nextMembership.branchId)) + " on " + esc(App.fmtDate(p.nextMembership.start)) + " (with the owner).</p>" : "") +
+      '<p class="hint" data-transfer-later>Moving a running membership or PT to another branch comes later as the Add-on "Transfer".</p>' +
       (App.Renew.can(p) ? '<div class="stack mt-3"><button class="btn btn-primary" data-pd="renew">' + icon("refresh") + esc(App.Renew.label(p)) + '</button><span class="hint">Starts ' + esc(App.fmtIsoDate(App.Renew.startIso(p))) + ". FF ID and key fob stay the same.</span></div>" : "");
   }
   // Payments block (decisions #79–#83): Total · Paid · Balance due + receipts.

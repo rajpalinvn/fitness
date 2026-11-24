@@ -859,3 +859,9 @@
     incentive": None (default) / Seller (CEO). (c) SE and MXM are always their own sales rep (field locked); other roles
     may pick any `sales.rep` user (#107). Renewals: the seller (#129). Changes #103 / #107 "one rep for the whole
     Premium PT package".
+132. Home branch (24 Nov 2026, c24 part 3; real-app decision). A client's home branch = the branch of the RUNNING
+    membership. A later membership sold at another branch (renewal: selling branch = my top-bar branch if mine, else
+    the client's branch if mine, else my first branch) moves home branch + owner on ITS START DAY (events
+    HomeBranchPlanned at sale, HomeBranchChanged + OwnerChanged on the day; an expired client's renewal starts today, so
+    it moves now). Same branch: owner = seller at sale (#129). PT never decides the home branch. Moving a running
+    membership / PT to another branch = the future Add-on "Transfer" (hint on the Membership tab).

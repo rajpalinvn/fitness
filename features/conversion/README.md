@@ -278,3 +278,6 @@ Ready for review
 | Sales rep (seller) | select | Yes | — | me | Locked for SE and MXM (always themselves). Others: any `sales.rep` user. |
 | Trainer · PT line sales rep | select | Yes, direct Premium PT | — | — | The PT line's rep is ALWAYS the allotted trainer (quote: the quote's trainer). Trainers of the branch whose type can take PT. |
 | Membership line incentive (Premium PT) | system | — | — | No incentive | Settings "Premium PT · membership line incentive": None / Seller. Summary shows it; profile shows "No incentive (Premium PT membership line)". |
+
+## Home branch (#132)
+Renew sells at the **selling branch** (my top-bar branch if mine, else the client's branch if mine, else my first branch); packages of that branch. Another branch than the home branch: Summary row "Home branch Sec 31 → Sec 65 on <start>"; home branch + owner move on the new membership's start day (today for an expired client). PT never decides the home branch. Branch transfer of a running membership / PT = future Add-on "Transfer".

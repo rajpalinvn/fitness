@@ -730,13 +730,30 @@
       if (s && s.key !== "expired") { d = new Date(p.membership.end); d.setDate(d.getDate() + 1); }
       return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
     },
-    label: function (p) { var s = App.Renew.status(p); return s && s.key === "expired" ? "Renew" : "Renew in advance"; }
+    label: function (p) { var s = App.Renew.status(p); return s && s.key === "expired" ? "Renew" : "Renew in advance"; },
+    // Selling branch (#132): the top-bar branch if it is mine; else the client's branch if it is mine; else my first branch.
+    sellBranch: function (p) {
+      var me = App.me(), mine = (me && me.branchIds) || [], top = App.state.branchId;
+      if (top && top !== "all" && mine.indexOf(top) > -1) return top;
+      return mine.indexOf(p.homeBranchId || p.branchId) > -1 ? (p.homeBranchId || p.branchId) : mine[0] || p.branchId;
+    }
+  };
+  // Move a client's home branch (+ owner) to the branch of the running membership (#132). PT never decides it.
+  App.moveHome = function (p, branchId, ownerId, why) {
+    var from = p.homeBranchId || p.branchId, now = new Date().toISOString();
+    p.homeBranchId = branchId; p.branchId = branchId;
+    App.Event.log(p.id, { type: "HomeBranchChanged", from: from, to: branchId, text: "Home branch " + App.branchName(from) + " → " + App.branchName(branchId) + " · " + why });
+    if (ownerId && p.ownerUserId !== ownerId) {
+      var old = p.ownerUserId; p.ownerHistory = (p.ownerHistory || []).concat([{ from: old, to: ownerId, at: now, by: ownerId, reason: "Home branch moved" }]); p.ownerUserId = ownerId;
+      App.Event.log(p.id, { type: "OwnerChanged", from: old, to: ownerId, reason: "Home branch moved", text: "Owner changed to " + App.firstName(App.byId(DUMMY.users, ownerId)) + " · home branch moved" });
+    }
   };
   // A next membership whose start has come becomes the current one (the real app does this in the nightly job).
   App.rollMemberships = function () {
     (DUMMY.people || []).forEach(function (p) {
       var n = p.nextMembership; if (!n || App.daysFromToday(n.start) > 0) return;
       p.pastMemberships = (p.pastMemberships || []).concat(p.membership ? [p.membership] : []); p.membership = n; p.nextMembership = null;
+      if (n.branchId && n.branchId !== (p.homeBranchId || p.branchId) && App.Event) App.moveHome(p, n.branchId, n.moveOwnerTo, "new membership started");   // #132
     });
   };
   // Packages needing renewal (Clients "Renewal due"): a client that is not Expired / Ex-client at client level, with ANY package

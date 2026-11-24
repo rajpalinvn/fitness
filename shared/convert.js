@@ -43,7 +43,7 @@
     var direct = App.can("sales.sellPTDirect") === true, mem = App.can("sales.sellMembership") === true;
     return D.packages.filter(function (x) {
       // Renew (#129): next MEMBERSHIP only, audience Renewal or Both.
-      if (C && C.renew) return x.active && x.category === "Membership" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "New" && mem;
+      if (C && C.renew) return x.active && x.category === "Membership" && !x.isTrial && x.branchIds.indexOf(C.sellBranch) > -1 && x.audience !== "New" && mem;
       if (!(x.active && x.category !== "Add-on" && !x.isTrial && x.branchIds.indexOf(p.branchId) > -1 && x.audience !== "Renewal")) return false;
       return x.category === "Membership" ? mem : direct;
     });
@@ -120,7 +120,7 @@
       pkgId: null, mode: "%", disc: "", reason: "", reasonOther: "", repId: defaultRep(p), start: isoDay(new Date()), adjustMem: false, adjustPt: false,
       fob: "", fobFree: false, fobFreeWhy: "", issue: {}, extras: [], picker: false, pickQ: "", errors: {}, pkgQ: "", open: {},
       pay: { rows: [{ method: (App.activePayMethods()[0] || {}).name || "", amount: "", ref: "", slip: "" }] }, payDue: "", sellHere: !!o.sellHere };
-    if (o.renew) { C.renew = true; C.step = 2; C.start = App.Renew.startIso(p); C.repId = App.me().id; }   // #129: seller = sales rep
+    if (o.renew) { C.renew = true; C.step = 2; C.start = App.Renew.startIso(p); C.repId = App.me().id; C.sellBranch = App.Renew.sellBranch(p); }   // #129 / #132
     C.trainerId = "";
     if (repLocked()) C.repId = App.me().id;   // #131: SE / MXM = themselves
     // Membership open by default; others collapsed (decision #74). Fallback: first group with packages.
@@ -564,9 +564,11 @@
     if (prem) { rows.push(["Membership line incentive", memIncentive() === "Seller" ? App.userName(C.repId) + " (seller)" : "No incentive"]); rows.push(["PT line sales rep", App.userName(ptTrainer()) + " (allotted trainer)"]); }
     if (mo.disc) rows.push(["Discount reason", reasonText()]);
     adjusts().forEach(function (a) { rows.push(["Paid " + App.Trial.label(a.type) + " trial adjusted", "− " + App.fmtMoney(a.amount) + " · " + a.t.package + (a.locked ? " · start = trial start (set by system)" : " · start = today")]); });
+    if (C.renew && C.sellBranch !== p.homeBranchId)
+      rows.push(["Home branch", App.branchName(p.homeBranchId) + " → " + App.branchName(C.sellBranch) + " on " + App.fmtIsoDate(C.start) + " (with the owner)"]);
     if (C.renew) {
       rows.push([CORP, "Stay the same · FF ID: " + App.empty(p.ffId, "Not set yet") + " · Key fob: " + App.empty(p.keyFob, "Not set yet")]);
-      if (p.ownerUserId !== App.me().id) rows.push(["Owner", App.me().name + " (you, the seller) · was " + (p.ownerUserId ? App.userName(p.ownerUserId) : "Unassigned")]);
+      if (p.ownerUserId !== App.me().id) rows.push(["Owner", App.me().name + " (you, the seller)" + (C.sellBranch !== p.homeBranchId && C.start > isoDay(new Date()) ? " from " + App.fmtIsoDate(C.start) : "") + " · was " + (p.ownerUserId ? App.userName(p.ownerUserId) : "Unassigned")]);
     } else rows.push([CORP, "FF ID: " + C.ffId.trim() + " · Key fob: " + (C.fob ? C.fob + (C.fobFree ? " (free)" : "") : "Pending")]);
     if (!C.renew && !p.ownerUserId) rows.push(["Owner", App.me().name + " (you, lead was unassigned)"]);
     var open = C.renew ? 0 : App.Followup.openFollowUps(p.id).length;
@@ -806,16 +808,20 @@
     var receiptNo = App.nextReceiptNo(p.branchId, true);
     var rows = C.pay.rows.map(function (r) { var a = Math.round(Number(r.amount) * 100) / 100; return Object.assign(App.PayRef.save(r, receiptNo, p, a), { amount: a, slip: r.slip || null }); });
     var nm = { packageId: k.id, package: k.name, saleType: k.saleType, start: startIso, end: endIso, price: mo.mem, discount: mo.memDisc, discountReason: mo.memDisc ? why : null,
-      finalPrice: mo.memFinal, salesRepUserId: me.id, renewalOf: p.membership.packageId, renewedAt: now,
+      finalPrice: mo.memFinal, salesRepUserId: me.id, renewalOf: p.membership.packageId, renewedAt: now, branchId: C.sellBranch, soldByUserId: me.id,
       freeItems: freeLines(p, k).map(function (f) { return { itemId: f.itemId, name: f.name, qty: f.qty, status: f.status }; }),
       items: C.extras.map(function (x) { var l = extraLine(x); return { itemId: x.itemId, name: l.it.name, qty: x.qty, price: l.amount, free: x.free, reason: x.free ? x.why.trim() : null }; }),
       payment: { total: T.total, paid: T.paid, dueDate: T.balance ? C.payDue : null, receipts: [{ no: receiptNo, at: now, by: me.id, rows: rows }] } };
     nm.freeItems.forEach(function (f) { if (f.status !== "Issued") return; takeStock(f.itemId, f.qty, "Free with " + k.name + " · " + p.name); p.freeItemsReceived = (p.freeItemsReceived || []).concat(f.itemId); });
     nm.items.forEach(function (x) { takeStock(x.itemId, x.qty, (x.free ? "Complimentary (" + x.reason + ")" : "Sold") + " · " + p.name); });
+    // Home branch (#132) = the branch of the RUNNING membership. Sold at another branch: home branch + owner move on its start day.
+    var moves = C.sellBranch !== p.homeBranchId;
     if (advance) p.nextMembership = nm;
     else { p.pastMemberships = (p.pastMemberships || []).concat([p.membership]); p.membership = nm; }
-    // Renewal changes the client owner to the seller (lifecycle: owner = who renews them).
-    if (p.ownerUserId !== me.id) {
+    if (moves && advance) { nm.moveOwnerTo = me.id; App.Event.log(p.id, { type: "HomeBranchPlanned", from: p.homeBranchId, to: C.sellBranch, text: "Home branch moves to " + App.branchName(C.sellBranch) + " on " + App.fmtIsoDate(C.start) + " (new membership starts) · owner " + App.firstName(me) }); }
+    else if (moves) App.moveHome(p, C.sellBranch, me.id, "Renewal at " + App.branchName(C.sellBranch));
+    // Renewal changes the client owner to the seller (lifecycle: owner = who renews them). Another branch: on the start day.
+    if (!(moves && advance) && p.ownerUserId !== me.id) {
       var old = p.ownerUserId; p.ownerHistory = (p.ownerHistory || []).concat([{ from: old, to: me.id, at: now, by: me.id, reason: "Renewal" }]); p.ownerUserId = me.id;
       App.Event.log(p.id, { type: "OwnerChanged", from: old, to: me.id, reason: "Renewal", text: "Owner changed to " + App.firstName(me) + " · renewal" + (old ? " (was " + App.firstName(App.byId(D.users, old)) + ")" : "") });
     }
